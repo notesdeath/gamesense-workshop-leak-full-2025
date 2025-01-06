@@ -1,3 +1,4 @@
+-- Useless since this feature has been removed by eso long time ago
 ﻿local var_0_0 = require("gamesense/uix")
 local var_0_1 = client
 local var_0_2 = entity
@@ -12,8 +13,8 @@ local var_0_10 = var_0_3.set
 local var_0_11 = var_0_3.get
 local var_0_12 = var_0_3.reference
 local var_0_13 = var_0_3.new_checkbox
-local var_0_14
-local var_0_15
+--local var_0_14
+--local var_0_15
 
 local function var_0_16(arg_1_0)
 	local var_1_0 = var_0_4(arg_1_0.attacker)
@@ -24,8 +25,8 @@ local function var_0_16(arg_1_0)
 end
 
 ;(function()
-	var_0_14 = var_0_0.new_checkbox("AA", "Anti-aimbot angles", "Randomize fake yaw limit")
-	var_0_15 = var_0_12("AA", "Anti-aimbot angles", "Fake yaw limit")
+	--var_0_14 = var_0_0.new_checkbox("AA", "Anti-aimbot angles", "Randomize fake yaw limit")
+	--var_0_15 = var_0_12("AA", "Anti-aimbot angles", "Fake yaw limit")
 
 	var_0_14:on("player_hurt", var_0_16)
 end)()
