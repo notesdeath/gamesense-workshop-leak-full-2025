@@ -9,7 +9,7 @@ local var_0_7 = ui.new_slider("RAGE", "Other", "Trace add distance", 5, 50, 20, 
 local var_0_8 = ui.reference("PLAYERS", "Players", "Player list")
 local var_0_9 = ui.reference("PLAYERS", "Players", "Reset all")
 local var_0_10 = ui.new_checkbox("PLAYERS", "Adjustments", "Ignore force baim calculations")
-local var_0_11, var_0_12 = ui.reference("Rage", "Other", "Double tap")
+local var_0_11, var_0_12 = ui.reference("Rage", "Aimbot", "Double tap")
 local var_0_13 = false
 local var_0_14 = {
 	2,
