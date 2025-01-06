@@ -1,6 +1,6 @@
 # Gamesense Workshop for CS:GO
 
-![Gamesense Logo](https://upload.wikimedia.org/wikipedia/commons/a/a8/Example_image.png) <!-- Replace with the actual link to a Gamesense logo if you have one -->
+![Gamesense Logo](https://repository-images.githubusercontent.com/200245646/6d737000-b54a-11e9-9ec5-275df88460f3) <!-- Replace with the actual link to a Gamesense logo if you have one -->
 
 ### Fully Deobfuscated Workshop of Gamesense for CS:GO
 
