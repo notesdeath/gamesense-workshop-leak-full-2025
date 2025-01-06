@@ -1,329 +1,331 @@
-﻿local var_0_0 = assert
-local var_0_1 = bit.band
-local var_0_2 = globals.curtime
-local var_0_3 = globals.tickcount
-local var_0_4 = globals.tickinterval
-local var_0_5 = math.abs
-local var_0_6 = math.floor
-local var_0_7 = math.fmod
-local var_0_8 = math.max
-local var_0_9 = math.min
-local var_0_10 = math.pow
-local var_0_11 = table.remove
-local var_0_12 = unpack
-local var_0_13 = setmetatable
-local var_0_14 = type
-local var_0_15 = require("ffi")
-local var_0_16 = require("vector")
-local var_0_17 = require("gamesense/entity")
-local var_0_18 = client.find_signature("engine.dll", "\xFF\xE2")
+-- local variables for API functions. any changes to the line below will be lost on re-generation
+local assert, bit_band, globals_curtime, globals_tickcount, globals_tickinterval, math_abs, math_floor, math_fmod, math_max, math_min, math_pow, table_remove, unpack, setmetatable = assert, bit.band, globals.curtime, globals.tickcount, globals.tickinterval, math.abs, math.floor, math.fmod, math.max, math.min, math.pow, table.remove, unpack, setmetatable
 
-local function var_0_19(arg_1_0, arg_1_1)
-	local var_1_0 = var_0_15.typeof(arg_1_1)
+local type = type
 
-	return function(arg_2_0, ...)
-		var_0_0(arg_2_0 ~= nil)
+local ffi = require 'ffi'
+local vector = require 'vector'
+local entity = require 'gamesense/entity'
 
-		if arg_2_0 then
-			return var_0_15.cast(var_1_0, var_0_18)(arg_2_0, var_0_15.cast("void***", arg_2_0)[0][arg_1_0], ...)
+local jmp_edx = client.find_signature('engine.dll', '\xFF\xE2')
+
+local function vmt_thunk(index, typestring)
+	local t = ffi.typeof(typestring)
+	return function(instance, ...)
+		assert(instance ~= nil)
+		if instance then
+			return ffi.cast(t, jmp_edx)(instance, ffi.cast('void***', instance)[0][index], ...)
 		end
 	end
 end
 
-local var_0_20 = vtable_thunk(442, "float(__thiscall*)(void*)")
+local native_GetMaxSpeed = vtable_thunk(441, 'float(__thiscall*)(void*)')
 
-local function var_0_21(arg_3_0, arg_3_1, arg_3_2)
-	return var_0_8(arg_3_1, var_0_9(arg_3_2, arg_3_0))
+local function clamp(val, min_val, max_val)
+	return math_max(min_val, math_min(max_val, val))
 end
 
-local function var_0_22(arg_4_0)
-	return 0.0054931640625 * var_0_1(var_0_6(arg_4_0 * 182.04444444444445), 65535)
+local function anglemod(a)
+	return (360 / 65536) * bit_band(math_floor(a * (65536 / 360)), 65535)
 end
 
-local function var_0_23(arg_5_0, arg_5_1, arg_5_2)
-	arg_5_0 = var_0_22(arg_5_0)
-	arg_5_1 = var_0_22(arg_5_1)
+local function approach_angle(target, value, speed)
+	target = anglemod(target)
+	value = anglemod(value)
 
-	local var_5_0 = arg_5_0 - arg_5_1
+	local delta = target - value
 
-	if arg_5_2 < 0 then
-		arg_5_2 = -arg_5_2
+	if speed < 0 then
+		speed = -speed
 	end
 
-	if var_5_0 < -180 then
-		var_5_0 = var_5_0 + 360
-	elseif var_5_0 > 180 then
-		var_5_0 = var_5_0 - 360
+	if delta < -180 then
+		delta = delta + 360
+	elseif delta > 180 then
+		delta = delta - 360
 	end
 
-	if arg_5_2 < var_5_0 then
-		arg_5_1 = arg_5_1 + arg_5_2
-	elseif var_5_0 < -arg_5_2 then
-		arg_5_1 = arg_5_1 - arg_5_2
+	if delta > speed then
+		value = value + speed
+	elseif delta < -speed then
+		value = value - speed
 	else
-		arg_5_1 = arg_5_0
+		value = target
 	end
 
-	return arg_5_1
+	return value
 end
 
-local function var_0_24(arg_6_0)
-	while arg_6_0 > 180 do
-		arg_6_0 = arg_6_0 - 360
-	end
-
-	while arg_6_0 < -180 do
-		arg_6_0 = arg_6_0 + 360
-	end
-
-	return arg_6_0
+local function normalize_angle(angle)
+	while angle > 180 do angle = angle - 360 end
+	while angle < -180 do angle = angle + 360 end
+	return angle
 end
 
-local function var_0_25(arg_7_0, arg_7_1)
-	local var_7_0 = var_0_7(arg_7_0 - arg_7_1, 360)
-
-	if arg_7_1 < arg_7_0 then
-		if var_7_0 >= 180 then
-			var_7_0 = var_7_0 - 360
+local function angle_diff(dest_angle, src_angle)
+	local delta = math_fmod(dest_angle - src_angle, 360)
+	if dest_angle > src_angle then
+		if delta >= 180 then
+			delta = delta - 360
 		end
-	elseif var_7_0 <= -180 then
-		var_7_0 = var_7_0 + 360
+	else
+		if delta <= -180 then
+			delta = delta + 360
+		end
 	end
-
-	return var_7_0
+	return delta
 end
 
-local function var_0_26(arg_8_0, arg_8_1, arg_8_2)
-	local var_8_0 = arg_8_1 - arg_8_2
-	local var_8_1 = var_8_0:length()
+local function get_smoothed_velocity(min_delta, a, b)
+	local delta = a - b
+	local delta_length = delta:length()
 
-	if var_8_1 <= arg_8_0 then
-		if var_8_1 >= -arg_8_0 then
-			return arg_8_1
+	if delta_length <= min_delta then
+		if -min_delta <= delta_length then
+			return a
 		else
-			return arg_8_2 - var_8_0 * (1 / (var_8_1 + 1.1920929e-07)) * arg_8_0
+			local radius = 1 / (delta_length + 1.19209290E-07)
+			return b - ((delta * radius) * min_delta)
 		end
 	else
-		return arg_8_2 + var_8_0 * (1 / (var_8_1 + 1.1920929e-07)) * arg_8_0
+		local radius = 1 / (delta_length + 1.19209290E-07)
+		return b + ((delta * radius) * min_delta)
 	end
 end
 
-local var_0_27 = var_0_19(145, "void(__fastcall*)(void*, void*, float*)")
-local var_0_28 = {
-	desync = 0,
-	desync_exact = 0,
-	server_feet_yaw = 0,
-	feet_yaw = 0,
+local estimate_abs_velocity = vmt_thunk(144, 'void(__fastcall*)(void*, void*, float*)')
+
+local data = {
 	abs_yaw = 0,
-	tickbase = {
-		phase_tickbase = 0,
-		last_tickbase = 0,
+	feet_yaw = 0,
+	server_feet_yaw = 0,
+	desync_exact = 0,
+	desync = 0,
+
+	tickbase = { 
 		shifting = 0,
+
+		last_tickbase = 0,
+		phase_tickbase = 0,
+
 		list = (function()
-			local var_9_0 = {}
-			local var_9_1 = 16
-
-			for iter_9_0 = 1, var_9_1 do
-				var_9_0[#var_9_0 + 1] = 0
-
-				if iter_9_0 == var_9_1 then
-					return var_9_0
+			-- dont mind me, i was having a stroke
+			local index, max = { }, 16
+			for i=1, max do
+				index[#index+1] = 0
+				if i == max then
+					return index
 				end
 			end
 		end)()
 	},
+
 	balance_adjust = {
-		next_update = 0,
-		updating = false
+		updating = false,
+		next_update = 0
 	}
 }
-local var_0_29 = var_0_15.new("float[3]")
-local var_0_30 = var_0_28
-local var_0_31 = 0
-local var_0_32 = 0
-local var_0_33 = 0
-local var_0_34
-local var_0_35
-local var_0_36 = var_0_15.typeof("void***")
 
-local function var_0_37(arg_10_0)
-	local var_10_0 = var_0_2()
-	local var_10_1 = var_0_4()
-	local var_10_2 = var_0_17.get_local_player()
+local abs_vel, original_data = ffi.new('float[3]'), data
+local stop_to_full_running_fraction, duck_amount, speed = 0, 0, 0
+local eye_angles_y, srv_goal_feet_yaw
+local class_ptr = ffi.typeof('void***')
 
-	if var_10_2 == nil then
+local function setup_velocity(c)
+	local curtime = globals_curtime()
+	local tickinterval = globals_tickinterval()
+
+	local local_player = entity.get_local_player()
+
+	if local_player == nil then
 		return
 	end
 
-	local var_10_3 = var_10_2:get_anim_state()
+	local anim_state = local_player:get_anim_state()
 
-	if var_10_3.anim_update_timer <= 0 then
-		var_0_31, var_0_32, var_0_33 = 0, 0, 0
-		var_0_34, var_0_35 = nil
-		var_0_28 = var_0_30
-
+	if anim_state.anim_update_timer <= 0.0 then
+		stop_to_full_running_fraction, duck_amount, speed = 0, 0, 0
+		eye_angles_y, srv_goal_feet_yaw = nil, nil
+		data = original_data
 		return
 	end
 
-	if var_0_34 == nil or var_0_35 == nil then
-		var_0_34 = var_10_3.eye_angles_y
-		var_0_35 = var_10_3.goal_feet_yaw
+	if eye_angles_y == nil or srv_goal_feet_yaw == nil then
+		eye_angles_y = anim_state.eye_angles_y
+		srv_goal_feet_yaw = anim_state.goal_feet_yaw
 	end
 
-	if arg_10_0.chokedcommands == 0 then
-		var_0_31 = var_10_3.stop_to_full_running_fraction
-		var_0_32 = var_10_3.duck_amount
-		var_0_34 = var_10_3.eye_angles_y
+	if c.chokedcommands == 0 then
+		stop_to_full_running_fraction = anim_state.stop_to_full_running_fraction
+		duck_amount = anim_state.duck_amount
+		eye_angles_y = anim_state.eye_angles_y
 
-		var_0_27(var_10_2, var_0_29)
+		estimate_abs_velocity(local_player:get_client_entity(), abs_vel)
 
-		local var_10_4 = var_0_16(var_0_29[0], var_0_29[1], var_0_29[2])
-		local var_10_5 = var_0_16(var_10_2:get_prop("m_vecVelocity"))
+		local velocity_a = vector(abs_vel[0], abs_vel[1], abs_vel[2])
+		local velocity_b = vector(local_player:get_prop('m_vecVelocity'))
 
-		if var_10_4:lengthsqr() > var_0_10(312, 2) then
-			var_10_4 = var_10_4:normalized() * 312
+		local spd = velocity_a:lengthsqr()
+
+		if spd > math_pow(1.2 * 260, 2) then
+			local velocity_normalized = velocity_a:normalized()
+			velocity_a = velocity_normalized * (1.2 * 260)
 		end
 
-		var_10_4.z = 0
+		velocity_a.z = 0
+		velocity_b = get_smoothed_velocity(tickinterval * 2000, velocity_a, velocity_b)
 
-		local var_10_6 = var_0_26(var_10_1 * 2000, var_10_4, var_10_5)
-
-		var_0_33 = var_0_9(var_10_6:length(), 260)
+		speed = math_min(velocity_b:length(), 260)
 	end
 
-	local var_10_7 = var_10_2:get_anim_overlay(3)
-	local var_10_8 = var_10_2:get_player_weapon()
-	local var_10_9 = var_10_8 and var_0_8(var_0_20(var_0_15.cast(var_0_36, var_10_8)), 0.001) or 260
-	local var_10_10 = var_0_21(var_0_33 / (var_10_9 * 0.52), 0, 1)
-	local var_10_11 = (var_0_31 * -0.3 - 0.2) * var_10_10 + 1
+	local lower_body = local_player:get_anim_overlay(3)
 
-	if var_0_32 > 0 then
-		local var_10_12 = var_0_21(var_0_33 / (var_10_9 * 0.34), 0, 1)
+	local weapon = local_player:get_player_weapon()
+	local max_movement_speed = weapon and math_max(native_GetMaxSpeed(ffi.cast(class_ptr, weapon:get_client_entity())), 0.001) or 260
 
-		var_10_11 = var_10_11 + var_0_32 * var_10_12 * (0.5 - var_10_11)
+	local running_speed = clamp(speed / (max_movement_speed * 0.520), 0, 1)
+	local yaw_modifier = (((stop_to_full_running_fraction * -0.3) - 0.2) * running_speed) + 1
+
+	if duck_amount > 0 then
+		local ducking_speed = clamp(speed / (max_movement_speed * 0.340), 0, 1)
+		yaw_modifier = yaw_modifier + ((duck_amount * ducking_speed) * (0.5 - yaw_modifier))
 	end
 
-	var_0_35 = var_0_21(var_0_35, -360, 360)
+	srv_goal_feet_yaw = clamp(srv_goal_feet_yaw, -360, 360)
 
-	local var_10_13 = var_0_25(var_0_34, var_0_35)
-	local var_10_14 = var_10_11 * 58
-	local var_10_15 = var_10_11 * -58
+	local eye_feet_delta = angle_diff(eye_angles_y, srv_goal_feet_yaw)
+	local max_yaw_modifier, min_yaw_modifier = 
+		yaw_modifier * 58,
+		yaw_modifier * -58
 
-	if var_10_13 <= var_10_14 then
-		if var_10_13 < var_10_15 then
-			var_0_35 = var_0_5(var_10_15) + var_0_34
+	if eye_feet_delta <= max_yaw_modifier then
+		if min_yaw_modifier > eye_feet_delta then
+			srv_goal_feet_yaw = math_abs(min_yaw_modifier) + eye_angles_y
 		end
 	else
-		var_0_35 = var_0_34 - var_0_5(var_10_14)
+		srv_goal_feet_yaw = eye_angles_y - math_abs(max_yaw_modifier)
 	end
 
-	if var_0_33 > 0.1 then
-		var_0_35 = var_0_23(var_0_34, var_0_24(var_0_35), (var_0_31 * 20 + 30) * var_10_1)
+	if speed > 0.1 then
+		srv_goal_feet_yaw = approach_angle(
+			eye_angles_y,
+			normalize_angle(srv_goal_feet_yaw),
+			((stop_to_full_running_fraction * 20) + 30) * tickinterval
+		)
 	else
-		var_0_35 = var_0_23(var_10_2:get_prop("m_flLowerBodyYawTarget"), var_0_24(var_0_35), var_10_1 * 100)
+		srv_goal_feet_yaw = approach_angle(
+			local_player:get_prop('m_flLowerBodyYawTarget'),
+			normalize_angle(srv_goal_feet_yaw), 
+			tickinterval * 100
+		)
 	end
 
-	if not var_0_28.balance_adjust.updating then
-		var_0_28.balance_adjust.next_update = var_10_0 + 0.22
-	elseif var_10_2:get_sequence_activity(var_10_7.sequence) == 979 and var_10_0 > var_0_28.balance_adjust.next_update and var_10_7.weight > 0 then
-		var_0_28.balance_adjust.next_update = var_10_0 + 1.1
-	end
-
-	if arg_10_0.chokedcommands == 0 then
-		local var_10_16 = var_0_5(var_0_25(var_10_3.eye_angles_y, var_10_3.goal_feet_yaw))
-
-		var_0_28.balance_adjust.updating = var_10_3.on_ground and var_10_3.m_velocity < 0.1 and var_10_3.anim_update_timer > 0
-		var_0_28.abs_yaw = var_10_3.eye_angles_y
-		var_0_28.feet_yaw = var_10_3.goal_feet_yaw
-		var_0_28.server_feet_yaw = var_0_35
-		var_0_28.desync_exact = var_0_25(var_0_35, var_10_3.goal_feet_yaw)
-		var_0_28.desync = var_0_21(var_0_28.desync_exact, -var_10_16, var_10_16)
-	end
-end
-
-local function var_0_38()
-	local var_11_0 = var_0_17.get_local_player()
-
-	if var_11_0 == nil or not var_11_0:is_alive() then
-		return
-	end
-
-	local var_11_1 = var_11_0:get_prop("m_flSimulationTime")
-
-	if var_11_1 == nil then
-		return
-	end
-
-	local var_11_2 = var_0_3()
-	local var_11_3 = var_0_8(var_0_12(var_0_28.tickbase.list))
-	local var_11_4 = var_11_3 < 0 and var_0_5(var_11_3) or 0
-
-	if var_11_4 <= 0 then
-		var_0_28.tickbase.shifting = 0
-		var_0_28.tickbase.last_tickbase = 0
-		var_0_28.tickbase.phase_tickbase = 0
-	else
-		if var_0_28.tickbase.phase_tickbase == 0 or var_11_4 > var_0_28.tickbase.shifting then
-			var_0_28.tickbase.shifting = var_11_4
+	if not data.balance_adjust.updating then
+		data.balance_adjust.next_update = curtime + 0.22
+	elseif local_player:get_sequence_activity(lower_body.sequence) == 979 then
+		if data.balance_adjust.next_update < curtime and lower_body.weight > 0.000 then
+			data.balance_adjust.next_update = curtime + 1.1
 		end
-
-		if var_11_4 < var_0_28.tickbase.last_tickbase then
-			var_0_28.tickbase.shifting = var_0_28.tickbase.last_tickbase
-			var_0_28.tickbase.phase_tickbase = 1
-		end
-
-		var_0_28.tickbase.last_tickbase = var_11_4
 	end
 
-	var_0_28.tickbase.list[#var_0_28.tickbase.list + 1] = var_11_1 / var_0_4() - var_11_2
+	if c.chokedcommands == 0 then
+		local body_lean = math_abs(angle_diff(anim_state.eye_angles_y, anim_state.goal_feet_yaw))
 
-	var_0_11(var_0_28.tickbase.list, 1)
-end
+		data.balance_adjust.updating = 
+			anim_state.on_ground and anim_state.m_velocity < 0.1 and
+			anim_state.anim_update_timer > 0.0
 
-client.set_event_callback("setup_command", var_0_37)
-client.set_event_callback("net_update_start", var_0_38)
+		data.abs_yaw = anim_state.eye_angles_y
+		data.feet_yaw = anim_state.goal_feet_yaw
+		data.server_feet_yaw = srv_goal_feet_yaw
 
-local var_0_39 = {}
-
-local function var_0_40(arg_12_0, ...)
-	local var_12_0 = {}
-	local var_12_1 = {
-		...
-	}
-
-	for iter_12_0 = 1, #var_12_1 do
-		var_12_0[#var_12_0 + 1] = var_12_1[iter_12_0]
+		data.desync_exact = angle_diff(srv_goal_feet_yaw, anim_state.goal_feet_yaw)
+		data.desync = clamp(data.desync_exact, -body_lean, body_lean)
 	end
-
-	if var_12_0[arg_12_0] == nil then
-		return var_0_12(var_12_1)
-	end
-
-	return var_12_0[arg_12_0]
 end
 
-local function var_0_41(arg_13_0)
-	return var_0_2() - arg_13_0 * var_0_4()
-end
+local function net_update()
+	local local_player = entity.get_local_player()
 
-local function var_0_42()
-	local var_14_0 = var_0_17.get_local_player()
-
-	if var_14_0 == nil or not var_14_0:is_alive() then
+	if local_player == nil or not local_player:is_alive() then
 		return
 	end
 
-	local var_14_1 = var_14_0:get_player_weapon()
+	local sim_time = local_player:get_prop('m_flSimulationTime')
 
-	if var_14_1 == nil then
+	if sim_time == nil then
+		return
+	end
+
+	local tick_count = globals_tickcount()
+	local max_tbs_value = math_max(unpack(data.tickbase.list))
+	local shifting = max_tbs_value < 0 and math_abs(max_tbs_value) or 0
+	
+    if shifting <= 0 then
+		data.tickbase.shifting = 0
+        data.tickbase.last_tickbase = 0
+        data.tickbase.phase_tickbase = 0
+    else
+        if data.tickbase.phase_tickbase == 0 or data.tickbase.shifting < shifting then
+            data.tickbase.shifting = shifting
+        end
+
+        if data.tickbase.last_tickbase > shifting then
+            data.tickbase.shifting = data.tickbase.last_tickbase
+            data.tickbase.phase_tickbase = 1
+        end
+
+        data.tickbase.last_tickbase = shifting
+    end
+
+	data.tickbase.list[#data.tickbase.list+1] = 
+		sim_time/globals_tickinterval() - tick_count
+
+	table_remove(data.tickbase.list, 1)
+end
+
+client.set_event_callback('setup_command', setup_velocity)
+client.set_event_callback('net_update_start', net_update)
+
+local this = { }
+
+local ret_thing = function(n, ...)
+	local type = { }
+	local _arr = { ... }
+
+	for i=1, #_arr do
+		type[#type+1] = _arr[i]
+	end
+
+	if type[n] == nil then
+		return unpack(_arr)
+	end
+
+	return type[n]
+end
+
+local get_curtime = function(nOffset)
+	return globals_curtime() - (nOffset * globals_tickinterval())
+end
+
+local weapon_ready = function()
+	local target = entity.get_local_player()
+
+	if target == nil or not target:is_alive() then
+		return
+	end
+
+	local weapon = target:get_player_weapon()
+
+	if weapon == nil then
 		return false
 	end
 
-	if var_0_41(16) < var_14_0:get_prop("m_flNextAttack") then
+	if get_curtime(16) < target:get_prop('m_flNextAttack') then 
 		return false
 	end
 
-	if var_0_41(0) < var_14_1:get_prop("m_flNextPrimaryAttack") then
+	if get_curtime(0) < weapon:get_prop('m_flNextPrimaryAttack') then
 		return false
 	end
 
@@ -331,48 +333,38 @@ local function var_0_42()
 end
 
 return {
-	approach_angle = function(arg_15_0, arg_15_1, arg_15_2)
-		return var_0_23(arg_15_0, arg_15_1, arg_15_2)
-	end,
-	angle_diff = function(arg_16_0, arg_16_1)
-		return var_0_25(arg_16_0, arg_16_1)
-	end,
-	normalize_angle = function(arg_17_0)
-		return var_0_24(arg_17_0)
-	end,
-	get_abs_yaw = function()
-		return var_0_28.abs_yaw
-	end,
-	get_balance_adjust = function()
-		return var_0_28.balance_adjust
-	end,
-	get_body_yaw = function(arg_20_0)
-		return var_0_40(arg_20_0, var_0_28.feet_yaw, var_0_28.server_feet_yaw)
-	end,
-	get_desync = function(arg_21_0)
-		return var_0_40(arg_21_0, var_0_28.desync, var_0_28.desync_exact)
-	end,
-	get_tickbase_shifting = function()
-		return var_0_28.tickbase.shifting
-	end,
-	get_double_tap = function()
-		return var_0_42() and var_0_28.tickbase.shifting > 0
-	end,
-	get_overlap = function(arg_24_0)
-		local var_24_0 = var_0_28.feet_yaw
-		local var_24_1 = var_0_28.server_feet_yaw
-		local var_24_2 = var_0_25(var_0_28.abs_yaw, var_0_28.feet_yaw)
+	approach_angle = function(target, value, speed) return approach_angle(target, value, speed) end,
+	angle_diff = function(dest_angle, src_angle) return angle_diff(dest_angle, src_angle) end,
+	normalize_angle = function(angle) return normalize_angle(angle) end,
 
-		if var_0_14(arg_24_0) == "number" then
-			local var_24_3 = var_0_5(var_24_2)
+	get_abs_yaw = function() return data.abs_yaw end,
+	get_balance_adjust = function() return data.balance_adjust end,
+	get_body_yaw = function(n) return ret_thing(n, data.feet_yaw, data.server_feet_yaw) end,
+	get_desync = function(n) return ret_thing(n, data.desync, data.desync_exact) end,
+	get_tickbase_shifting = function() return data.tickbase.shifting end,
+	get_double_tap = function() return weapon_ready() and data.tickbase.shifting > 0 end,
 
-			var_24_0 = var_0_21(arg_24_0, var_0_28.abs_yaw - var_24_3, var_0_28.abs_yaw + var_24_3)
+	get_overlap = function(rotation)
+		local client, server, lean =
+			data.feet_yaw,
+			data.server_feet_yaw,
+			angle_diff(data.abs_yaw, data.feet_yaw)
+	
+		if type(rotation) == 'number' then
+			local cLean = math_abs(lean)
+	
+			client = clamp(
+				rotation, 
+				data.abs_yaw-cLean, data.abs_yaw+cLean
+			)
 		end
-
-		if arg_24_0 == true then
-			var_24_0 = var_0_28.abs_yaw + var_24_2
+	
+		if rotation == true then
+			client = data.abs_yaw + lean
 		end
-
-		return 1 - var_0_5(var_0_25(var_24_0, var_24_1)) / 120 * 1, var_24_0
+	
+		local adiff = math_abs(angle_diff(client, server))
+	
+		return 1 - (adiff / 120 * 1), client
 	end
 }
