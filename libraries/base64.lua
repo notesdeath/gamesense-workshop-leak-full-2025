@@ -1,154 +1,125 @@
-﻿local var_0_0 = require("bit")
-local var_0_1 = {}
-local var_0_2 = var_0_0.lshift
-local var_0_3 = var_0_0.rshift
-local var_0_4 = var_0_0.band
-local var_0_5 = string.char
-local var_0_6 = string.byte
-local var_0_7 = string.gsub
-local var_0_8 = string.sub
-local var_0_9 = string.format
-local var_0_10 = table.concat
-local var_0_11 = tostring
-local var_0_12 = error
-local var_0_13 = pairs
+local bit = require "bit"
+local M = {}
 
-local function var_0_14(arg_1_0, arg_1_1, arg_1_2)
-	return var_0_4(var_0_3(arg_1_0, arg_1_1), var_0_2(1, arg_1_2) - 1)
+local shl, shr, band = bit.lshift, bit.rshift, bit.band
+local char, byte, gsub, sub, format, concat, tostring, error, pairs = string.char, string.byte, string.gsub, string.sub, string.format, table.concat, tostring, error, pairs
+
+local extract = function(v, from, width)
+	return band(shr(v, from), shl(1, width) - 1)
 end
 
-local function var_0_15(arg_2_0)
-	local var_2_0 = {}
-	local var_2_1 = {}
-
-	for iter_2_0 = 1, 65 do
-		local var_2_2 = var_0_6(var_0_8(arg_2_0, iter_2_0, iter_2_0)) or 32
-
-		if var_2_1[var_2_2] ~= nil then
-			var_0_12("invalid alphabet: duplicate character " .. var_0_11(var_2_2), 3)
+local function makeencoder(alphabet)
+	local encoder, decoder = {}, {}
+	for i=1, 65 do
+		local chr = byte(sub(alphabet, i, i)) or 32 -- or " "
+		if decoder[chr] ~= nil then
+			error("invalid alphabet: duplicate character " .. tostring(chr), 3)
 		end
-
-		var_2_0[iter_2_0 - 1] = var_2_2
-		var_2_1[var_2_2] = iter_2_0 - 1
+		encoder[i-1] = chr
+		decoder[chr] = i-1
 	end
-
-	return var_2_0, var_2_1
+	return encoder, decoder
 end
 
-local var_0_16 = {}
-local var_0_17 = {}
+local encoders, decoders = {}, {}
 
-var_0_16.base64, var_0_17.base64 = var_0_15("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=")
-var_0_16.base64url, var_0_17.base64url = var_0_15("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_")
+encoders["base64"], decoders["base64"] = makeencoder("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=")
+encoders["base64url"], decoders["base64url"] = makeencoder("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_")
 
-local var_0_18 = {
-	__index = function(arg_3_0, arg_3_1)
-		if type(arg_3_1) == "string" and arg_3_1:len() == 64 or arg_3_1:len() == 65 then
-			var_0_16[arg_3_1], var_0_17[arg_3_1] = var_0_15(arg_3_1)
-
-			return arg_3_0[arg_3_1]
+local alphabet_mt = {
+	__index = function(tbl, key)
+		if type(key) == "string" and key:len() == 64 or key:len() == 65 then
+			-- if key is a valid looking base64 alphabet, try to make an encoder/decoder pair from it
+			encoders[key], decoders[key] = makeencoder(key)
+			return tbl[key]
 		end
 	end
 }
 
-setmetatable(var_0_16, var_0_18)
-setmetatable(var_0_17, var_0_18)
+setmetatable(encoders, alphabet_mt)
+setmetatable(decoders, alphabet_mt)
 
-function var_0_1.encode(arg_4_0, arg_4_1)
-	arg_4_1 = var_0_16[arg_4_1 or "base64"] or var_0_12("invalid alphabet specified", 2)
-	arg_4_0 = var_0_11(arg_4_0)
+function M.encode(str, encoder)
+	encoder = encoders[encoder or "base64"] or error("invalid alphabet specified", 2)
 
-	local var_4_0 = {}
-	local var_4_1 = 1
-	local var_4_2 = #arg_4_0
-	local var_4_3 = var_4_2 % 3
-	local var_4_4 = {}
+	str = tostring(str)
 
-	for iter_4_0 = 1, var_4_2 - var_4_3, 3 do
-		local var_4_5, var_4_6, var_4_7 = var_0_6(arg_4_0, iter_4_0, iter_4_0 + 2)
-		local var_4_8 = var_4_5 * 65536 + var_4_6 * 256 + var_4_7
-		local var_4_9 = var_4_4[var_4_8]
+	local t, k, n = {}, 1, #str
+	local lastn = n % 3
+	local cache = {}
 
-		if not var_4_9 then
-			var_4_9 = var_0_5(arg_4_1[var_0_14(var_4_8, 18, 6)], arg_4_1[var_0_14(var_4_8, 12, 6)], arg_4_1[var_0_14(var_4_8, 6, 6)], arg_4_1[var_0_14(var_4_8, 0, 6)])
-			var_4_4[var_4_8] = var_4_9
+	for i = 1, n-lastn, 3 do
+		local a, b, c = byte(str, i, i+2)
+		local v = a*0x10000 + b*0x100 + c
+		local s = cache[v]
+
+		if not s then
+			s = char(encoder[extract(v,18,6)], encoder[extract(v,12,6)], encoder[extract(v,6,6)], encoder[extract(v,0,6)])
+			cache[v] = s
 		end
 
-		var_4_0[var_4_1] = var_4_9
-		var_4_1 = var_4_1 + 1
+		t[k] = s
+		k = k + 1
 	end
 
-	if var_4_3 == 2 then
-		local var_4_10, var_4_11 = var_0_6(arg_4_0, var_4_2 - 1, var_4_2)
-		local var_4_12 = var_4_10 * 65536 + var_4_11 * 256
-
-		var_4_0[var_4_1] = var_0_5(arg_4_1[var_0_14(var_4_12, 18, 6)], arg_4_1[var_0_14(var_4_12, 12, 6)], arg_4_1[var_0_14(var_4_12, 6, 6)], arg_4_1[64])
-	elseif var_4_3 == 1 then
-		local var_4_13 = var_0_6(arg_4_0, var_4_2) * 65536
-
-		var_4_0[var_4_1] = var_0_5(arg_4_1[var_0_14(var_4_13, 18, 6)], arg_4_1[var_0_14(var_4_13, 12, 6)], arg_4_1[64], arg_4_1[64])
+	if lastn == 2 then
+		local a, b = byte(str, n-1, n)
+		local v = a*0x10000 + b*0x100
+		t[k] = char(encoder[extract(v,18,6)], encoder[extract(v,12,6)], encoder[extract(v,6,6)], encoder[64])
+	elseif lastn == 1 then
+		local v = byte(str, n)*0x10000
+		t[k] = char(encoder[extract(v,18,6)], encoder[extract(v,12,6)], encoder[64], encoder[64])
 	end
 
-	return var_0_10(var_4_0)
+	return concat(t)
 end
 
-function var_0_1.decode(arg_5_0, arg_5_1)
-	arg_5_1 = var_0_17[arg_5_1 or "base64"] or var_0_12("invalid alphabet specified", 2)
+function M.decode(b64, decoder)
+	decoder = decoders[decoder or "base64"] or error("invalid alphabet specified", 2)
 
-	local var_5_0 = "[^%w%+%/%=]"
-
-	if arg_5_1 then
-		local var_5_1
-		local var_5_2
-
-		for iter_5_0, iter_5_1 in var_0_13(arg_5_1) do
-			if iter_5_1 == 62 then
-				var_5_1 = iter_5_0
-			elseif iter_5_1 == 63 then
-				var_5_2 = iter_5_0
+	local pattern = "[^%w%+%/%=]"
+	if decoder then
+		local s62, s63
+		for charcode, b64code in pairs(decoder) do
+			if b64code == 62 then s62 = charcode
+			elseif b64code == 63 then s63 = charcode
 			end
 		end
-
-		var_5_0 = var_0_9("[^%%w%%%s%%%s%%=]", var_0_5(var_5_1), var_0_5(var_5_2))
+		pattern = format("[^%%w%%%s%%%s%%=]", char(s62), char(s63))
 	end
 
-	arg_5_0 = var_0_7(var_0_11(arg_5_0), var_5_0, "")
+	b64 = gsub(tostring(b64), pattern, '')
 
-	local var_5_3 = {}
-	local var_5_4 = {}
-	local var_5_5 = 1
-	local var_5_6 = #arg_5_0
-	local var_5_7 = var_0_8(arg_5_0, -2) == "==" and 2 or var_0_8(arg_5_0, -1) == "=" and 1 or 0
+	local cache = {}
+	local t, k = {}, 1
+	local n = #b64
+	local padding = sub(b64, -2) == "==" and 2 or sub(b64, -1) == "=" and 1 or 0
 
-	for iter_5_2 = 1, var_5_7 > 0 and var_5_6 - 4 or var_5_6, 4 do
-		local var_5_8, var_5_9, var_5_10, var_5_11 = var_0_6(arg_5_0, iter_5_2, iter_5_2 + 3)
-		local var_5_12 = var_5_8 * 16777216 + var_5_9 * 65536 + var_5_10 * 256 + var_5_11
-		local var_5_13 = var_5_3[var_5_12]
+	for i = 1, padding > 0 and n-4 or n, 4 do
+		local a, b, c, d = byte(b64, i, i+3)
 
-		if not var_5_13 then
-			local var_5_14 = arg_5_1[var_5_8] * 262144 + arg_5_1[var_5_9] * 4096 + arg_5_1[var_5_10] * 64 + arg_5_1[var_5_11]
-
-			var_5_13 = var_0_5(var_0_14(var_5_14, 16, 8), var_0_14(var_5_14, 8, 8), var_0_14(var_5_14, 0, 8))
-			var_5_3[var_5_12] = var_5_13
+		local v0 = a*0x1000000 + b*0x10000 + c*0x100 + d
+		local s = cache[v0]
+		if not s then
+			local v = decoder[a]*0x40000 + decoder[b]*0x1000 + decoder[c]*0x40 + decoder[d]
+			s = char(extract(v,16,8), extract(v,8,8), extract(v,0,8))
+			cache[v0] = s
 		end
 
-		var_5_4[var_5_5] = var_5_13
-		var_5_5 = var_5_5 + 1
+		t[k] = s
+		k = k + 1
 	end
 
-	if var_5_7 == 1 then
-		local var_5_15, var_5_16, var_5_17 = var_0_6(arg_5_0, var_5_6 - 3, var_5_6 - 1)
-		local var_5_18 = arg_5_1[var_5_15] * 262144 + arg_5_1[var_5_16] * 4096 + arg_5_1[var_5_17] * 64
-
-		var_5_4[var_5_5] = var_0_5(var_0_14(var_5_18, 16, 8), var_0_14(var_5_18, 8, 8))
-	elseif var_5_7 == 2 then
-		local var_5_19, var_5_20 = var_0_6(arg_5_0, var_5_6 - 3, var_5_6 - 2)
-		local var_5_21 = arg_5_1[var_5_19] * 262144 + arg_5_1[var_5_20] * 4096
-
-		var_5_4[var_5_5] = var_0_5(var_0_14(var_5_21, 16, 8))
+	if padding == 1 then
+		local a, b, c = byte(b64, n-3, n-1)
+		local v = decoder[a]*0x40000 + decoder[b]*0x1000 + decoder[c]*0x40
+		t[k] = char(extract(v,16,8), extract(v,8,8))
+	elseif padding == 2 then
+		local a, b = byte(b64, n-3, n-2)
+		local v = decoder[a]*0x40000 + decoder[b]*0x1000
+		t[k] = char(extract(v,16,8))
 	end
-
-	return var_0_10(var_5_4)
+	return concat(t)
 end
 
-return var_0_1
+return M
