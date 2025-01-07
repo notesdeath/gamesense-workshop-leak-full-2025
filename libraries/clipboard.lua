@@ -1,33 +1,44 @@
-﻿local var_0_0 = require("ffi")
-local var_0_1 = string.len
-local var_0_2 = tostring
-local var_0_3 = var_0_0.string
-local var_0_4 = {}
-local var_0_5 = vtable_bind("vgui2.dll", "VGUI_System010", 7, "int(__thiscall*)(void*)")
-local var_0_6 = vtable_bind("vgui2.dll", "VGUI_System010", 9, "void(__thiscall*)(void*, const char*, int)")
-local var_0_7 = vtable_bind("vgui2.dll", "VGUI_System010", 11, "int(__thiscall*)(void*, int, const char*, int)")
-local var_0_8 = var_0_0.typeof("char[?]")
+--
+-- dependencies
+--
 
-function var_0_4.get()
-	local var_1_0 = var_0_5()
+local ffi = require "ffi"
+local string_len, tostring, ffi_string = string.len, tostring, ffi.string
 
-	if var_1_0 > 0 then
-		local var_1_1 = var_0_8(var_1_0)
+--
+-- our module
+--
 
-		var_0_7(0, var_1_1, var_1_0)
+local M = {}
 
-		return var_0_3(var_1_1, var_1_0 - 1)
+--
+-- game funcs (https://github.com/perilouswithadollarsign/cstrike15_src/blob/master/public/vgui/ISystem.h)
+--
+
+local native_GetClipboardTextCount = vtable_bind("vgui2.dll", "VGUI_System010", 7, "int(__thiscall*)(void*)")
+local native_SetClipboardText = vtable_bind("vgui2.dll", "VGUI_System010", 9, "void(__thiscall*)(void*, const char*, int)")
+local native_GetClipboardText = vtable_bind("vgui2.dll", "VGUI_System010", 11, "int(__thiscall*)(void*, int, const char*, int)")
+
+local new_char_arr = ffi.typeof("char[?]")
+
+-- returns (pastes) clipboard text
+function M.get()
+	local len = native_GetClipboardTextCount()
+
+	if len > 0 then
+		local char_arr = new_char_arr(len)
+		native_GetClipboardText(0, char_arr, len)
+		return ffi_string(char_arr, len-1)
 	end
 end
+M.paste = M.get
 
-var_0_4.paste = var_0_4.get
+-- sets (copies) the clipboard text
+function M.set(text)
+	text = tostring(text)
 
-function var_0_4.set(arg_2_0)
-	arg_2_0 = var_0_2(arg_2_0)
-
-	var_0_6(arg_2_0, var_0_1(arg_2_0))
+	native_SetClipboardText(text, string_len(text))
 end
+M.copy = M.set
 
-var_0_4.copy = var_0_4.set
-
-return var_0_4
+return M
