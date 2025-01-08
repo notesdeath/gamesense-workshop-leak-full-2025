@@ -1,101 +1,95 @@
-﻿local var_0_0 = require("vector")
-local var_0_1 = require("gamesense/csgo_weapons")
-local var_0_2 = ui.new_checkbox("MISC", "Miscellaneous", "Breakables Ragebot")
-local var_0_3 = true
-local var_0_4 = false
+local vector = require "vector"
+local csgo_weapons = require "gamesense/csgo_weapons"
 
-local function var_0_5(arg_1_0, arg_1_1)
-	for iter_1_0, iter_1_1 in ipairs(arg_1_0) do
-		if iter_1_1 == arg_1_1 then
-			return true
-		end
+local enabled = ui.new_checkbox("MISC", "Miscellaneous", "Breakables Ragebot")
+
+local bDraw = true
+local gDebug = false
+
+local function contains(table, value)
+	for i, v in ipairs(table) do
+		if v == value then return true end
 	end
-
 	return false
 end
 
-local var_0_6 = false
-local var_0_7 = {}
-local var_0_8 = {
+local target_all = false
+
+local targets = {}
+local ignored_weapons = {
 	"taser",
 	"grenade",
 	"c4"
 }
-local var_0_9 = 64
 
-local function var_0_10(arg_2_0)
-	if entity.get_prop(arg_2_0, "m_nModelIndex") == 824 then
-		local var_2_0 = var_0_0(entity.get_origin(arg_2_0))
+local max_dist = 64
 
-		var_2_0.x = var_2_0.x - 15
-
-		return var_2_0
+local function get_cen(entidx)
+	if entity.get_prop(entidx, "m_nModelIndex") == 824 then
+		--fix for the mirage window thing being cancer (the wrong way) as fuck. fuck you valve
+		local vec = vector(entity.get_origin(entidx))
+		vec.x = vec.x - 15
+		return vec
 	end
+	local orig = vector(entity.get_origin(entidx))
+	local vecMins = vector(entity.get_prop(entidx, "m_vecMins"))
+	local vecMaxs = vector(entity.get_prop(entidx, "m_vecMaxs"))
 
-	local var_2_1 = var_0_0(entity.get_origin(arg_2_0))
-	local var_2_2 = var_0_0(entity.get_prop(arg_2_0, "m_vecMins"))
-	local var_2_3 = var_0_0(entity.get_prop(arg_2_0, "m_vecMaxs"))
-
-	return var_2_1 + (var_2_2 / 2 + var_2_3 / 2)
+	return orig + ((vecMins/2) + (vecMaxs/2))
 end
 
-local function var_0_11()
-	local var_3_0 = {}
-
-	for iter_3_0 = 65, 1000 do
-		local var_3_1, var_3_2 = pcall(entity.get_prop, iter_3_0, "m_MoveType")
-
-		if var_3_1 and var_3_2 == 7 and bit.band(entity.get_prop(iter_3_0, "m_usSolidFlags"), 65535) == 2048 then
-			var_3_0[#var_3_0 + 1] = iter_3_0
+local function get_all_breakables()
+	local rets = {}
+	--rough estimation of the max entidx of breakable objects
+	for i = 65, 1000 do
+		local success, value = pcall(entity.get_prop, i, "m_MoveType")
+		--check for MOVETYPE_PUSH and FSOLID_NOT_MOVEABLE
+		--and bit.band(entity.get_prop(i, "m_nSolidType"), 0xFFFF) == 1
+		if success and value == 7 and bit.band(entity.get_prop(i, "m_usSolidFlags"), 0xFFFF) == 2048 then
+			rets[#rets+1] = i
 		end
 	end
-
-	return var_3_0
+	return rets
 end
 
-local function var_0_12()
-	var_0_7 = {}
+local function get_tgts()
+	targets = {}
+	local breakables = get_all_breakables() --get_breakables_by_mat_name(map_targets[globals.mapname()] or nil)
 
-	local var_4_0 = var_0_11()
-
-	if #var_4_0 > 0 then
-		if var_0_6 then
-			var_0_7 = var_4_0
-
+	if #breakables > 0 then
+		if target_all then
+			targets = breakables
 			return
 		end
+		local lp = entity.get_local_player()
+		local eye_vec = vector(client.eye_position())
 
-		local var_4_1 = entity.get_local_player()
-		local var_4_2 = var_0_0(client.eye_position())
-		local var_4_3 = var_0_0(entity.get_prop(entity.get_local_player(), "m_vecVelocity"))
+		--if we are not aiming at any object, check instead if we are trying to move into some object
+		local lp_vel = vector(entity.get_prop(entity.get_local_player(), "m_vecVelocity"))
+		lp_vel.z = 0
 
-		var_4_3.z = 0
-
-		local var_4_4 = var_4_2 + var_4_3:scaled(globals.tickinterval() * 64)
-
-		for iter_4_0, iter_4_1 in ipairs(var_4_0) do
-			local var_4_5, var_4_6 = client.trace_line(var_4_1, var_4_2.x, var_4_2.y, var_4_2.z, var_4_4.x, var_4_4.y, var_4_4.z)
-
-			if var_4_6 == iter_4_1 then
-				var_0_7[#var_0_7 + 1] = iter_4_1
-
+		lp_vel = eye_vec + (lp_vel:scaled(globals.tickinterval() * 64))
+		for i, b_ent in ipairs(breakables) do
+			--check if we are trying to move into this object
+			local frac, entidx = client.trace_line(lp, eye_vec.x, eye_vec.y, eye_vec.z, lp_vel.x, lp_vel.y, lp_vel.z)
+			if entidx == b_ent then
+				--if we are break and select only this ent
+				targets[#targets+1] = b_ent
 				break
 			end
 		end
 
-		if #var_0_7 == 0 then
-			local var_4_7 = var_0_0():init_from_angles(client.camera_angles())
-
-			var_4_7:scale(var_0_9 / 2)
-
-			local var_4_8 = var_4_7 + var_4_2
-
-			for iter_4_2, iter_4_3 in ipairs(var_4_0) do
-				local var_4_9, var_4_10 = client.trace_line(var_4_1, var_4_2.x, var_4_2.y, var_4_2.z, var_4_8.x, var_4_8.y, var_4_8.z)
-
-				if var_4_10 == iter_4_3 then
-					var_0_7[#var_0_7 + 1] = iter_4_3
-
+		if #targets == 0 then
+			--check if we are aiming at any object
+			local aim = vector():init_from_angles(client.camera_angles())
+			aim:scale(max_dist/2)
+			aim = aim + eye_vec
+			for i, b_ent in ipairs(breakables) do
+				--check if we are aiming at this object
+				local frac, entidx = client.trace_line(lp, eye_vec.x, eye_vec.y, eye_vec.z, aim.x, aim.y, aim.z)
+				if entidx == b_ent then
+					--if we are break and select only this ent
+					targets[#targets+1] = b_ent
 					break
 				end
 			end
@@ -103,126 +97,128 @@ local function var_0_12()
 	end
 end
 
-local function var_0_13(arg_5_0)
-	local var_5_0 = var_0_0(entity.get_origin(arg_5_0))
-	local var_5_1 = var_0_0(entity.get_prop(arg_5_0, "m_vecMins"))
-	local var_5_2 = var_0_0(entity.get_prop(arg_5_0, "m_vecMaxs"))
-	local var_5_3 = var_5_0 + var_5_1
-	local var_5_4 = var_5_0 + var_5_2
-	local var_5_5 = var_0_0(renderer.world_to_screen(var_0_10(arg_5_0):unpack()))
-	local var_5_6 = var_0_0(renderer.world_to_screen(var_5_3:unpack()))
-	local var_5_7 = var_0_0(renderer.world_to_screen(var_5_4:unpack()))
+local function render_bounds(entidx)
+	local origin = vector(entity.get_origin(entidx))
+	local vecMins = vector(entity.get_prop(entidx, "m_vecMins"))
+	local vecMaxs = vector(entity.get_prop(entidx, "m_vecMaxs"))
 
-	renderer.line(var_5_6.x, var_5_6.y, var_5_7.x, var_5_7.y, 0, 0, 0, 255)
-	renderer.circle(var_5_5.x, var_5_5.y, 50, 50, 50, 255, 3, 0, 100)
+	local br = origin + vecMins
+	local tl = origin + vecMaxs
+
+	local cen = vector(renderer.world_to_screen(get_cen(entidx):unpack()))
+
+	local s1 = vector(renderer.world_to_screen(br:unpack()))
+	local s2 = vector(renderer.world_to_screen(tl:unpack()))
+
+	renderer.line(s1.x, s1.y, s2.x, s2.y, 0, 0, 0, 255)
+
+	renderer.circle(cen.x, cen.y, 50, 50, 50, 255, 3, 0, 100)
 end
 
-local function var_0_14(arg_6_0, arg_6_1)
-	local var_6_0 = var_0_10(arg_6_0)
-	local var_6_1 = var_6_0:dist(arg_6_1)
-	local var_6_2 = math.min(1, 2 - var_6_1 / (var_0_9 * 2))
+local function tgt_point(entidx, eye_vec)
+	local origin = get_cen(entidx)
+	local dist = origin:dist(eye_vec)
+	local a_mod = math.min(1, 2 - (dist / (max_dist*2)))
 
-	if var_6_2 > 0 then
-		local var_6_3
-		local var_6_4
-		local var_6_5
-		local var_6_6 = var_6_1 > var_0_9 and 255 or 0
-		local var_6_7 = var_6_2 == 1 and 255 or 0
-		local var_6_8 = 0
-		local var_6_9 = var_0_0(renderer.world_to_screen(var_6_0:unpack()))
+	if a_mod > 0 then
+		local r, g, b
+		r = dist > max_dist and 255 or 0
+		g = a_mod == 1 and 255 or 0
+		b = 0
 
-		renderer.circle(var_6_9.x, var_6_9.y, var_6_6, var_6_7, var_6_8, 255 * var_6_2, 5, 0, 100)
+		local cen = vector(renderer.world_to_screen(origin:unpack()))
+		--renderer.text(cen.x, cen.y + 12, 255, 255, 255, 255*a_mod, "c+", 0, string.format("%.1f", dist))
+		renderer.circle(cen.x, cen.y, r, g, b, 255*a_mod, 5, 0, 100)
 	end
 end
 
-local function var_0_15()
-	local var_7_0 = var_0_0(client.eye_position())
-
-	for iter_7_0, iter_7_1 in ipairs(var_0_7) do
-		var_0_14(iter_7_1, var_7_0)
+local function tgt_esp()
+	local eye_vec = vector(client.eye_position())
+	
+	for i, entidx in ipairs(targets) do
+		--render_bounds(entidx)
+		tgt_point(entidx, eye_vec)
 	end
 
-	if var_0_4 then
-		for iter_7_2, iter_7_3 in ipairs(var_0_11()) do
-			var_0_13(iter_7_3)
+	if gDebug then
+		--render bounds of breakables
+		for index, value in ipairs(get_all_breakables()) do
+			render_bounds(value)
 		end
 
-		local var_7_1 = var_0_0(entity.get_prop(entity.get_local_player(), "m_vecVelocity"))
+		--render velocity
+		local lp_vel = vector(entity.get_prop(entity.get_local_player(), "m_vecVelocity"))
+		lp_vel.z = 0
 
-		var_7_1.z = 0
+		lp_vel = eye_vec + (lp_vel:scaled(globals.tickinterval() * max_dist))
 
-		local var_7_2 = var_7_0 + var_7_1:scaled(globals.tickinterval() * var_0_9)
-		local var_7_3 = var_0_0(renderer.world_to_screen(var_7_0:unpack()))
-		local var_7_4 = var_0_0(renderer.world_to_screen(var_7_2:unpack()))
+		local s1 = vector(renderer.world_to_screen(eye_vec:unpack()))
+		local s2 = vector(renderer.world_to_screen(lp_vel:unpack()))
 
-		renderer.line(var_7_3.x, var_7_3.y, var_7_4.x, var_7_4.y, 255, 255, 255, 255)
+		renderer.line(s1.x, s1.y, s2.x, s2.y, 255, 255, 255, 255)
 
-		local var_7_5 = var_0_0():init_from_angles(client.camera_angles())
+		--pdump entidx
+		local aim = vector():init_from_angles(client.camera_angles())
+		aim:scale(1024)
+		aim = aim + eye_vec
+		local frac, entidx = client.trace_line(entity.get_local_player(), eye_vec.x, eye_vec.y, eye_vec.z, aim.x, aim.y, aim.z)
 
-		var_7_5:scale(1024)
-
-		local var_7_6 = var_7_5 + var_7_0
-		local var_7_7, var_7_8 = client.trace_line(entity.get_local_player(), var_7_0.x, var_7_0.y, var_7_0.z, var_7_6.x, var_7_6.y, var_7_6.z)
-
-		renderer.text(1280, 730, 255, 255, 255, 255, "cd", 0, string.format("%.2f %d", var_7_7, var_7_8))
-		cvar.cl_pdump:set_int(var_7_8)
-
-		if var_7_8 ~= -1 then
-			print(bit.band(entity.get_prop(var_7_8, "m_nSolidType"), 65535))
-			var_0_13(var_7_8)
+		renderer.text(2560/2, 1440/2 + 10, 255, 255, 255, 255, "cd", 0, string.format("%.2f %d", frac, entidx))
+		
+		--print(entity.get_classname(entidx))
+		cvar.cl_pdump:set_int(entidx)
+		if entidx ~= -1 then
+			print(bit.band(entity.get_prop(entidx, "m_nSolidType"), 0xFFFF))
+			render_bounds(entidx)
 		end
 	end
 end
 
-local function var_0_16(arg_8_0)
-	local var_8_0 = entity.get_local_player()
-	local var_8_1 = entity.get_player_weapon(var_8_0)
-	local var_8_2 = var_0_1(var_8_1)
+local function tgt_ragebot(cmd)
+	local lp = entity.get_local_player()
+	local lp_wep = entity.get_player_weapon(lp)
+	local weapon = csgo_weapons(lp_wep)
+	if weapon == nil then return end
 
-	if var_8_2 == nil then
-		return
-	end
+	local can_shoot = math.max(0, entity.get_prop(lp_wep, "m_flNextPrimaryAttack") or 0, entity.get_prop(lp, "m_flNextAttack") or 0) - globals.curtime() < 0 and (weapon.type == "knife" or entity.get_prop(lp_wep, "m_iClip1") > 0)
 
-	if math.max(0, entity.get_prop(var_8_1, "m_flNextPrimaryAttack") or 0, entity.get_prop(var_8_0, "m_flNextAttack") or 0) - globals.curtime() < 0 and (var_8_2.type == "knife" or entity.get_prop(var_8_1, "m_iClip1") > 0) and not var_0_5(var_0_8, var_8_2.type) then
-		local var_8_3 = var_0_0(client.eye_position())
-		local var_8_4 = 256
-		local var_8_5
+	--max_dist = weapon.type == "knife" and 64 or 128 --weapon.range for full ragebot
 
-		for iter_8_0, iter_8_1 in ipairs(var_0_7) do
-			local var_8_6 = var_0_10(iter_8_1)
-			local var_8_7 = var_8_3:dist(var_8_6)
-
-			if var_8_7 < var_0_9 and var_8_7 < var_8_4 then
-				local var_8_8, var_8_9 = client.trace_line(var_8_0, var_8_3.x, var_8_3.y, var_8_3.z, var_8_6.x, var_8_6.y, var_8_6.z)
-
-				if var_8_8 >= 0.95 or var_8_9 == iter_8_1 then
-					var_8_4 = var_8_7
-					var_8_5 = var_8_6
+	--if we can shoot (and the weapon is not a taser)
+	if can_shoot and not contains(ignored_weapons, weapon.type) then
+		local eye = vector(client.eye_position())
+		--run the ragebot
+		local closest_dist = 256
+		local closest_orig = nil
+		for i, gi in ipairs(targets) do
+			--calculate the distance
+			local go = get_cen(gi) --vector(entity.get_origin(gi))
+			local dist = eye:dist(go)
+			if dist < max_dist and dist < closest_dist then
+				local frac, entidx = client.trace_line(lp, eye.x, eye.y, eye.z, go.x, go.y, go.z)
+				if frac >= 0.95 or entidx == gi then
+					closest_dist = dist
+					closest_orig = go
 				end
 			end
 		end
 
-		if var_8_5 ~= nil then
-			local var_8_10, var_8_11 = var_8_3:to(var_8_5):angles()
-
-			arg_8_0.pitch = var_8_10
-			arg_8_0.yaw = var_8_11
-			arg_8_0.in_attack = 1
+		if closest_orig ~= nil then
+			--aim at the glass and kill it
+			local g_p, g_y = eye:to(closest_orig):angles()
+			cmd.pitch = g_p
+			cmd.yaw = g_y
+			cmd.in_attack = 1
 		end
 	end
 end
 
-local function var_0_17()
-	local var_9_0 = ui.get(var_0_2) and client.set_event_callback or client.unset_event_callback
-
-	var_9_0("net_update_end", var_0_12)
-
-	if var_0_3 then
-		var_9_0("paint", var_0_15)
-	end
-
-	var_9_0("setup_command", var_0_16)
+local function enable_handler()
+	local state = ui.get(enabled)
+	local update_callback = state and client.set_event_callback or client.unset_event_callback
+	update_callback("net_update_end", get_tgts)
+	if bDraw then update_callback("paint", tgt_esp) end
+	update_callback("setup_command", tgt_ragebot)
 end
-
-ui.set_callback(var_0_2, var_0_17)
-var_0_17()
+ui.set_callback(enabled, enable_handler)
+enable_handler()
