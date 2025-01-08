@@ -1,35 +1,45 @@
-﻿local var_0_0 = require("gamesense/named_pipes")
-local var_0_1 = require("ffi")
-local var_0_2 = var_0_1.cast
-local var_0_3 = vtable_bind("engine.dll", "VEngineClient014", 26, "bool(__thiscall*)(void*)")
-local var_0_4 = vtable_bind("engine.dll", "VEngineClient014", 27, "bool(__thiscall*)(void*)")
-local var_0_5 = vtable_bind("engine.dll", "VEngineClient014", 28, "bool(__thiscall*)(void*)")
-local var_0_6 = 0
-local var_0_7 = 1
-local var_0_8 = 2
-local var_0_9 = 3
-local var_0_10 = 4
-local var_0_11 = {
-	join_request = "ACTIVITY_JOIN_REQUEST",
+local named_pipes = require "gamesense/named_pipes"
+local ffi = require "ffi"
+
+local cast = ffi.cast
+
+local native_IsInGame = vtable_bind("engine.dll", "VEngineClient014", 26, "bool(__thiscall*)(void*)")
+local native_IsConnected = vtable_bind("engine.dll", "VEngineClient014", 27, "bool(__thiscall*)(void*)")
+local native_IsConnecting = vtable_bind("engine.dll", "VEngineClient014", 28, "bool(__thiscall*)(void*)")
+
+local OPCODE_HANDSHAKE = 0
+local OPCODE_FRAME = 1
+local OPCODE_CLOSE = 2
+local OPCODE_PING = 3
+local OPCODE_PONG = 4
+
+local EVENT_KEYS = {
+	join_game = "ACTIVITY_JOIN",
 	spectate_game = "ACTIVITY_SPECTATE",
-	join_game = "ACTIVITY_JOIN"
+	join_request = "ACTIVITY_JOIN_REQUEST"
 }
-local var_0_12 = {
+
+local EVENT_LOOKUP = {
 	ERRORED = "error"
 }
 
-local function var_0_13(arg_1_0, arg_1_1)
-	if arg_1_0 == arg_1_1 then
-		return true
-	elseif type(arg_1_0) == "table" and type(arg_1_1) == "table" then
-		for iter_1_0, iter_1_1 in pairs(arg_1_0) do
-			local var_1_0 = arg_1_1[iter_1_0]
+--
+-- utility funcs
+--
 
-			if var_1_0 == nil then
+local function deep_compare(tbl1, tbl2)
+	if tbl1 == tbl2 then
+		return true
+	elseif type(tbl1) == "table" and type(tbl2) == "table" then
+		for key1, value1 in pairs(tbl1) do
+			local value2 = tbl2[key1]
+
+			if value2 == nil then
+				-- avoid the type call for missing keys in tbl2 by directly comparing with nil
 				return false
-			elseif iter_1_1 ~= var_1_0 then
-				if type(iter_1_1) == "table" and type(var_1_0) == "table" then
-					if not var_0_13(iter_1_1, var_1_0) then
+			elseif value1 ~= value2 then
+				if type(value1) == "table" and type(value2) == "table" then
+					if not deep_compare(value1, value2) then
 						return false
 					end
 				else
@@ -38,8 +48,9 @@ local function var_0_13(arg_1_0, arg_1_1)
 			end
 		end
 
-		for iter_1_2, iter_1_3 in pairs(arg_1_1) do
-			if arg_1_0[iter_1_2] == nil then
+		-- check for missing keys in tbl1
+		for key2, _ in pairs(tbl2) do
+			if tbl1[key2] == nil then
 				return false
 			end
 		end
@@ -50,135 +61,136 @@ local function var_0_13(arg_1_0, arg_1_1)
 	return false
 end
 
-local function var_0_14(arg_2_0, ...)
-	local var_2_0 = {
-		...
-	}
+local function table_dig(tbl, ...)
+	local keys = {...}
 
-	for iter_2_0 = 1, #var_2_0 do
-		if arg_2_0 == nil then
+	for i=1, #keys do
+		if tbl == nil then
 			return nil
 		end
 
-		arg_2_0 = arg_2_0[var_2_0[iter_2_0]]
+		tbl = tbl[keys[i]]
 	end
 
-	return arg_2_0 or nil
+	return tbl or nil
 end
 
-local function var_0_15()
-	local var_3_0 = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx"
-
-	return (string.gsub(var_3_0, "[xy]", function(arg_4_0)
-		local var_4_0 = arg_4_0 == "x" and math.random(0, 15) or math.random(8, 11)
-
-		return string.format("%x", var_4_0)
+local function generate_nonce()
+	local template ='xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'
+	return (string.gsub(template, '[xy]', function (c)
+		local v = (c == 'x') and math.random(0, 0xf) or math.random(8, 0xb)
+		return string.format('%x', v)
 	end))
 end
 
-local function var_0_16(arg_5_0)
-	return var_0_1.string(var_0_1.cast("const char*", var_0_1.new("uint32_t[1]", arg_5_0)), 4)
+local function pack_int32le(int)
+	return ffi.string(ffi.cast("const char*", ffi.new("uint32_t[1]", int)), 4)
 end
 
-local function var_0_17(arg_6_0)
-	return tonumber(var_0_1.cast("uint32_t*", var_0_1.cast("const char*", arg_6_0))[0])
+local function unpack_int32le(str)
+	return tonumber(ffi.cast("uint32_t*", ffi.cast("const char*", str))[0])
 end
 
-local function var_0_18(arg_7_0, arg_7_1)
-	local var_7_0 = arg_7_1:len()
-
-	return var_0_16(arg_7_0) .. var_0_16(var_7_0) .. arg_7_1
+local function encode_str(opcode, str)
+	local len = str:len()
+	return pack_int32le(opcode) .. pack_int32le(len) .. str
 end
 
-local function var_0_19(arg_8_0)
-	local var_8_0 = arg_8_0:read(8)
+local function read_data(pipe)
+	local header = pipe:read(8)
 
-	if var_8_0 == nil then
+	if header == nil then
 		return
 	end
 
-	local var_8_1 = var_0_17(var_8_0:sub(1, 4))
-	local var_8_2 = var_0_17(var_8_0:sub(5, 8))
-	local var_8_3 = arg_8_0:read(var_8_2)
+	local opcode = unpack_int32le(header:sub(1, 4))
+	local len = unpack_int32le(header:sub(5, 8))
 
-	if var_8_3 == nil then
+	local raw = pipe:read(len)
+
+	if raw == nil then
 		return
 	end
 
-	local var_8_4 = json.parse(var_8_3)
+	local data = json.parse(raw)
 
-	return var_8_1, var_8_4
+	return opcode, data
 end
 
-local var_0_20 = {}
+local OPEN_RPCS = {}
 
-local function var_0_21(arg_9_0, arg_9_1, ...)
-	if arg_9_0.event_handlers[arg_9_1] ~= nil then
-		arg_9_0.event_handlers[arg_9_1](arg_9_0, ...)
+--
+-- rpc object
+--
+
+local function rpc_dispatch_event(self, evt, ...)
+	-- print("dispatching event ", evt, ", has handler: ", self.event_handlers[evt] ~= nil)
+	if self.event_handlers[evt] ~= nil then
+		self.event_handlers[evt](self, ...)
 	end
 end
 
-local function var_0_22(arg_10_0, arg_10_1, arg_10_2)
-	if arg_10_0.pipe ~= nil then
-		local var_10_0, var_10_1 = pcall(arg_10_0.pipe.write, arg_10_0.pipe, var_0_18(arg_10_1, arg_10_2))
+local function rpc_write(self, opcode, str)
+	if self.pipe ~= nil then
+		local success, res = pcall(self.pipe.write, self.pipe, encode_str(opcode, str))
 
-		if not var_10_0 then
-			arg_10_0.pipe = nil
-			arg_10_0.open = false
-			arg_10_0.ready = false
+		if not success then
+			self.pipe = nil
+			self.open = false
+			self.ready = false
 
-			var_0_21(arg_10_0, "error", var_10_1)
+			rpc_dispatch_event(self, "error", res)
 		else
 			return true
 		end
 	end
 end
 
-local function var_0_23(arg_11_0)
-	if arg_11_0.pipe == nil then
-		local var_11_0
-		local var_11_1
-		local var_11_2
+local function rpc_connect(self)
+	if self.pipe == nil then
+		-- try to connect
+		local success, pipe, err
+		for i=0, 10 do
+			success, pipe = pcall(named_pipes.open_pipe, "\\\\?\\pipe\\discord-ipc-" .. i)
 
-		for iter_11_0 = 0, 10 do
-			var_11_0, var_11_1 = pcall(var_0_0.open_pipe, "\\\\?\\pipe\\discord-ipc-" .. iter_11_0)
-
-			if var_11_0 then
+			if success then
 				break
 			end
 
-			if var_11_2 == nil or var_11_1 ~= "Failed to open pipe: File not found" then
-				var_11_2 = var_11_1
+			-- this is so we still get the proper error message if, say, pipe 1 failed to open due to permission denied and 2-9 dont exist
+			if err == nil or pipe ~= "Failed to open pipe: File not found" then
+				err = pipe
 			end
 		end
 
-		if var_11_0 then
-			arg_11_0.pipe = var_11_1
-			arg_11_0.open = true
-			arg_11_0.ready = false
+		if success then
+			-- named pipe opened, send handshake frame
+			self.pipe = pipe
+			self.open = true
+			self.ready = false
 
-			local var_11_3 = string.format("{\"v\":1,\"client_id\":%s}", json.stringify(arg_11_0.client_id))
+			local json_str = string.format('{"v":1,"client_id":%s}', json.stringify(self.client_id))
 
-			arg_11_0:write(var_0_6, var_11_3)
+			self:write(OPCODE_HANDSHAKE, json_str)
 		else
-			var_0_21(arg_11_0, "failed", var_11_2:gsub("^Failed to open pipe: ", ""))
+			rpc_dispatch_event(self, "failed", err:gsub("^Failed to open pipe: ", ""))
 		end
 	end
 end
 
-local function var_0_24(arg_12_0)
-	if arg_12_0.pipe ~= nil then
-		arg_12_0:write(var_0_8, string.format("{\"v\":1,\"client_id\":%s}", json.stringify(arg_12_0.client_id)))
+local function rpc_close(self)
+	if self.pipe ~= nil then
+		self:write(OPCODE_CLOSE, string.format('{"v":1,"client_id":%s}', json.stringify(self.client_id)))
 
-		local var_12_0, var_12_1 = pcall(var_0_0.close_pipe, arg_12_0.pipe)
+		local success, err = pcall(named_pipes.close_pipe, self.pipe)
 
-		arg_12_0.pipe = nil
-		arg_12_0.open = false
-		arg_12_0.ready = false
+		self.pipe = nil
+		self.open = false
+		self.ready = false
 
-		var_0_21(arg_12_0, "closed")
+		rpc_dispatch_event(self, "closed")
 
-		if var_12_0 then
+		if success then
 			return true
 		end
 	end
@@ -186,658 +198,713 @@ local function var_0_24(arg_12_0)
 	return false
 end
 
-local function var_0_25(arg_13_0, arg_13_1, arg_13_2, arg_13_3, arg_13_4)
-	local var_13_0 = arg_13_2 == nil and "" or string.format("\"args\":%s,", json.stringify(arg_13_2))
-	local var_13_1 = arg_13_3 == nil and "" or string.format("\"evt\":%s,", json.stringify(arg_13_3))
-	local var_13_2 = var_0_15()
-	local var_13_3 = string.format("{\"cmd\":%s,%s%s\"nonce\":%s}", json.stringify(arg_13_1), var_13_0, var_13_1, json.stringify(var_13_2))
+local function rpc_request(self, cmd, args, evt, callback)
+	local args_text = args == nil and "" or string.format('"args":%s,', json.stringify(args))
+	local evt_text = evt == nil and "" or string.format('"evt":%s,', json.stringify(evt))
 
-	if arg_13_4 ~= nil then
-		arg_13_0.request_callbacks[var_13_2] = arg_13_4
+	local nonce = generate_nonce()
+
+	local json_str = string.format('{"cmd":%s,%s%s"nonce":%s}', json.stringify(cmd), args_text, evt_text, json.stringify(nonce))
+
+	if callback ~= nil then
+		self.request_callbacks[nonce] = callback
 	end
 
-	arg_13_0:write(var_0_7, var_13_3)
+	self:write(OPCODE_FRAME, json_str)
 end
 
-local function var_0_26(arg_14_0)
-	if arg_14_0.timestamp_delta_max ~= nil and arg_14_0.timestamp_delta_max > 0 then
-		if type(var_0_14(arg_14_0.activity, "timestamps", "start")) == "number" and type(var_0_14(arg_14_0.activity_prev, "timestamps", "start")) == "number" and math.abs(arg_14_0.activity_prev.timestamps.start - arg_14_0.activity.timestamps.start) < arg_14_0.timestamp_delta_max then
-			arg_14_0.activity.timestamps.start = arg_14_0.activity_prev.timestamps.start
+local function rpc_process_activity(self)
+	if self.timestamp_delta_max ~= nil and self.timestamp_delta_max > 0 then
+		if type(table_dig(self.activity, "timestamps", "start")) == "number" and type(table_dig(self.activity_prev, "timestamps", "start")) == "number" then
+			local delta = math.abs(self.activity_prev.timestamps["start"] - self.activity.timestamps["start"])
+
+			if delta < self.timestamp_delta_max then
+				self.activity.timestamps["start"] = self.activity_prev.timestamps["start"]
+			end
 		end
 
-		if type(var_0_14(arg_14_0.activity, "timestamps", "end")) == "number" and type(var_0_14(arg_14_0.activity_prev, "timestamps", "end")) == "number" and math.abs(arg_14_0.activity_prev.timestamps["end"] - arg_14_0.activity.timestamps["end"]) < arg_14_0.timestamp_delta_max then
-			arg_14_0.activity.timestamps["end"] = arg_14_0.activity_prev.timestamps["end"]
+		if type(table_dig(self.activity, "timestamps", "end")) == "number" and type(table_dig(self.activity_prev, "timestamps", "end")) == "number" then
+			local delta = math.abs(self.activity_prev.timestamps["end"] - self.activity.timestamps["end"])
+
+			if delta < self.timestamp_delta_max then
+				self.activity.timestamps["end"] = self.activity_prev.timestamps["end"]
+			end
 		end
 	end
 
-	if arg_14_0.ready and not var_0_13(arg_14_0.activity, arg_14_0.activity_prev) then
-		local var_14_0
+	if self.ready and not deep_compare(self.activity, self.activity_prev) then
+		-- print("setting activity")
 
-		if arg_14_0.activity ~= nil and arg_14_0.activity.assets ~= nil and (arg_14_0.activity.assets.small_image ~= nil or arg_14_0.activity.assets.large_image ~= nil) then
-			var_14_0 = {
-				small_image = arg_14_0.activity.assets.small_image,
-				large_image = arg_14_0.activity.assets.large_image
+		-- print("old: ", inspect(self.activity_prev))
+		-- print("new: ", inspect(self.activity))
+
+		local images
+
+		if self.activity ~= nil and self.activity.assets ~= nil and (self.activity.assets.small_image ~= nil or self.activity.assets.large_image ~= nil) then
+			images = {
+				small_image = self.activity.assets.small_image,
+				large_image = self.activity.assets.large_image
 			}
 		end
 
-		arg_14_0:request("SET_ACTIVITY", {
+		self:request("SET_ACTIVITY", {
 			pid = 4,
-			activity = arg_14_0.activity
-		}, nil, function(arg_15_0, arg_15_1)
-			if var_14_0 ~= nil and arg_15_1.evt == json.null then
-				local var_15_0 = false
+			activity = self.activity
+		}, nil, function(self, response)
+			if images ~= nil and response.evt == json.null then
+				-- print("got response to SET_ACTIVITY: ", inspect(response))
+				local new_fail = false
 
-				for iter_15_0, iter_15_1 in pairs(var_14_0) do
-					if arg_15_1.data.assets[iter_15_0] == nil and not arg_15_0.failed_images[iter_15_1] then
-						arg_15_0.failed_images[iter_15_1] = true
-
-						var_0_21(arg_15_0, "image_failed_to_load", iter_15_1)
+				for key, value in pairs(images) do
+					if response.data.assets[key] == nil and not self.failed_images[value] then
+						self.failed_images[value] = true
+						rpc_dispatch_event(self, "image_failed_to_load", value)
 					end
 				end
 			end
 		end)
-
-		arg_14_0.activity_prev = arg_14_0.activity
+		self.activity_prev = self.activity
 	end
 end
 
-local function var_0_27(arg_16_0)
-	if arg_16_0.pipe == nil then
+local function rpc_process_messages(self)
+	if self.pipe == nil then
 		return
 	end
 
-	for iter_16_0 = 1, 100 do
-		local var_16_0, var_16_1, var_16_2 = pcall(var_0_19, arg_16_0.pipe)
+	for i=1, 100 do
+		local success, opcode, data = pcall(read_data, self.pipe)
 
-		if not var_16_0 then
-			arg_16_0.pipe = nil
-			arg_16_0.open = false
-			arg_16_0.ready = false
+		if not success then
+			self.pipe = nil
+			self.open = false
+			self.ready = false
 
-			var_0_21(arg_16_0, "error", var_16_1)
-
+			rpc_dispatch_event(self, "error", opcode)
 			return
-		elseif var_16_1 == nil then
+		elseif opcode == nil then
 			break
-		elseif var_16_1 == var_0_7 and var_16_2.cmd == "DISPATCH" then
-			if type(var_16_2.evt) == "string" then
-				local var_16_3 = var_0_12[var_16_2.evt] or var_16_2.evt:lower()
+		else
+			-- print("Got opcode ", opcode, ": ")
+			-- print(inspect(data))
 
-				var_0_21(arg_16_0, var_16_3, var_16_2.data)
+			if opcode == OPCODE_FRAME and data.cmd == "DISPATCH" then
+				if type(data.evt) == "string" then
+					local evt = EVENT_LOOKUP[data.evt] or data.evt:lower()
+					rpc_dispatch_event(self, evt, data.data)
 
-				if var_16_2.evt == "READY" then
-					arg_16_0:update_event_handlers()
-
-					arg_16_0.ready = true
-
-					var_0_26(arg_16_0)
+					if data.evt == "READY" then
+						self:update_event_handlers()
+						self.ready = true
+						rpc_process_activity(self)
+					end
 				end
+			elseif opcode == OPCODE_FRAME then
+				local callback = self.request_callbacks[data.nonce]
+				if callback ~= nil then
+					self.request_callbacks[data.nonce] = nil
+
+					callback(self, data)
+				end
+			elseif opcode == OPCODE_PING then
+				rpc_write(self, OPCODE_PONG, "")
+			elseif opcode == OPCODE_CLOSE then
+				self.pipe = nil
+				self.open = false
+				self.ready = false
+
+				rpc_dispatch_event(self, "error", opcode)
 			end
-		elseif var_16_1 == var_0_7 then
-			local var_16_4 = arg_16_0.request_callbacks[var_16_2.nonce]
-
-			if var_16_4 ~= nil then
-				arg_16_0.request_callbacks[var_16_2.nonce] = nil
-
-				var_16_4(arg_16_0, var_16_2)
-			end
-		elseif var_16_1 == var_0_9 then
-			var_0_22(arg_16_0, var_0_10, "")
-		elseif var_16_1 == var_0_8 then
-			arg_16_0.pipe = nil
-			arg_16_0.open = false
-			arg_16_0.ready = false
-
-			var_0_21(arg_16_0, "error", var_16_1)
 		end
 	end
 end
 
-local function var_0_28(arg_17_0, arg_17_1)
-	arg_17_0.activity = arg_17_1
-
-	var_0_26(arg_17_0)
+local function rpc_set_activity(self, activity)
+	self.activity = activity
+	rpc_process_activity(self)
 end
 
-local function var_0_29(arg_18_0)
-	for iter_18_0, iter_18_1 in pairs(var_0_11) do
-		if not arg_18_0.event_handlers_subscribed[iter_18_0] and arg_18_0.event_handlers[iter_18_0] ~= nil then
-			arg_18_0:request("SUBSCRIBE", nil, iter_18_1)
-
-			arg_18_0.event_handlers_subscribed[iter_18_0] = true
-		elseif arg_18_0.event_handlers_subscribed[iter_18_0] and arg_18_0.event_handlers[iter_18_0] == nil then
-			arg_18_0:request("UNSUBSCRIBE", nil, iter_18_1)
-
-			arg_18_0.event_handlers_subscribed[iter_18_0] = false
+local function rpc_update_event_handlers(self)
+	for event_key, event_name in pairs(EVENT_KEYS) do
+		if not self.event_handlers_subscribed[event_key] and self.event_handlers[event_key] ~= nil then
+			self:request("SUBSCRIBE", nil, event_name)
+			self.event_handlers_subscribed[event_key] = true
+		elseif self.event_handlers_subscribed[event_key] and self.event_handlers[event_key] == nil then
+			self:request("UNSUBSCRIBE", nil, event_name)
+			self.event_handlers_subscribed[event_key] = false
 		end
 	end
 end
 
 client.set_event_callback("paint_ui", function()
-	for iter_19_0 = 1, #var_0_20 do
-		var_0_27(var_0_20[iter_19_0])
+	for i=1, #OPEN_RPCS do
+		rpc_process_messages(OPEN_RPCS[i])
 	end
 end)
 
-local var_0_30 = {
+local rpc_mt = {
 	__index = {
-		connect = var_0_23,
-		close = var_0_24,
-		request = var_0_25,
-		write = var_0_22,
-		set_activity = var_0_28,
-		update_event_handlers = var_0_29
+		connect = rpc_connect,
+		close = rpc_close,
+		request = rpc_request,
+		write = rpc_write,
+		set_activity = rpc_set_activity,
+		update_event_handlers = rpc_update_event_handlers
 	}
 }
 
-local function var_0_31(arg_20_0, arg_20_1)
-	local var_20_0 = setmetatable({
-		ready = false,
-		timestamp_delta_max = 300,
-		client_id = arg_20_0,
+local function new_rpc(client_id, event_handlers)
+	local tbl = setmetatable({
+		client_id = client_id,
 		event_handlers = {},
 		event_handlers_subscribed = {},
 		failed_images = {},
-		request_callbacks = {}
-	}, var_0_30)
+		request_callbacks = {},
+		ready = false,
+		activity = nil,
+		activity_prev = nil,
+		timestamp_delta_max = 300
+	}, rpc_mt)
 
-	for iter_20_0, iter_20_1 in pairs(arg_20_1) do
-		var_20_0.event_handlers[iter_20_0] = iter_20_1
+	for key, value in pairs(event_handlers) do
+		tbl.event_handlers[key] = value
 	end
 
-	table.insert(var_0_20, var_20_0)
+	table.insert(OPEN_RPCS, tbl)
 
-	return var_20_0
+	return tbl
 end
 
-local var_0_32 = vtable_bind("engine.dll", "VEngineClient014", 78, "void*(__thiscall*)(void*)")
-local var_0_33 = vtable_thunk(1, "const char*(__thiscall*)(void*)")
-local var_0_34 = vtable_thunk(6, "bool(__thiscall*)(void*)")
-local var_0_35 = panorama.open()
-local var_0_36 = var_0_35.LobbyAPI
-local var_0_37 = var_0_35.PartyListAPI
-local var_0_38 = var_0_35.GameStateAPI
-local var_0_39 = var_0_35.FriendsListAPI
-local var_0_40 = 0
-local var_0_41 = 1
-local var_0_42 = 2
-local var_0_43 = 3
-local var_0_44 = 4
-local var_0_45 = 5
-local var_0_46 = panorama.loadstring("\treturn {\n\t\tlocalize: (str, params) => {\n\t\t\tif(params == null)\n\t\t\t\treturn $.Localize(str)\n\n\t\t\tvar panel = $.CreatePanel(\"Panel\", $.GetContextPanel(), \"\")\n\n\t\t\tfor(key in params) {\n\t\t\t\tpanel.SetDialogVariable(key, params[key])\n\t\t\t}\n\n\t\t\tvar result = $.Localize(str, panel)\n\n\t\t\tpanel.DeleteAsync(0.0)\n\n\t\t\treturn result\n\t\t}\n\t}\n")().localize
-local var_0_47 = {}
+--
+-- rich presence implementation
+--
 
-local function var_0_48(arg_21_0, arg_21_1)
-	if arg_21_0 == nil then
-		return ""
+local native_GetNetChannelInfo = vtable_bind("engine.dll", "VEngineClient014", 78, "void*(__thiscall*)(void*)")
+local native_GetAddress = vtable_thunk(1, "const char*(__thiscall*)(void*)")
+local native_IsLoopback = vtable_thunk(6, "bool(__thiscall*)(void*)")
+
+-- panorama api
+local js = panorama.open()
+local LobbyAPI, PartyListAPI, GameStateAPI, FriendsListAPI = js.LobbyAPI, js.PartyListAPI, js.GameStateAPI, js.FriendsListAPI
+
+local GAMEPHASE_WARMUP = 0
+local GAMEPHASE_MATCH = 1
+local GAMEPHASE_FIRST_HALF = 2
+local GAMEPHASE_SECOND_HALF = 3
+local GAMEPHASE_HALFTIME = 4
+local GAMEPHASE_END_OF_MATCH = 5
+
+--
+-- localization stuff
+--
+
+local localize_impl = panorama.loadstring([[
+	return {
+		localize: (str, params) => {
+			if(params == null)
+				return $.Localize(str)
+
+			var panel = $.CreatePanel("Panel", $.GetContextPanel(), "")
+
+			for(key in params) {
+				panel.SetDialogVariable(key, params[key])
+			}
+
+			var result = $.Localize(str, panel)
+
+			panel.DeleteAsync(0.0)
+
+			return result
+		}
+	}
+]])().localize
+
+local localize_cache = {}
+local function localize(str, params)
+	if str == nil then return "" end
+
+	if localize_cache[str] == nil then
+		localize_cache[str] = {}
 	end
 
-	if var_0_47[arg_21_0] == nil then
-		var_0_47[arg_21_0] = {}
+	local params_key = params ~= nil and json.stringify(params) or true
+	if localize_cache[str][params_key] == nil then
+		localize_cache[str][params_key] = localize_impl(str, params)
 	end
 
-	local var_21_0 = arg_21_1 ~= nil and json.stringify(arg_21_1) or true
-
-	if var_0_47[arg_21_0][var_21_0] == nil then
-		var_0_47[arg_21_0][var_21_0] = var_0_46(arg_21_0, arg_21_1)
-	end
-
-	return var_0_47[arg_21_0][var_21_0]
+	return localize_cache[str][params_key]
 end
 
-local var_0_49 = setmetatable({
-	["Playing CS:GO"] = "In Game",
-	HauptmenÜ = "Im Hauptmenü",
+-- do some replacements here
+local localize_lookup = setmetatable({
+	["Practice With Bots"] = "Local Server",
+	["Offline"] = "Local Server",
 	["Main Menu"] = "In Main Menu",
-	Offline = "Local Server",
-	["Practice With Bots"] = "Local Server"
+	["HauptmenÜ"] = "Im Hauptmenü",
+	["Playing CS:GO"] = "In Game"
 }, {
-	__index = function(arg_22_0, arg_22_1)
-		arg_22_0[arg_22_1] = arg_22_1
-
-		return arg_22_1
+	__index = function(tbl, key)
+		tbl[key] = key
+		return key
 	end
 })
-local var_0_50 = panorama.loadstring("return Date.now()/1000")() - globals.realtime()
 
-local function var_0_51()
-	return math.floor(var_0_50 + globals.realtime() + 0.5)
+--
+-- other utility funcs
+--
+
+local ts_offset = panorama.loadstring("return Date.now()/1000")()-globals.realtime()
+local function get_unix_timestamp_float()
+	return math.floor(ts_offset+globals.realtime()+0.5)
 end
 
-local function var_0_52(arg_24_0)
-	local var_24_0 = {}
+local function table_elements(tbl)
+	local out = {}
+	for i=1, #tbl do
+		out[tbl[i]] = true
+	end
+	return out
+end
 
-	for iter_24_0 = 1, #arg_24_0 do
-		var_24_0[arg_24_0[iter_24_0]] = true
+local function localize_mapname(mapname)
+	local token = GameStateAPI.GetMapDisplayNameToken(mapname)
+
+	if mapname == token then
+		return mapname
 	end
 
-	return var_24_0
+	return localize(token)
 end
 
-local function var_0_53(arg_25_0)
-	local var_25_0 = var_0_38.GetMapDisplayNameToken(arg_25_0)
-
-	if arg_25_0 == var_25_0 then
-		return arg_25_0
-	end
-
-	return var_0_48(var_25_0)
-end
-
-local function var_0_54(arg_26_0)
-	if arg_26_0:find("ag_texture") then
+local function clean_mapname(mapname)
+	if mapname:find("ag_texture") then
 		return "aim_ag_texture2"
-	elseif arg_26_0:find("dust2") then
+	elseif mapname:find("dust2") then
 		return "de_dust2"
-	elseif arg_26_0:find("dust") then
+	elseif mapname:find("dust") then
 		return "de_dust"
-	elseif arg_26_0:find("mirage") then
+	elseif mapname:find("mirage") then
 		return "de_mirage"
 	end
 
-	return arg_26_0:gsub("_scrimmagemap$", "")
+	return mapname:gsub("_scrimmagemap$", "")
 end
 
-local function var_0_55(arg_27_0)
-	return arg_27_0:sub(1, 1) .. arg_27_0:sub(2, -1):lower()
+local function title_case_gsub_cb(str)
+	return str:sub(1, 1) .. str:sub(2, -1):lower()
 end
 
-local function var_0_56(arg_28_0)
-	return arg_28_0:gsub("%u%u+", var_0_55)
+local function title_case(str)
+	return str:gsub("%u%u+", title_case_gsub_cb)
 end
 
-local var_0_57 = ui.new_checkbox("MISC", "Miscellaneous", "Discord Rich Presence")
-local var_0_58 = ui.new_multiselect("MISC", "Miscellaneous", "Rich Presence Options", {
-	"Custom Text",
-	"Hide gamesense.pub"
-})
-local var_0_59 = ui.new_textbox("MISC", "Miscellaneous", "2nd Line Text")
-local var_0_60 = ui.new_label("MISC", "Miscellaneous", "Status: Not connected")
-local var_0_61 = ui.new_string("Discord RPC custom text")
+--
+-- ui items
+--
 
-local function var_0_62(arg_29_0)
-	if arg_29_0 ~= nil then
-		ui.set(var_0_60, "> " .. arg_29_0)
-		ui.set_visible(var_0_60, ui.get(var_0_57))
+local enabled_reference = ui.new_checkbox("MISC", "Miscellaneous", "Discord Rich Presence")
+local options_reference = ui.new_multiselect("MISC", "Miscellaneous", "Rich Presence Options", {"Custom Text", "Hide gamesense.pub"})
+local custom_text_reference = ui.new_textbox("MISC", "Miscellaneous", "2nd Line Text")
+local rpc_status_reference = ui.new_label("MISC", "Miscellaneous", "Status: Not connected")
+
+local custom_text_storage = ui.new_string("Discord RPC custom text")
+
+local function set_status(status)
+	if status ~= nil then
+		-- print(status)
+		ui.set(rpc_status_reference, "> " .. status)
+		ui.set_visible(rpc_status_reference, ui.get(enabled_reference))
 	else
-		ui.set(var_0_60, "")
-		ui.set_visible(var_0_60, false)
+		ui.set(rpc_status_reference, "")
+		ui.set_visible(rpc_status_reference, false)
 	end
 end
+set_status(nil)
 
-var_0_62(nil)
+--
+-- some variables we need
+--
 
-local var_0_63
-local var_0_64 = 0
-local var_0_65 = globals.realtime() + 5
-local var_0_66 = "^" .. var_0_48("SFUI_Scoreboard_ServerName", {
-	s1 = "(.*)"
-}) .. "$"
-local var_0_67 = var_0_48("SFUI_PlayMenu_Online"):gsub(".", function(arg_30_0)
-	return string.format("[%s%s]", arg_30_0:lower(), arg_30_0:upper())
-end)
+local rpc, last_rich_presence_update, next_connection_attempt = nil, 0, globals.realtime()+5
+local SERVER_MATCH = "^" .. localize("SFUI_Scoreboard_ServerName", {s1 = "(.*)"}) .. "$"
+local MATCHMAKING_MATCH = localize("SFUI_PlayMenu_Online"):gsub(".", function(c) return string.format("[%s%s]", c:lower(), c:upper()) end)
 
-local function var_0_68()
-	local var_31_0 = var_0_52(ui.get(var_0_58))
-	local var_31_1 = {
-		instance = true,
+--
+-- func that creates the rich presence object (stateless)
+--
+
+local function update_rich_presence()
+	local options = table_elements(ui.get(options_reference))
+
+	local activity = {
 		assets = {
 			large_image = "csgo-logo2",
 			large_text = "Counter-Strike: Global Offensive"
-		}
+		},
+		instance = true
 	}
 
-	if not var_31_0["Hide gamesense.pub"] then
-		var_31_1.assets.small_image = "gamesense"
-		var_31_1.assets.small_text = "gamesense.pub"
+	if not options["Hide gamesense.pub"] then
+		activity.assets.small_image = "gamesense"
+		activity.assets.small_text = "gamesense.pub"
 	end
 
-	local var_31_2 = globals.mapname()
+	local mapname = globals.mapname()
+	if mapname ~= nil then
+		local nci = native_GetNetChannelInfo()
+		local gamerules = entity.get_game_rules()
 
-	if var_31_2 ~= nil then
-		local var_31_3 = var_0_32()
-		local var_31_4 = entity.get_game_rules()
+		if options["Custom Text"] then
+			local text = ui.get(custom_text_storage)
 
-		if var_31_0["Custom Text"] then
-			local var_31_5 = ui.get(var_0_61)
-
-			if var_31_5:gsub(" ", "") ~= "" then
-				var_31_1.state = var_31_5
+			if text:gsub(" ", "") ~= "" then
+				activity.state = text
 			end
 		else
-			var_31_1.state = var_0_49[var_0_48("SFUI_Lobby_StatusPlayingCSGO")]
+			activity.state = localize_lookup[localize("SFUI_Lobby_StatusPlayingCSGO")]
 
-			if var_31_3 ~= nil then
-				if var_0_34(var_31_3) then
-					var_31_1.state = var_0_49[var_0_48("play_setting_offline")]
-				elseif var_0_38.IsDemoOrHltv() then
-					var_31_1.state = var_0_48("SFUI_Lobby_StatusWatchingCSGO")
-				elseif var_31_4 ~= nil and entity.get_prop(var_31_4, "m_bIsValveDS") == 1 then
-					var_31_1.state = var_0_49[var_0_48("play_setting_online"):gsub(var_0_67, var_0_48("Panorama_Vote_Server"))]
-				elseif var_0_38.GetServerName() ~= "" then
-					var_31_1.state = var_0_38.GetServerName():match(var_0_66)
+			if nci ~= nil then
+				if native_IsLoopback(nci) then
+					activity.state = localize_lookup[localize("play_setting_offline")]
+				elseif GameStateAPI.IsDemoOrHltv() then
+					activity.state = localize("SFUI_Lobby_StatusWatchingCSGO")
+				elseif gamerules ~= nil and entity.get_prop(gamerules, "m_bIsValveDS") == 1 then
+					activity.state = localize_lookup[localize("play_setting_online"):gsub(MATCHMAKING_MATCH, localize("Panorama_Vote_Server"))]
+				elseif GameStateAPI.GetServerName() ~= "" then
+					activity.state = GameStateAPI.GetServerName():match(SERVER_MATCH)
 				end
 			end
 		end
 
-		local var_31_6 = json.parse(tostring(var_0_38.GetTimeDataJSO()))
-		local var_31_7 = globals.curtime()
-		local var_31_8
-		local var_31_9
-		local var_31_10 = var_0_38.GetGameModeName(true)
+		local time_data = json.parse(tostring(GameStateAPI.GetTimeDataJSO()))
+		local curtime = globals.curtime()
+		local time_start, time_end
 
-		if var_31_6.gamephase == var_0_40 or var_31_6.gamephase == var_0_44 then
-			var_31_1.details = string.format("%s [%s]", var_31_10, var_0_48("gamephase_" .. var_31_6.gamephase))
+		local gamemode_name = GameStateAPI.GetGameModeName(true)
 
-			if var_31_6.gamephase == var_0_40 and var_31_6.time ~= nil then
-				var_31_8 = var_31_7 - cvar.mp_warmuptime:get_float() + var_31_6.time
-				var_31_9 = var_31_8 + cvar.mp_warmuptime:get_float()
+		if time_data.gamephase == GAMEPHASE_WARMUP or time_data.gamephase == GAMEPHASE_HALFTIME then
+			activity.details = string.format("%s [%s]", gamemode_name, localize("gamephase_" .. time_data.gamephase))
+
+			if time_data.gamephase == GAMEPHASE_WARMUP and time_data.time ~= nil then
+				time_start = curtime-cvar.mp_warmuptime:get_float()+time_data.time
+				time_end = time_start+cvar.mp_warmuptime:get_float()
 			end
-		elseif var_31_6.gamephase == var_0_45 then
-			local var_31_11 = entity.get_local_player()
-			local var_31_12
-			local var_31_13
+		elseif time_data.gamephase == GAMEPHASE_END_OF_MATCH then
+			local local_player = entity.get_local_player()
 
-			if var_31_11 ~= nil and entity.get_prop(var_31_11, "m_iTeamNum") == 2 then
-				if entity.get_prop(var_31_11, "m_iTeamNum") == 2 then
-					var_31_12, var_31_13 = "TERRORIST", "CT"
-				elseif entity.get_prop(var_31_11, "m_iTeamNum") == 3 then
-					var_31_12, var_31_13 = "CT", "TERRORIST"
+			local own_team, enemy_team
+			if local_player ~= nil and entity.get_prop(local_player, "m_iTeamNum") == 2 then
+				if entity.get_prop(local_player, "m_iTeamNum") == 2 then
+					own_team, enemy_team = "TERRORIST", "CT"
+				elseif entity.get_prop(local_player, "m_iTeamNum") == 3 then
+					own_team, enemy_team = "CT", "TERRORIST"
 				end
 			end
 
-			local var_31_14 = json.parse(tostring(var_0_38.GetScoreDataJSO()))
+			local score_data = json.parse(tostring(GameStateAPI.GetScoreDataJSO()))
+			if own_team ~= nil then
+				local own_score, enemy_score = score_data.teamdata[own_team].score, score_data.teamdata[enemy_team].score
 
-			if var_31_12 ~= nil then
-				local var_31_15 = var_31_14.teamdata[var_31_12].score
-				local var_31_16 = var_31_14.teamdata[var_31_13].score
+				if own_score == 0 and enemy_score == 0 then
+					-- deathmatch game or something?
+					local player_resource = entity.get_player_resource()
 
-				if var_31_15 == 0 and var_31_16 == 0 then
-					local var_31_17 = entity.get_player_resource()
-
-					if var_31_17 ~= nil then
-						local var_31_18 = entity.get_prop(var_31_17, "m_iKills", var_31_11) or 0
-						local var_31_19 = entity.get_prop(var_31_17, "m_iAssists", var_31_11) or 0
-						local var_31_20 = entity.get_prop(var_31_17, "m_iDeaths", var_31_11) or 0
-
-						var_31_1.details = string.format("%s [ %d | %d | %d ]", var_31_10, var_31_18, var_31_19, var_31_20)
+					if player_resource ~= nil then
+						local kills = entity.get_prop(player_resource, "m_iKills", local_player) or 0
+						local assists = entity.get_prop(player_resource, "m_iAssists", local_player) or 0
+						local deaths = entity.get_prop(player_resource, "m_iDeaths", local_player) or 0
+						activity.details = string.format("%s [ %d | %d | %d ]", gamemode_name, kills, assists, deaths)
 					end
-				elseif var_31_15 ~= nil and var_31_16 ~= nil then
-					var_31_1.details = string.format("%s [%d:%d %s]", var_31_10, var_31_15, var_31_16, var_0_48(var_31_15 == var_31_16 and "eom-result-tie2" or var_31_16 < var_31_15 and "eom-result-win2" or "eom-result-loss2"))
+				elseif own_score ~= nil and enemy_score ~= nil then
+					activity.details = string.format("%s [%d:%d %s]", gamemode_name, own_score, enemy_score, localize((own_score == enemy_score) and "eom-result-tie2" or (own_score > enemy_score and "eom-result-win2" or "eom-result-loss2")))
 				end
 			end
 
-			if var_31_1.details == nil then
-				var_31_1.details = string.format("%s [%s]", var_31_10, var_0_48("gamephase_5"))
+			if activity.details == nil then
+				activity.details = string.format("%s [%s]", gamemode_name, localize("gamephase_5"))
 			end
-		elseif var_31_6.gamephase == var_0_41 or var_31_6.gamephase == var_0_42 or var_31_6.gamephase == var_0_43 then
-			if var_31_6.roundtime_remaining >= var_31_6.roundtime then
-				var_31_9 = entity.get_prop(var_31_4, "m_fRoundStartTime")
+		elseif time_data.gamephase == GAMEPHASE_MATCH or time_data.gamephase == GAMEPHASE_FIRST_HALF or time_data.gamephase == GAMEPHASE_SECOND_HALF then
+			if time_data.roundtime_remaining >= time_data.roundtime then
+				time_end = entity.get_prop(gamerules, "m_fRoundStartTime")
 
-				if var_31_9 ~= nil then
-					var_31_8 = var_31_9 - cvar.mp_freezetime:get_float()
+				if time_end ~= nil then
+					time_start = time_end-cvar.mp_freezetime:get_float()
 				end
-			elseif var_31_6.roundtime > var_31_6.roundtime_remaining then
-				var_31_8 = entity.get_prop(var_31_4, "m_fRoundStartTime") + 0.5
+			elseif time_data.roundtime > time_data.roundtime_remaining then
+				-- print("time elapsed: ", time_data.roundtime-time_data.roundtime_remaining)
+				-- local time_elapsed = time_data.roundtime-time_data.roundtime_remaining
+				time_start = entity.get_prop(gamerules, "m_fRoundStartTime")+0.5
 			end
 
-			local var_31_21
-			local var_31_22 = var_0_38.GetGameModeInternalName(true)
-			local var_31_23 = entity.get_local_player()
+			local score_text
+			local internal_name = GameStateAPI.GetGameModeInternalName(true)
 
-			if var_31_22 == "casual" or var_31_22 == "competitive" or var_31_22 == "scrimcomp2v2" or var_31_22 == "demolition" then
-				local var_31_24 = json.parse(tostring(var_0_38.GetScoreDataJSO()))
-				local var_31_25 = "CT"
-				local var_31_26 = "TERRORIST"
+			local local_player = entity.get_local_player()
+			if internal_name == "casual" or internal_name == "competitive" or internal_name == "scrimcomp2v2" or internal_name == "demolition" then
+				local score_data = json.parse(tostring(GameStateAPI.GetScoreDataJSO()))
 
-				if var_31_23 ~= nil and entity.get_prop(var_31_23, "m_iTeamNum") == 2 then
-					var_31_25, var_31_26 = "TERRORIST", "CT"
+				local primary_team, secondary_team = "CT", "TERRORIST"
+				if local_player ~= nil and entity.get_prop(local_player, "m_iTeamNum") == 2 then
+					primary_team, secondary_team = "TERRORIST", "CT"
 				end
 
-				if var_31_24.teamdata[var_31_25] ~= nil and var_31_24.teamdata[var_31_26] ~= nil then
-					var_31_21 = string.format("%d : %d", var_31_24.teamdata[var_31_25].score, var_31_24.teamdata[var_31_26].score)
+				if score_data.teamdata[primary_team] ~= nil and score_data.teamdata[secondary_team] ~= nil then
+					score_text = string.format("%d : %d", score_data.teamdata[primary_team].score, score_data.teamdata[secondary_team].score)
 				end
 			else
-				local var_31_27 = entity.get_player_resource()
+				local player_resource = entity.get_player_resource()
 
-				if var_31_27 ~= nil then
-					local var_31_28 = entity.get_prop(var_31_27, "m_iKills", var_31_23) or 0
-					local var_31_29 = entity.get_prop(var_31_27, "m_iAssists", var_31_23) or 0
-					local var_31_30 = entity.get_prop(var_31_27, "m_iDeaths", var_31_23) or 0
-
-					var_31_21 = string.format("%d | %d | %d", var_31_28, var_31_29, var_31_30)
+				if player_resource ~= nil then
+					local kills = entity.get_prop(player_resource, "m_iKills", local_player) or 0
+					local assists = entity.get_prop(player_resource, "m_iAssists", local_player) or 0
+					local deaths = entity.get_prop(player_resource, "m_iDeaths", local_player) or 0
+					score_text = string.format("%d | %d | %d", kills, assists, deaths)
 				end
 			end
 
-			var_31_1.details = var_31_10 .. (var_31_21 and " [ " .. var_31_21 .. " ]" or "")
+			activity.details = gamemode_name .. (score_text and " [ " .. score_text .. " ]" or "")
 		end
+		-- map images
 
-		var_31_1.assets = {
-			large_image = "map_" .. var_0_54(var_31_2),
-			large_text = var_0_38.IsDemoOrHltv() and var_0_48("SFUI_Lobby_StatusWatchingCSGO") or var_0_48("matchdraft_final_map", {
-				mapname = var_0_38.GetMapName()
-			}),
-			small_image = var_31_0["Hide gamesense.pub"] and "csgo-logo2" or "gamesense",
-			small_text = var_31_0["Hide gamesense.pub"] and "Counter-Strike: Global Offensive" or "Using gamesense.pub"
+		activity.assets = {
+			large_image = "map_" .. clean_mapname(mapname),
+			large_text = GameStateAPI.IsDemoOrHltv() and localize("SFUI_Lobby_StatusWatchingCSGO") or(localize("matchdraft_final_map", {mapname = GameStateAPI.GetMapName()})),
+			small_image = options["Hide gamesense.pub"] and "csgo-logo2" or "gamesense",
+			small_text = options["Hide gamesense.pub"] and "Counter-Strike: Global Offensive" or "Using gamesense.pub"
 		}
 
-		if var_0_63.failed_images[var_31_1.assets.large_image] then
-			var_31_1.assets.large_image = "bg_default"
+		if rpc.failed_images[activity.assets.large_image] then
+			activity.assets.large_image = "bg_default"
 		end
 
-		if var_31_8 ~= nil then
-			local var_31_31 = var_0_51() - globals.curtime()
+		if time_start ~= nil then
+			local ts = get_unix_timestamp_float()
+			local ts_curtime_start = ts-globals.curtime()
 
-			var_31_1.timestamps = {
-				start = math.floor((var_31_31 + var_31_8) * 1000)
+			activity.timestamps = {
+				start = math.floor((ts_curtime_start+time_start)*1000)
 			}
 
-			if var_31_9 ~= nil and var_31_8 < var_31_9 then
-				var_31_1.timestamps["end"] = math.floor((var_31_31 + var_31_9) * 1000)
+			if time_end ~= nil and time_end > time_start then
+				activity.timestamps["end"] = math.floor((ts_curtime_start+time_end)*1000)
 			end
 		end
-	elseif var_0_5() then
-		var_31_1.state = var_0_48("LoadingProgress_Connecting")
+	elseif native_IsConnecting() then
+		activity.state = localize("LoadingProgress_Connecting")
 	else
-		var_31_1.details = var_0_49[var_0_56(var_0_48("SFUI_MAINMENU"))]
+		-- in main menu
+		activity.details = localize_lookup[title_case(localize("SFUI_MAINMENU"))]
 
-		if var_0_36.IsSessionActive() then
-			local var_31_32 = json.parse(tostring(var_0_36.GetSessionSettings()))
+		if LobbyAPI.IsSessionActive() then
+			local session_settings = json.parse(tostring(LobbyAPI.GetSessionSettings()))
 
-			if var_31_32.system.network == "LIVE" then
-				var_31_1.details = var_0_49[var_0_48("SFUI_Lobby_StatusInLobby")]
+			if session_settings.system.network == "LIVE" then
+				activity.details = localize_lookup[localize("SFUI_Lobby_StatusInLobby")]
 			end
 
-			local var_31_33 = var_0_36.GetMatchmakingStatusString()
+			local mm_status_string = LobbyAPI.GetMatchmakingStatusString()
+			if session_settings.system.network == "LIVE" or (mm_status_string ~= nil and mm_status_string ~= "") then
+				local game_mode_name = session_settings.game.mode ~= nil and localize("SFUI_GameMode" .. session_settings.game.mode) or localize_lookup[title_case(localize("SFUI_MAINMENU"))]
 
-			if var_31_32.system.network == "LIVE" or var_31_33 ~= nil and var_31_33 ~= "" then
-				local var_31_34 = var_31_32.game.mode ~= nil and var_0_48("SFUI_GameMode" .. var_31_32.game.mode) or var_0_49[var_0_56(var_0_48("SFUI_MAINMENU"))]
-
-				if var_31_33 ~= nil and var_31_33 ~= "" then
-					local var_31_35 = var_31_33 ~= nil and var_0_48(var_31_33) or nil
-
-					if (var_31_35 == nil or var_31_35 == "") and var_31_32.game ~= nil and var_31_32.game.mmqueue ~= nil then
-						var_31_35 = var_0_56(var_31_32.game.mmqueue)
+				if mm_status_string ~= nil and mm_status_string ~= "" then
+					-- we are searching
+					local status_localized = mm_status_string ~= nil and localize(mm_status_string) or nil
+					if (status_localized == nil or status_localized == "") and session_settings.game ~= nil and session_settings.game.mmqueue ~= nil then
+						status_localized = title_case(session_settings.game.mmqueue)
 					end
+					activity.state = string.format("%s - %s", game_mode_name, status_localized or "")
 
-					var_31_1.state = string.format("%s - %s", var_31_34, var_31_35 or "")
-					var_31_1.timestamps = {
-						start = (var_0_51() - var_0_36.GetTimeSpentMatchmaking()) * 1000
+					activity.timestamps = {
+						start = (get_unix_timestamp_float() - LobbyAPI.GetTimeSpentMatchmaking()) * 1000
 					}
 
-					local var_31_36 = var_0_37.GetPartySessionSetting("game/mmqueue")
+					local mm_state = PartyListAPI.GetPartySessionSetting("game/mmqueue")
+					if mm_state == "reserved" or mm_state == "connect" then
+						local mapname = PartyListAPI.GetPartySessionSetting("game/map")
+						activity.assets.large_image = (mapname ~= nil and mapname ~= "" and not mapname:find(",")) and ("map_" .. mapname) or "bg_blurry"
+						activity.assets.large_text = localize_mapname(mapname)
 
-					if var_31_36 == "reserved" or var_31_36 == "connect" then
-						local var_31_37 = var_0_37.GetPartySessionSetting("game/map")
-
-						var_31_1.assets.large_image = var_31_37 ~= nil and var_31_37 ~= "" and not var_31_37:find(",") and "map_" .. var_31_37 or "bg_blurry"
-						var_31_1.assets.large_text = var_0_53(var_31_37)
-
-						if var_0_63.failed_images[var_31_1.assets.large_image] then
-							var_31_1.assets.large_image = "bg_blurry"
+						if rpc.failed_images[activity.assets.large_image] then
+							activity.assets.large_image = "bg_blurry"
 						end
 					end
 				else
-					var_31_1.state = var_31_34
+					-- just sitting in lobby
+					activity.state = game_mode_name
 				end
 
-				local var_31_38 = 5
-
-				if var_31_32.game.mode == "scrimcomp2v2" or var_31_32.game.mode == "cooperative" or var_31_32.game.mode == "coopmission" then
-					var_31_38 = 2
-				elseif var_31_32.game.mode == "survival" then
-					var_31_38 = 2
+				-- _GetMaxLobbySlotsForGameMode in sessionutil.js
+				local max_slots = 5
+				if session_settings.game.mode == "scrimcomp2v2" or session_settings.game.mode == "cooperative" or session_settings.game.mode == "coopmission" then
+					max_slots = 2
+				elseif session_settings.game.mode == "survival" then
+					max_slots = 2
 				end
 
-				if var_31_32.system.network == "LIVE" then
-					var_31_1.party = {
-						size = {
-							var_0_37.GetCount(),
-							var_31_38
-						}
+				if session_settings.system.network == "LIVE" then
+					activity.party = {
+						size = {PartyListAPI.GetCount(), max_slots}
 					}
+
+					-- if LobbyAPI.GetHostSteamID():len() > 10 then
+					-- 	activity.party.id = LobbyAPI.GetHostSteamID()
+					-- end
 				end
+
+				-- activity.secrets = {
+				-- 	join = "e7eb30d2ee025ed05c71ea495f770b76454ee4e1",
+				-- 	spectate = "e6eb30d2ee025ed05c71ea495f770b76454ee4e1"
+				-- }
 			end
 		end
 	end
 
-	var_0_63:set_activity(var_31_1)
+	rpc:set_activity(activity)
 end
 
-local function var_0_69()
-	var_0_64 = 0
+--
+-- update every second or on certain events
+--
+
+local function force_update()
+	last_rich_presence_update = 0
 end
 
-var_0_63 = var_0_31("774277207451107398", {
-	ready = function(arg_33_0, arg_33_1)
-		var_0_68()
+rpc = new_rpc("774277207451107398", {
+	ready = function(self, data)
+		update_rich_presence()
 
-		local var_33_0 = "Connected to " .. arg_33_1.user.username .. "#" .. arg_33_1.user.discriminator
-
-		var_0_62(var_33_0)
+		local text = "Connected to " .. data.user.username .. "#" .. data.user.discriminator
+		set_status(text)
 		client.delay_call(10, function()
-			if ui.get(var_0_60) == "> " .. var_33_0 then
-				var_0_62(nil)
+			if ui.get(rpc_status_reference) == "> " .. text then
+				set_status(nil)
 			end
 		end)
 	end,
-	failed = function(arg_35_0, arg_35_1)
-		if arg_35_1 == "File not found" then
-			var_0_62("Connection failed: Discord not found.")
+	failed = function(self, err)
+		-- print("failed to open: ", err)
+
+		if err == "File not found" then
+			-- discord isnt open, delay next attempt
+			set_status("Connection failed: Discord not found.")
 		else
-			var_0_62("Connection failed: " .. tostring(arg_35_1))
+			set_status("Connection failed: " .. tostring(err))
 		end
 
-		var_0_65 = globals.realtime() + 5
+		next_connection_attempt = globals.realtime()+5
 	end,
-	error = function(arg_36_0, arg_36_1)
-		var_0_65 = globals.realtime() + 5
-
-		var_0_62("Error: " .. arg_36_1)
+	error = function(self, err)
+		-- print("error: ", err)
+		next_connection_attempt = globals.realtime()+5
+		set_status("Error: " .. err)
 	end,
-	join_game = function(arg_37_0)
-		return
+	join_game = function(self)
 	end,
-	join_request = function(arg_38_0)
-		return
+	join_request = function(self)
 	end,
-	spectate_game = function(arg_39_0)
-		return
+	spectate_game = function(self)
 	end,
-	image_failed_to_load = var_0_68
+	image_failed_to_load = update_rich_presence
 })
 
-local var_0_70 = {
+local event_handlers = {
 	paint_ui = function()
-		local var_40_0 = globals.realtime()
+		local realtime = globals.realtime()
+		if not rpc.open and next_connection_attempt ~= nil and realtime > next_connection_attempt then
+			set_status("Connecting...")
+			-- print("connecting")
 
-		if not var_0_63.open and var_0_65 ~= nil and var_40_0 > var_0_65 then
-			var_0_62("Connecting...")
+			next_connection_attempt = realtime
 
-			var_0_65 = var_40_0
+			rpc:connect()
+		elseif rpc.open and not rpc.ready and realtime > next_connection_attempt+150 then
+			set_status("Connection timed out.")
+			-- print("timed out")
 
-			var_0_63:connect()
-		elseif var_0_63.open and not var_0_63.ready and var_40_0 > var_0_65 + 150 then
-			var_0_62("Connection timed out.")
+			next_connection_attempt = next_connection_attempt+150+30
 
-			var_0_65 = var_0_65 + 150 + 30
-
-			var_0_63:close()
-		elseif var_0_63.open and var_0_63.ready and var_40_0 - var_0_64 > 1 then
-			ui.set(var_0_61, ui.get(var_0_59))
-
-			var_0_64 = var_40_0
-
-			var_0_68()
+			rpc:close()
+		elseif rpc.open and rpc.ready then
+			if realtime-last_rich_presence_update > 1 then
+				ui.set(custom_text_storage, ui.get(custom_text_reference))
+				last_rich_presence_update = realtime
+				update_rich_presence()
+			end
 		end
 	end,
-	player_death = var_0_69,
-	bomb_planted = var_0_69,
-	round_start = var_0_69,
-	round_end = var_0_69,
-	buytime_ended = var_0_69,
-	cs_game_disconnected = var_0_69,
-	cs_win_panel_match = var_0_69,
-	cs_match_end_restart = var_0_69
+	player_death = force_update,
+	bomb_planted = force_update,
+	round_start = force_update,
+	round_end = force_update,
+	buytime_ended = force_update,
+	cs_game_disconnected = force_update,
+	cs_win_panel_match = force_update,
+	cs_match_end_restart = force_update
 }
 
-local function var_0_71()
-	local var_41_0 = ui.get(var_0_57)
-	local var_41_1 = var_0_52(ui.get(var_0_58))
+local function update_visibility()
+	local enabled = ui.get(enabled_reference)
+	local options = table_elements(ui.get(options_reference))
 
-	ui.set_visible(var_0_58, var_41_0)
-	ui.set_visible(var_0_59, var_41_0 and var_41_1["Custom Text"])
+	ui.set_visible(options_reference, enabled)
+	ui.set_visible(custom_text_reference, enabled and options["Custom Text"])
 
-	if not var_41_0 then
-		ui.set_visible(var_0_60, false)
+	if not enabled then
+		ui.set_visible(rpc_status_reference, false)
 	end
 
-	var_0_69()
+	force_update()
 end
 
-ui.set_callback(var_0_58, var_0_71)
-var_0_71()
-ui.set_callback(var_0_57, function()
-	local var_42_0 = ui.get(var_0_57)
+ui.set_callback(options_reference, update_visibility)
+update_visibility()
 
-	for iter_42_0, iter_42_1 in pairs(var_0_70) do
-		if var_42_0 then
-			client.set_event_callback(iter_42_0, iter_42_1)
+ui.set_callback(enabled_reference, function()
+	local enabled = ui.get(enabled_reference)
+
+	for event, callback in pairs(event_handlers) do
+		if enabled then
+			client.set_event_callback(event, callback)
 		else
-			client.unset_event_callback(iter_42_0, iter_42_1)
+			client.unset_event_callback(event, callback)
 
-			if var_0_63.open and var_0_63.ready then
-				var_0_63:set_activity(nil)
+			if rpc.open and rpc.ready then
+				rpc:set_activity(nil)
 			end
 		end
 	end
 
-	if not var_42_0 and var_0_63 ~= nil then
-		local var_42_1 = var_0_65
-
+	-- delayed disconnect because reconnecting is heavily punished
+	if not enabled and rpc ~= nil then
+		local _next_connection_attempt = next_connection_attempt
 		client.delay_call(60, function()
-			if not ui.get(var_0_57) and var_0_63.open and var_42_1 == var_0_65 then
-				var_0_65 = globals.realtime() + 10
-
-				var_0_63:close()
+			if not ui.get(enabled_reference) and rpc.open and _next_connection_attempt == next_connection_attempt then
+				next_connection_attempt = globals.realtime()+10
+				rpc:close()
 			end
 		end)
 	end
 
-	var_0_71()
+	update_visibility()
 end)
+
+-- pretty retarded that textboxes dont save contents
 client.set_event_callback("pre_config_save", function()
-	ui.set(var_0_61, ui.get(var_0_59))
+	ui.set(custom_text_storage, ui.get(custom_text_reference))
 end)
+
 client.set_event_callback("post_config_load", function()
-	ui.set(var_0_59, ui.get(var_0_61) or "")
+	ui.set(custom_text_reference, ui.get(custom_text_storage) or "")
 end)
+
 client.delay_call(0, function()
-	ui.set(var_0_59, ui.get(var_0_61) or "")
+	ui.set(custom_text_reference, ui.get(custom_text_storage) or "")
 end)
+
 client.set_event_callback("shutdown", function()
-	if var_0_63.open then
-		var_0_62(nil)
-		var_0_63:close()
+	if rpc.open then
+		set_status(nil)
+		rpc:close()
 	end
 end)
