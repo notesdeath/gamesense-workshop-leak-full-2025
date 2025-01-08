@@ -1,21 +1,11 @@
-﻿local var_0_0 = client.register_esp_flag
-local var_0_1 = client.trace_bullet
-local var_0_2 = entity.get_local_player
-local var_0_3 = entity.get_prop
-local var_0_4 = entity.hitbox_position
-local var_0_5 = entity.is_alive
-local var_0_6 = entity.is_enemy
+local client_register_esp_flag, client_trace_bullet, entity_get_local_player, entity_get_prop, entity_hitbox_position, entity_is_alive, entity_is_enemy = client.register_esp_flag, client.trace_bullet, entity.get_local_player, entity.get_prop, entity.hitbox_position, entity.is_alive, entity.is_enemy
 
-var_0_0("LETHAL", 255, 0, 0, function(arg_1_0)
-	if var_0_5(var_0_2()) and var_0_6(arg_1_0) then
-		local var_1_0 = {
-			var_0_4(arg_1_0, "pelvis")
-		}
-
-		if #var_1_0 == 3 then
-			local var_1_1, var_1_2 = var_0_1(var_0_2(), var_1_0[1] - 1, var_1_0[2] - 1, var_1_0[3] - 1, var_1_0[1], var_1_0[2], var_1_0[3], true)
-
-			return var_1_2 >= var_0_3(arg_1_0, "m_iHealth")
+client_register_esp_flag("LETHAL", 255, 0, 0, function(c)
+	if entity_is_alive(entity_get_local_player()) and entity_is_enemy(c) then
+		local pelvis = { entity_hitbox_position(c, "pelvis") }
+		if #pelvis == 3 then
+			local _, dmg = client_trace_bullet(entity_get_local_player(), pelvis[1]-1, pelvis[2]-1, pelvis[3]-1, pelvis[1], pelvis[2], pelvis[3], true)
+			return (entity_get_prop(c, "m_iHealth") <= dmg)
 		end
 	end
 end)
