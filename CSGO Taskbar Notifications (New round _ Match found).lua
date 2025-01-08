@@ -1,66 +1,64 @@
-﻿local var_0_0 = client.delay_call
-local var_0_1 = client.find_signature
-local var_0_2 = globals.realtime
-local var_0_3 = panorama.open
-local var_0_4 = error
-local var_0_5 = print
-local var_0_6 = require("ffi")
-local var_0_7 = require("gamesense/uix")
-local var_0_8 = var_0_3()
-local var_0_9 = 0
-local var_0_10
-local var_0_11
-local var_0_12 = var_0_1("engine.dll", "\x8B\r\xCC\xCC\xCC̅\xC9t\x16\x8B\x01\x8B") or var_0_4("Invalid signature #1")
-local var_0_13 = var_0_1("gameoverlayrenderer.dll", "U\x8B\xEC\x83\xEC\x14\x8BE\f\xF7") or var_0_4("Invalid signature #2")
-local var_0_14 = var_0_1("gameoverlayrenderer.dll", "\xFF\xE1") or var_0_4("Invalid signature #3")
-local var_0_15 = var_0_1("gameoverlayrenderer.dll", "\xFF\x15\xCC\xCC\xCC\xCC;\xC6t") or var_0_4("Invalid signature #4")
-local var_0_16 = var_0_6.cast("uintptr_t***", var_0_6.cast("uintptr_t", var_0_12) + 2)[0][0] + 2
-local var_0_17 = var_0_6.cast("int(__stdcall*)(uintptr_t, int)", var_0_13)
-local var_0_18 = var_0_6.cast("int(__thiscall*)(uintptr_t)", var_0_14)
-local var_0_19 = var_0_6.cast("uintptr_t**", var_0_6.cast("uintptr_t", var_0_15) + 2)[0][0]
+-- local variables for API functions. any changes to the line below will be lost on re-generation
+local client_delay_call, client_find_signature, globals_realtime, panorama_open, error, print = client.delay_call, client.find_signature, globals.realtime, panorama.open, error, print
 
-local function var_0_20()
-	return var_0_16[0]
+local ffi = require "ffi"
+local uix = require 'gamesense/uix'
+
+local js = panorama_open()
+local last_realtime = 0
+
+local mm_notification_ref
+local round_notification_ref
+
+local raw_hwnd 			= client_find_signature("engine.dll", "\x8B\x0D\xCC\xCC\xCC\xCC\x85\xC9\x74\x16\x8B\x01\x8B") or error("Invalid signature #1")
+local raw_FlashWindow 	= client_find_signature("gameoverlayrenderer.dll", "\x55\x8B\xEC\x83\xEC\x14\x8B\x45\x0C\xF7") or error("Invalid signature #2")
+local raw_insn_jmp_ecx 	= client_find_signature("gameoverlayrenderer.dll", "\xFF\xE1") or error("Invalid signature #3")
+local raw_GetForegroundWindow = client_find_signature("gameoverlayrenderer.dll", "\xFF\x15\xCC\xCC\xCC\xCC\x3B\xC6\x74") or error("Invalid signature #4")
+
+local hwnd_ptr 		= ((ffi.cast("uintptr_t***", ffi.cast("uintptr_t", raw_hwnd) + 2)[0])[0] + 2)
+local FlashWindow 	= ffi.cast("int(__stdcall*)(uintptr_t, int)", raw_FlashWindow)
+local insn_jmp_ecx 	= ffi.cast("int(__thiscall*)(uintptr_t)", raw_insn_jmp_ecx)
+local GetForegroundWindow = (ffi.cast("uintptr_t**", ffi.cast("uintptr_t", raw_GetForegroundWindow) + 2)[0])[0]
+
+local function get_csgo_hwnd()
+	return hwnd_ptr[0]
 end
 
-local function var_0_21()
-	return var_0_18(var_0_19)
+local function get_foreground_hwnd()
+	return insn_jmp_ecx(GetForegroundWindow)
 end
 
-local function var_0_22()
-	local var_3_0 = var_0_20()
-
-	if var_0_21() ~= var_3_0 then
-		var_0_17(var_3_0, 1)
-
+local function notify_user()
+	local csgo_hwnd = get_csgo_hwnd()
+	if get_foreground_hwnd() ~= csgo_hwnd then
+		FlashWindow(csgo_hwnd, 1)
 		return true
 	end
-
 	return false
 end
 
-local function var_0_23()
-	if var_0_22() then
-		var_0_0(1, var_0_23)
+local function on_round_start()
+	if notify_user() then
+		client_delay_call(1, on_round_start)
 	end
 end
 
-local function var_0_24()
-	if var_0_2() >= var_0_9 then
-		if var_0_8.PartyListAPI.GetPartySessionSetting("game/mmqueue") == "reserved" then
-			var_0_22()
+local function on_paint_ui()
+	local realtime = globals_realtime()
+	if realtime >= last_realtime then
+		if js.PartyListAPI.GetPartySessionSetting("game/mmqueue") == "reserved" then
+			notify_user()
 		end
-
-		var_0_9 = var_0_2() + 1
+		last_realtime = globals_realtime() + 1
 	end
 end
 
-local var_0_25 = var_0_7.new_checkbox("LUA", "A", "Notify on match found")
+do
+	mm_notification_ref = uix.new_checkbox("LUA", "A", "Notify on match found")
+	mm_notification_ref:on("paint_ui", on_paint_ui)
+	mm_notification_ref:set(true)
 
-var_0_25:on("paint_ui", var_0_24)
-var_0_25:set(true)
-
-local var_0_26 = var_0_7.new_checkbox("LUA", "A", "Notify on round start")
-
-var_0_26:on("round_start", var_0_23)
-var_0_26:set(true)
+	round_notification_ref = uix.new_checkbox("LUA", "A", "Notify on round start")
+	round_notification_ref:on("round_start", on_round_start)
+	round_notification_ref:set(true)
+end
