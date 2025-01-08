@@ -1,195 +1,180 @@
-﻿local var_0_0 = client.set_event_callback
-local var_0_1 = entity.get_local_player
-local var_0_2 = entity.get_player_weapon
-local var_0_3 = entity.get_prop
-local var_0_4 = math.abs
-local var_0_5 = math.atan2
-local var_0_6 = math.ceil
-local var_0_7 = math.cos
-local var_0_8 = math.floor
-local var_0_9 = math.max
-local var_0_10 = math.sin
-local var_0_11 = math.sqrt
-local var_0_12 = ui.get
-local var_0_13 = ui.new_combobox
-local var_0_14 = ui.reference
-local var_0_15 = ui.set
-local var_0_16 = ui.set_visible
-local var_0_17 = var_0_14("AA", "Fake lag", "Limit")
-local var_0_18 = var_0_14("AA", "Fake lag", "Variance")
-local var_0_19, var_0_20 = var_0_14("AA", "Other", "Slow motion")
-local var_0_21 = var_0_14("AA", "Anti-aimbot angles", "Fake yaw limit")
-local var_0_22 = var_0_14("AA", "Other", "On shot anti-aim")
-local var_0_23 = var_0_14("Misc", "Movement", "Fast walk")
-local var_0_24 = var_0_13("AA", "Anti-aimbot angles", "Fakewalk mode", {
-	"Opposite",
-	"Extend",
-	"Jitter"
-})
+-- [x]============================[ Cache Common Functions ]============================[x]
+local client_set_event_callback, entity_get_local_player, entity_get_player_weapon, entity_get_prop, math_abs, math_atan2, math_ceil, math_cos, math_floor, math_max, math_sin, math_sqrt, ui_get, ui_new_combobox, ui_reference, ui_set, ui_set_visible = client.set_event_callback, entity.get_local_player, entity.get_player_weapon, entity.get_prop, math.abs, math.atan2, math.ceil, math.cos, math.floor, math.max, math.sin, math.sqrt, ui.get, ui.new_combobox, ui.reference, ui.set, ui.set_visible
 
-local function var_0_25(arg_1_0, arg_1_1, arg_1_2)
-	return {
-		x = arg_1_0 or 0,
-		y = arg_1_1 or 0,
-		z = arg_1_2 or 0
-	}
+-- [x]============================[ UI References ]============================[x]
+local limit = ui_reference( "AA", "Fake lag", "Limit" )
+local variance = ui_reference( "AA", "Fake lag", "Variance" )
+local slowmotion, slowmotion_state = ui_reference( "AA", "Other", "Slow motion" )
+local fake_limit = ui_reference( "AA", "Anti-aimbot angles", "Fake yaw limit" )
+local onshot = ui_reference( "AA", "Other", "On shot anti-aim" )
+local fast_walk = ui_reference( "Misc", "Movement", "Fast walk" )
+
+-- [x]================================================[ UI Additions ]================================================[x]
+local fakewalk_mode = ui_new_combobox( "AA", "Anti-aimbot angles", "Fakewalk mode", { "Opposite", "Extend", "Jitter" } )
+
+-- [x]============[ Data Structures ]============[x]
+local function vec_3( _x, _y, _z ) 
+	return { x = _x or 0, y = _y or 0, z = _z or 0 } 
 end
 
-local function var_0_26(arg_2_0)
-	return arg_2_0 * (math.pi / 180)
+-- [x]================================================[ Math Functions ]================================================[x]
+local function deg_to_rad( val ) 
+	return val * ( math.pi / 180. )
 end
 
-local function var_0_27(arg_3_0, arg_3_1)
-	if arg_3_0.x == 0 and arg_3_0.y == 0 then
-		if arg_3_0.z > 0 then
-			arg_3_1.x = -90
+local function vector_to_angles( forward, angles )
+	if forward.x == 0 and forward.y == 0 then
+		if forward.z > 0 then
+			angles.x = -90
 		else
-			arg_3_1.x = 90
+			angles.x = 90
 		end
-
-		arg_3_1.y = 0
+		angles.y = 0
 	else
-		arg_3_1.x = var_0_5(-arg_3_0.z, var_0_11(arg_3_0.x * arg_3_0.x + arg_3_0.y * arg_3_0.y)) * (180 / math.pi)
-		arg_3_1.y = var_0_5(arg_3_0.y, arg_3_0.x) * (180 / math.pi)
+		angles.x = math_atan2( -forward.z, math_sqrt( forward.x * forward.x + forward.y * forward.y ) ) * ( 180 / math.pi )
+		angles.y = math_atan2( forward.y, forward.x ) * ( 180 / math.pi )
 	end
 
-	arg_3_1.z = 0
+	angles.z = 0
 end
 
-local function var_0_28(arg_4_0, arg_4_1)
-	local var_4_0 = var_0_10(var_0_26(arg_4_0.x))
-	local var_4_1 = var_0_7(var_0_26(arg_4_0.x))
-	local var_4_2 = var_0_10(var_0_26(arg_4_0.y))
+local function angle_to_vector( angles, forward )
+	local sp = math_sin( deg_to_rad( angles.x ) )
+	local cp = math_cos( deg_to_rad( angles.x ) )
+	local sy = math_sin( deg_to_rad( angles.y ) )
+	local cy = math_cos( deg_to_rad( angles.y ) )
 
-	arg_4_1.x = var_4_1 * var_0_7(var_0_26(arg_4_0.y))
-	arg_4_1.y = var_4_1 * var_4_2
-	arg_4_1.z = -var_4_0
+	forward.x = cp * cy
+	forward.y = cp * sy
+	forward.z = -sp
 end
 
-function round(arg_5_0)
-	return arg_5_0 >= 0 and var_0_8(arg_5_0 + 0.5) or var_0_6(arg_5_0 - 0.5)
+function round( x ) -- https://stackoverflow.com/questions/18313171/lua-rounding-numbers-and-then-truncate
+    return x >= 0 and math_floor( x+0.5 ) or math_ceil( x-0.5 )
 end
 
-local function var_0_29(arg_6_0)
-	if arg_6_0 > 180 or arg_6_0 < -180 then
-		local var_6_0 = round(var_0_4(arg_6_0 / 360))
+local function normalize_as_yaw( yaw )
+	if yaw > 180 or yaw < -180 then
+		local revolutions = round( math_abs( yaw / 360 ) )
 
-		if arg_6_0 < 0 then
-			arg_6_0 = arg_6_0 + 360 * var_6_0
+		if yaw < 0 then
+			yaw = yaw + 360 * revolutions
 		else
-			arg_6_0 = arg_6_0 - 360 * var_6_0
+			yaw = yaw - 360 * revolutions
 		end
 	end
 
-	return arg_6_0
+	return yaw
 end
 
-local function var_0_30(arg_7_0)
-	local var_7_0 = var_0_25(var_0_3(var_0_1(), "m_vecVelocity"))
-	local var_7_1 = var_0_11(var_7_0.x * var_7_0.x + var_7_0.y * var_7_0.y)
-	local var_7_2 = var_0_25(0, 0, 0)
+-- [x]======================================[ Local Functions ]======================================[x]
+local function quick_stop( cmd )
+	local velocity_prop = vec_3( entity_get_prop( entity_get_local_player( ), "m_vecVelocity" ) )
+	local velocity = math_sqrt( velocity_prop.x * velocity_prop.x + velocity_prop.y * velocity_prop.y )
+	local direction = vec_3( 0, 0, 0 )
+	vector_to_angles( velocity_prop, direction )
+	direction.y = cmd.yaw - direction.y;
 
-	var_0_27(var_7_0, var_7_2)
+	local new_move = vec_3( 0, 0, 0 )
+	angle_to_vector( direction, new_move );
+	local max_move = math_max( math_abs( cmd.forwardmove ), math_abs( cmd.sidemove ) )
+	local multiplier = 450 / max_move
+	new_move = vec_3( new_move.x * -multiplier, new_move.y * -multiplier, new_move.z * -multiplier )
 
-	var_7_2.y = arg_7_0.yaw - var_7_2.y
-
-	local var_7_3 = var_0_25(0, 0, 0)
-
-	var_0_28(var_7_2, var_7_3)
-
-	local var_7_4 = 450 / var_0_9(var_0_4(arg_7_0.forwardmove), var_0_4(arg_7_0.sidemove))
-	local var_7_5 = var_0_25(var_7_3.x * -var_7_4, var_7_3.y * -var_7_4, var_7_3.z * -var_7_4)
-
-	arg_7_0.forwardmove = var_7_5.x
-	arg_7_0.sidemove = var_7_5.y
+	cmd.forwardmove = new_move.x
+	cmd.sidemove = new_move.y
 end
 
-local var_0_31 = 0
-local var_0_32 = ""
+local equiped_type = 0
+local equiped_name = ""
+local function get_stop_tick( )
+	local weapon = entity_get_player_weapon( entity_get_local_player( ) )
+	local scoped = entity_get_prop( entity_get_local_player( ), "m_bIsScoped" )
 
-local function var_0_33()
-	local var_8_0 = var_0_2(var_0_1())
-	local var_8_1 = var_0_3(var_0_1(), "m_bIsScoped")
-
-	if var_0_32 == "deagle" or var_0_32 == "aug" and var_8_1 == 1 then
+	-- Because Valve
+	if equiped_name == "deagle"
+		or ( equiped_name == "aug" and scoped == 1 ) then
 		return 10
 	end
 
-	if var_0_32 == "negev" or var_0_32 == "sg556" and var_8_1 == 1 then
+	if equiped_name == "negev"
+		or ( equiped_name == "sg556" and scoped == 1 ) then
 		return 9
 	end
-
+	
 	return 8
 end
 
-local var_0_34 = false
-local var_0_35 = var_0_12(var_0_22)
-local var_0_36 = var_0_12(var_0_17)
-local var_0_37 = var_0_12(var_0_18)
-local var_0_38 = var_0_12(var_0_23)
-local var_0_39 = 0
-
-var_0_0("setup_command", function(arg_9_0)
-	if var_0_12(var_0_19) then
+-- [x]======================================[ Callbacks ]======================================[x]
+local fakewalking = false
+local stored_onshot = ui_get( onshot )
+local stored_limit = ui_get( limit )
+local stored_variance = ui_get( variance )
+local stored_fastwalk = ui_get( fast_walk )
+local flicks = 0
+client_set_event_callback( "setup_command", function( cmd )	
+	if ui_get( slowmotion ) then
+		return
+	end	
+	
+	if not ui_get( slowmotion_state ) then
+		if fakewalking and stored_limit > 0 then
+			ui_set( onshot, stored_onshot )
+			ui_set( limit, stored_limit )
+			ui_set( variance, stored_variance )
+			ui_set( fast_walk, stored_fastwalk )
+		end
+		stored_onshot = ui_get( onshot )
+		stored_limit = ui_get( limit )
+		stored_variance = ui_get( variance )
+		stored_fastwalk = ui_get( fast_walk )
+		fakewalking = false
 		return
 	end
+	
+	-- Setup angles
+	local eye_angles = vec_3( entity_get_prop( entity_get_local_player( ), "m_angEyeAngles" ) )
+	local real_angles = vec_3( entity_get_prop( entity_get_local_player( ), "m_angAbsRotation" ) )
+	local fake_side = ( normalize_as_yaw( real_angles.y - eye_angles.y ) > 0 ) and -1 or 1
+	
+	-- Get velocity
+	local velocity_prop = vec_3( entity_get_prop( entity_get_local_player( ), "m_vecVelocity" ) )
+	local velocity = math_sqrt( velocity_prop.x * velocity_prop.x + velocity_prop.y * velocity_prop.y )
+	
+	-- Set some shit up
+	fakewalking = true
+	ui_set( onshot, false )
+	ui_set( limit, 14 )
+	ui_set( variance, 0 )
+	ui_set( fast_walk, true )
 
-	if not var_0_12(var_0_20) then
-		if var_0_34 and var_0_36 > 0 then
-			var_0_15(var_0_22, var_0_35)
-			var_0_15(var_0_17, var_0_36)
-			var_0_15(var_0_18, var_0_37)
-			var_0_15(var_0_23, var_0_38)
-		end
-
-		var_0_35 = var_0_12(var_0_22)
-		var_0_36 = var_0_12(var_0_17)
-		var_0_37 = var_0_12(var_0_18)
-		var_0_38 = var_0_12(var_0_23)
-		var_0_34 = false
-
-		return
-	end
-
-	local var_9_0 = var_0_25(var_0_3(var_0_1(), "m_angEyeAngles"))
-	local var_9_1 = var_0_25(var_0_3(var_0_1(), "m_angAbsRotation"))
-	local var_9_2 = var_0_29(var_9_1.y - var_9_0.y) > 0 and -1 or 1
-	local var_9_3 = var_0_25(var_0_3(var_0_1(), "m_vecVelocity"))
-	local var_9_4 = var_0_11(var_9_3.x * var_9_3.x + var_9_3.y * var_9_3.y)
-
-	var_0_34 = true
-
-	var_0_15(var_0_22, false)
-	var_0_15(var_0_17, 14)
-	var_0_15(var_0_18, 0)
-	var_0_15(var_0_23, true)
-
-	local var_9_5 = var_0_33()
-
-	if arg_9_0.chokedcommands >= var_0_12(var_0_17) - var_9_5 and (arg_9_0.forwardmove ~= 0 or arg_9_0.sidemove ~= 0) then
-		var_0_30(arg_9_0)
-	end
-
-	if arg_9_0.chokedcommands == var_0_12(var_0_17) - 3 then
-		if var_9_4 <= 0 then
-			arg_9_0.forwardmove = -1.01
-		end
-
-		var_0_39 = var_0_39 + 1
-
-		if var_0_12(var_0_24) == "Opposite" then
-			arg_9_0.yaw = var_0_29(var_9_0.y + 60 * var_9_2)
-		elseif var_0_12(var_0_24) == "Extend" then
-			arg_9_0.yaw = var_0_29(var_9_0.y + 90 * var_9_2)
-		elseif var_0_12(var_0_24) == "Jitter" then
-			arg_9_0.yaw = var_0_29(var_9_0.y + 60 * (var_0_39 % 2 == 0 and -1 or 1))
+	local stop_tick = get_stop_tick( )
+	if cmd.chokedcommands >= ( ui_get( limit ) - stop_tick ) then 
+		if cmd.forwardmove ~= 0 or cmd.sidemove ~= 0 then
+			quick_stop( cmd )
 		end
 	end
-end)
-var_0_0("item_equip", function(arg_10_0)
-	var_0_32 = arg_10_0.item
-	var_0_31 = arg_10_0.weptype
-end)
-var_0_0("pre_render", function()
-	var_0_16(var_0_24, not var_0_12(var_0_19) and true or false)
-end)
+
+	if cmd.chokedcommands == ( ui_get( limit ) - 3 ) then
+		if velocity <= 0 then
+			cmd.forwardmove = -1.01
+		end
+		flicks = flicks + 1
+		if ui_get( fakewalk_mode ) == "Opposite" then
+			cmd.yaw = normalize_as_yaw( eye_angles.y + ( 60 * fake_side ) )
+		elseif ui_get( fakewalk_mode ) == "Extend" then
+			cmd.yaw = normalize_as_yaw( eye_angles.y + ( 90 * fake_side ) )
+		elseif ui_get( fakewalk_mode ) == "Jitter" then
+			cmd.yaw = normalize_as_yaw( eye_angles.y + ( 60 * ( flicks % 2 == 0 and -1 or 1 ) ) )
+		end
+	end
+end )
+
+client_set_event_callback( "item_equip", function( event_data )
+	equiped_name = event_data.item
+	equiped_type = event_data.weptype
+end )
+
+client_set_event_callback( "pre_render", function( )
+	ui_set_visible( fakewalk_mode, not ui_get( slowmotion ) and true or false )
+end )
