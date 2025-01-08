@@ -1,44 +1,56 @@
-﻿local var_0_0 = require("gamesense/csgo_weapons")
-local var_0_1 = panorama.open()
-local var_0_2 = var_0_1.LoadoutAPI
-local var_0_3 = var_0_1.InventoryAPI
-local var_0_4 = {
-	["Desert Eagle"] = var_0_0.weapon_deagle.idx,
-	["R8 Revolver"] = var_0_0.weapon_revolver.idx
-}
-local var_0_5 = {
-	"ct",
-	"t"
+--
+-- dependencies
+--
+
+local weapons = require "gamesense/csgo_weapons"
+
+local js = panorama.open()
+local LoadoutAPI, InventoryAPI = js.LoadoutAPI, js.InventoryAPI
+
+--
+-- constants
+--
+
+local EQUIPPED_ITEMS = {
+	["Desert Eagle"] = weapons["weapon_deagle"].idx,
+	["R8 Revolver"] = weapons["weapon_revolver"].idx
 }
 
-local function var_0_6(arg_1_0, arg_1_1)
-	local var_1_0 = var_0_3.GetFauxItemIDFromDefAndPaintIndex(arg_1_0)
-	local var_1_1 = var_0_3.GetSlotSubPosition(var_1_0)
-	local var_1_2 = var_0_2.GetItemID(arg_1_1, var_1_1)
+local TEAMS = {"ct", "t"}
 
-	return var_0_3.GetItemDefinitionIndex(var_1_2)
+--
+-- utility functions
+--
+
+local function get_equipped_idx(idx_slot, team)
+	local item = InventoryAPI.GetFauxItemIDFromDefAndPaintIndex(idx_slot)
+	local slot = InventoryAPI.GetSlotSubPosition(item)
+
+	local item_equipped = LoadoutAPI.GetItemID(team, slot)
+
+	return InventoryAPI.GetItemDefinitionIndex(item_equipped)
 end
 
-local function var_0_7(arg_2_0, arg_2_1)
-	local var_2_0 = var_0_3.GetFauxItemIDFromDefAndPaintIndex(arg_2_0)
-	local var_2_1 = var_0_3.GetSlotSubPosition(var_2_0)
+local function equip_item(idx, team)
+	local item = InventoryAPI.GetFauxItemIDFromDefAndPaintIndex(idx)
+	local slot = InventoryAPI.GetSlotSubPosition(item)
 
-	var_0_2.EquipItemInSlot(arg_2_1, var_2_0, var_2_1)
+	LoadoutAPI.EquipItemInSlot(team, item, slot)
 end
 
-local var_0_8 = ui.new_combobox("MISC", "Miscellaneous", "Auto-equip Heavy Pistol", {
-	"Off",
-	"Desert Eagle",
-	"R8 Revolver"
-})
+--
+-- ui reference + callback
+--
 
-ui.set_callback(var_0_8, function()
-	local var_3_0 = var_0_4[ui.get(var_0_8)]
+local reference = ui.new_combobox("MISC", "Miscellaneous", "Auto-equip Heavy Pistol", {"Off", "Desert Eagle", "R8 Revolver"})
 
-	if var_3_0 ~= nil then
-		for iter_3_0, iter_3_1 in ipairs(var_0_5) do
-			if var_0_6(var_3_0, iter_3_1) ~= var_3_0 then
-				var_0_7(var_3_0, iter_3_1)
+ui.set_callback(reference, function()
+	local idx = EQUIPPED_ITEMS[ui.get(reference)]
+
+	if idx ~= nil then
+		for i, team in ipairs(TEAMS) do
+			if get_equipped_idx(idx, team) ~= idx then
+				equip_item(idx, team)
 			end
 		end
 	end
