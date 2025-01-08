@@ -1,259 +1,127 @@
-﻿local var_0_0 = client.key_state
-local var_0_1 = client.userid_to_entindex
-local var_0_2 = database.read
-local var_0_3 = database.write
-local var_0_4 = entity.get_local_player
-local var_0_5 = entity.get_player_name
-local var_0_6 = entity.get_prop
-local var_0_7 = entity.get_steam64
-local var_0_8 = renderer.rectangle
-local var_0_9 = renderer.text
-local var_0_10 = ui.get
-local var_0_11 = ui.is_menu_open
-local var_0_12 = ui.mouse_position
-local var_0_13 = ui.new_hotkey
-local var_0_14 = ui.new_checkbox
-local var_0_15 = ui.new_combobox
-local var_0_16 = pairs
-local var_0_17 = ui.set_callback
-local var_0_18 = cvar.mp_td_dmgtokick
-local var_0_19 = entity.get_player_resource
-local var_0_20 = client.set_event_callback
-local var_0_21 = client.unset_event_callback
-local var_0_22 = math.min
-local var_0_23 = table.remove
+local key_state, userid_to_entindex, read, write, get_local_player, get_player_name, get_prop, get_steam64, rectangle, text, get, is_menu_open, mouse_position, new_hotkey, new_checkbox, new_combobox, pairs, set_callback, mp_td_dmgtokick, get_player_resource, _set, _unset, min, remove = client.key_state, client.userid_to_entindex, database.read, database.write, entity.get_local_player, entity.get_player_name, entity.get_prop, entity.get_steam64, renderer.rectangle, renderer.text, ui.get, ui.is_menu_open, ui.mouse_position, ui.new_hotkey, ui.new_checkbox, ui.new_combobox, pairs, ui.set_callback, cvar.mp_td_dmgtokick, entity.get_player_resource, client.set_event_callback, client.unset_event_callback, math.min, table.remove
+local is_inside = function(a, b, x, y, w, h) return a >= x and a <= w and b >= y and b <= h end
+local tbl_len = function(t) local n=0 for _ in pairs(t) do n=n+1 end return n end
+local pos = read('teamdmg_pos')or{300,30} local tX,tY=pos[1],pos[2] local oX,oY,_d local drag_menu=function(x,y,w,h)if not is_menu_open()then return tX,tY end local mouse_down=key_state(0x01)if mouse_down then local X,Y=mouse_position()if not _d then local w,h=x+w,y+h if is_inside(X,Y,x,y,w,h)then oX,oY,_d=X-x,Y-y,true end else tX,tY=X-oX,Y-oY end else _d=false end return tX,tY end
 
-local function var_0_24(arg_1_0, arg_1_1, arg_1_2, arg_1_3, arg_1_4, arg_1_5)
-	return arg_1_2 <= arg_1_0 and arg_1_0 <= arg_1_4 and arg_1_3 <= arg_1_1 and arg_1_1 <= arg_1_5
-end
+local mode = new_combobox('lua', 'a', 'Show Teammates Damage/Kills', 'Off', 'Without Colors', 'Matchmaking Colors', 'Matchmaking Color Names')
+local key = new_hotkey('lua', 'a', 'hotkey', true)
+local rem = new_checkbox('lua', 'a', 'Remove from list when over amount')
+local last_p = read('teamdmg_pos_last') or {}
+local h, m, s = client.system_time()
+local players = last_p[h .. m] or {}
+local num_of_players = tbl_len(players)
 
-local function var_0_25(arg_2_0)
-	local var_2_0 = 0
-
-	for iter_2_0 in var_0_16(arg_2_0) do
-		var_2_0 = var_2_0 + 1
-	end
-
-	return var_2_0
-end
-
-local var_0_26 = var_0_2("teamdmg_pos") or {
-	300,
-	30
+local white, color_mode = {255,255,255,255}
+local colors = {
+	{200, 200, 200, 255, 'BOT'},
+	{200, 200, 200, 255, 'Gray'},
+	{255, 255, 0, 255, 	 'Yellow'},
+	{110, 0, 255, 255, 	 'Purple'},
+	{0, 200, 0, 255, 	 'Green'},
+	{0, 75, 255, 255, 	 'Blue'},
+	{255, 145, 0, 255, 	 'Orange'}
 }
-local var_0_27 = var_0_26[1]
-local var_0_28 = var_0_26[2]
-local var_0_29
-local var_0_30
-local var_0_31
 
-local function var_0_32(arg_3_0, arg_3_1, arg_3_2, arg_3_3)
-	if not var_0_11() then
-		return var_0_27, var_0_28
+local function on_player_stuff(e)
+	local attacker, victim, local_player = userid_to_entindex(e.attacker), userid_to_entindex(e.userid), get_local_player()
+
+	if attacker == victim then
+		return
 	end
 
-	if var_0_0(1) then
-		local var_3_0, var_3_1 = var_0_12()
+	local player_resource = get_player_resource()
+	local local_player_team = get_prop(player_resource, 'm_iTeam', local_player)
+	local attacker_team = get_prop(player_resource, 'm_iTeam', attacker)
+	local victim_team = get_prop(player_resource, 'm_iTeam', victim)
+	if attacker_team ~= local_player_team or victim_team ~= local_player_team then
+		return
+	end
 
-		if not var_0_31 then
-			local var_3_2 = arg_3_0 + arg_3_2
-			local var_3_3 = arg_3_1 + arg_3_3
+	local steamID3 = get_steam64(attacker)
+	if steamID3 == 0 then
+		return
+	end
 
-			if var_0_24(var_3_0, var_3_1, arg_3_0, arg_3_1, var_3_2, var_3_3) then
-				var_0_29, var_0_30, var_0_31 = var_3_0 - arg_3_0, var_3_1 - arg_3_1, true
+	if not players[steamID3] then
+		players[steamID3] = {0, 0, get_player_name(attacker), white, colors[get_prop(player_resource, 'm_iCompTeammateColor', attacker) + 3], attacker}
+		num_of_players = num_of_players + 1
+	end
+
+	if not e.health then
+		players[steamID3][1] = players[steamID3][1] + 1
+	else
+		players[steamID3][2] = players[steamID3][2] + e.dmg_health
+	end
+
+	players[steamID3][4] = color_mode == 'Without Colors' and white or players[steamID3][5]
+	players[steamID3][3] = color_mode == 'Matchmaking Color Names' and players[steamID3][5][5] or get_player_name(attacker)
+end
+
+local function on_paint()
+	if not get(key) then
+		return
+	end
+
+	local x, y = drag_menu(tX, tY, 200, 20)
+
+	rectangle(x, y, 200, 20, 37, 37, 37, 250)
+	text(x + 100, y + 10, 255,255,255,255, 'cd', 0, 'Player List')
+	rectangle(x, y + 20, 200, (num_of_players * 10) + 10, 33, 33, 33, 180)
+
+	local y = y + 25
+	local dmg_to_kick = mp_td_dmgtokick:get_int()
+	local list_clear = get(rem)
+	local gap = 0
+
+	local player_resource = get_player_resource()
+	local local_player_team = get_prop( player_resource, 'm_iTeam', get_local_player() )
+
+	for steamid, stuff in pairs(players) do
+		local m = min(stuff[2] / dmg_to_kick, 1)
+		local c = stuff[4]
+
+		text(x + 5, y + gap, c[1], c[2], c[3], c[4] , 'ld', 42, stuff[3])
+
+		rectangle(x + 50, (y + gap - 3) + 7, 100, 6, 13, 13, 13, 230)
+		rectangle(x + 51, (y + gap - 2) + 7, 98*m, 4, 49, 233, 93, 255)
+
+		text(x + 100, y + gap + 7, 255,255,255,255, 'c-d', 0, stuff[2]..'/'..dmg_to_kick)
+
+		text(x + 195, y + gap, 255,255,255,255, 'rd', 0, stuff[1].. ' Kills')
+
+		gap = gap + 11
+
+		if list_clear then
+			if stuff[1] >= 3 or stuff[2] >= dmg_to_kick then
+				remove(players, steamid)
 			end
-		else
-			var_0_27, var_0_28 = var_3_0 - var_0_29, var_3_1 - var_0_30
-		end
-	else
-		var_0_31 = false
-	end
-
-	return var_0_27, var_0_28
-end
-
-local var_0_33 = var_0_15("lua", "a", "Show Teammates Damage/Kills", "Off", "Without Colors", "Matchmaking Colors", "Matchmaking Color Names")
-local var_0_34 = var_0_13("lua", "a", "hotkey", true)
-local var_0_35 = var_0_14("lua", "a", "Remove from list when over amount")
-local var_0_36 = var_0_2("teamdmg_pos_last") or {}
-local var_0_37, var_0_38, var_0_39 = client.system_time()
-local var_0_40 = var_0_36[var_0_37 .. var_0_38] or {}
-local var_0_41 = var_0_25(var_0_40)
-local var_0_42 = {
-	255,
-	255,
-	255,
-	255
-}
-local var_0_43
-local var_0_44 = {
-	{
-		200,
-		200,
-		200,
-		255,
-		"BOT"
-	},
-	{
-		200,
-		200,
-		200,
-		255,
-		"Gray"
-	},
-	{
-		255,
-		255,
-		0,
-		255,
-		"Yellow"
-	},
-	{
-		110,
-		0,
-		255,
-		255,
-		"Purple"
-	},
-	{
-		0,
-		200,
-		0,
-		255,
-		"Green"
-	},
-	{
-		0,
-		75,
-		255,
-		255,
-		"Blue"
-	},
-	{
-		255,
-		145,
-		0,
-		255,
-		"Orange"
-	}
-}
-
-local function var_0_45(arg_4_0)
-	local var_4_0 = var_0_1(arg_4_0.attacker)
-	local var_4_1 = var_0_1(arg_4_0.userid)
-	local var_4_2 = var_0_4()
-
-	if var_4_0 == var_4_1 then
-		return
-	end
-
-	local var_4_3 = var_0_19()
-	local var_4_4 = var_0_6(var_4_3, "m_iTeam", var_4_2)
-	local var_4_5 = var_0_6(var_4_3, "m_iTeam", var_4_0)
-	local var_4_6 = var_0_6(var_4_3, "m_iTeam", var_4_1)
-
-	if var_4_5 ~= var_4_4 or var_4_6 ~= var_4_4 then
-		return
-	end
-
-	local var_4_7 = var_0_7(var_4_0)
-
-	if var_4_7 == 0 then
-		return
-	end
-
-	if not var_0_40[var_4_7] then
-		var_0_40[var_4_7] = {
-			0,
-			0,
-			var_0_5(var_4_0),
-			var_0_42,
-			var_0_44[var_0_6(var_4_3, "m_iCompTeammateColor", var_4_0) + 3],
-			var_4_0
-		}
-		var_0_41 = var_0_41 + 1
-	end
-
-	if not arg_4_0.health then
-		var_0_40[var_4_7][1] = var_0_40[var_4_7][1] + 1
-	else
-		var_0_40[var_4_7][2] = var_0_40[var_4_7][2] + arg_4_0.dmg_health
-	end
-
-	var_0_40[var_4_7][4] = var_0_43 == "Without Colors" and var_0_42 or var_0_40[var_4_7][5]
-	var_0_40[var_4_7][3] = var_0_43 == "Matchmaking Color Names" and var_0_40[var_4_7][5][5] or var_0_5(var_4_0)
-end
-
-local function var_0_46()
-	if not var_0_10(var_0_34) then
-		return
-	end
-
-	local var_5_0, var_5_1 = var_0_32(var_0_27, var_0_28, 200, 20)
-
-	var_0_8(var_5_0, var_5_1, 200, 20, 37, 37, 37, 250)
-	var_0_9(var_5_0 + 100, var_5_1 + 10, 255, 255, 255, 255, "cd", 0, "Player List")
-	var_0_8(var_5_0, var_5_1 + 20, 200, var_0_41 * 10 + 10, 33, 33, 33, 180)
-
-	local var_5_2 = var_5_1 + 25
-	local var_5_3 = var_0_18:get_int()
-	local var_5_4 = var_0_10(var_0_35)
-	local var_5_5 = 0
-	local var_5_6 = var_0_19()
-	local var_5_7 = var_0_6(var_5_6, "m_iTeam", var_0_4())
-
-	for iter_5_0, iter_5_1 in var_0_16(var_0_40) do
-		local var_5_8 = var_0_22(iter_5_1[2] / var_5_3, 1)
-		local var_5_9 = iter_5_1[4]
-
-		var_0_9(var_5_0 + 5, var_5_2 + var_5_5, var_5_9[1], var_5_9[2], var_5_9[3], var_5_9[4], "ld", 42, iter_5_1[3])
-		var_0_8(var_5_0 + 50, var_5_2 + var_5_5 - 3 + 7, 100, 6, 13, 13, 13, 230)
-		var_0_8(var_5_0 + 51, var_5_2 + var_5_5 - 2 + 7, 98 * var_5_8, 4, 49, 233, 93, 255)
-		var_0_9(var_5_0 + 100, var_5_2 + var_5_5 + 7, 255, 255, 255, 255, "c-d", 0, iter_5_1[2] .. "/" .. var_5_3)
-		var_0_9(var_5_0 + 195, var_5_2 + var_5_5, 255, 255, 255, 255, "rd", 0, iter_5_1[1] .. " Kills")
-
-		var_5_5 = var_5_5 + 11
-
-		if var_5_4 and (iter_5_1[1] >= 3 or var_5_3 <= iter_5_1[2]) then
-			var_0_23(var_0_40, iter_5_0)
 		end
 
-		if var_0_6(var_5_6, "m_iTeam", iter_5_1[6]) ~= var_5_7 then
-			var_0_23(var_0_40, iter_5_0)
+		if get_prop(player_resource, 'm_iTeam', stuff[6]) ~= local_player_team then
+			remove(players, steamid)
 		end
 	end
 end
 
-local function var_0_47(arg_6_0)
-	var_0_40, var_0_41 = {}, 0
+local function reset_list(e) players,num_of_players={},0 end
+local function on_shutdown()
+	write('teamdmg_pos', {tX, tY})
+	local h, m = client.system_time()
+	write('teamdmg_pos_last', {[h .. m] = players})
 end
 
-local function var_0_48()
-	var_0_3("teamdmg_pos", {
-		var_0_27,
-		var_0_28
-	})
+local function on_change(s)
+	local e = get(s)
+	local callback = e ~= 'Off' and _set or _unset
+	color_mode = e
 
-	local var_7_0, var_7_1 = client.system_time()
-
-	var_0_3("teamdmg_pos_last", {
-		[var_7_0 .. var_7_1] = var_0_40
-	})
+	callback('player_hurt', on_player_stuff)
+	callback('player_death', on_player_stuff)
+	callback('paint', on_paint)
+	callback('cs_win_panel_match', reset_list)
+	callback('shutdown', on_shutdown)
 end
 
-local function var_0_49(arg_8_0)
-	local var_8_0 = var_0_10(arg_8_0)
-	local var_8_1 = var_8_0 ~= "Off" and var_0_20 or var_0_21
-
-	var_0_43 = var_8_0
-
-	var_8_1("player_hurt", var_0_45)
-	var_8_1("player_death", var_0_45)
-	var_8_1("paint", var_0_46)
-	var_8_1("cs_win_panel_match", var_0_47)
-	var_8_1("shutdown", var_0_48)
-end
-
-var_0_49(var_0_33)
-var_0_17(var_0_33, var_0_49)
-ui.new_button("lua", "a", "Reset List", var_0_47)
+on_change(mode)
+set_callback(mode, on_change)
+ui.new_button('lua', 'a', 'Reset List', reset_list)
