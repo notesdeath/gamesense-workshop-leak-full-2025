@@ -1,263 +1,218 @@
-﻿local var_0_0 = ui.get
-local var_0_1 = ui.set
-local var_0_2 = entity.get_player_weapon
-local var_0_3 = entity.get_players
-local var_0_4 = entity.get_local_player
-local var_0_5 = entity.get_prop
-local var_0_6 = entity.hitbox_position
-local var_0_7 = entity.is_alive
-local var_0_8 = entity.is_dormant
-local var_0_9 = globals.chokedcommands
-local var_0_10 = globals.curtime
-local var_0_11 = globals.tickcount
-local var_0_12 = globals.tickinterval
-local var_0_13 = globals.mapname
-local var_0_14 = plist.get
-local var_0_15 = plist.set
-local var_0_16 = client.trace_line
-local var_0_17 = client.latency
-local var_0_18 = client.set_clan_tag
-local var_0_19 = client.screen_size
-local var_0_20 = client.eye_position
-local var_0_21 = entity.get_all
-local var_0_22 = renderer.world_to_screen
-local var_0_23 = renderer.indicator
-local var_0_24 = string.format
-local var_0_25 = string.sub
-local var_0_26 = bit.band
-local var_0_27 = math.abs
-local var_0_28 = math.floor
-local var_0_29 = math.min
-local var_0_30 = math.max
-local var_0_31 = math.sqrt
-local var_0_32 = math.pow
-local var_0_33 = string.rep
-local var_0_34 = string.sub
-local var_0_35 = require("gamesense/csgo_weapons")
-local var_0_36 = require("ffi")
-local var_0_37 = require("vector")
-local var_0_38 = {
-	right_foot = 12,
-	left_foot = 11,
-	right_thigh = 8,
-	left_thigh = 7,
-	chest = 5,
-	thorax = 4,
-	body = 3,
-	pelvis = 2,
+-- nyaahook! for Counter-Strike: Global Offensive, by nicole
+
+-- Localized functions
+-- gamesense
+local ui_get, ui_set, entity_get_player_weapon, entity_get_players, entity_get_local_player, entity_get_prop, entity_hitbox_position, entity_is_alive, entity_is_dormant, globals_chokedcommands, globals_curtime, globals_tickcount, globals_tickinterval, globals_mapname, plist_get, plist_set, client_trace_line, client_latency, client_set_clan_tag, client_screen_size, client_eye_position, entity_get_all, renderer_world_to_screen, renderer_indicator, string_format, string_sub = ui.get, ui.set, entity.get_player_weapon, entity.get_players, entity.get_local_player, entity.get_prop, entity.hitbox_position, entity.is_alive, entity.is_dormant, globals.chokedcommands, globals.curtime, globals.tickcount, globals.tickinterval, globals.mapname, plist.get, plist.set, client.trace_line, client.latency, client.set_clan_tag, client.screen_size, client.eye_position, entity.get_all, renderer.world_to_screen, renderer.indicator, string.format, string.sub
+-- Lua
+local bit_band, math_abs, math_floor, math_min, math_max, math_sqrt, math_pow, string_rep, string_sub = bit.band, math.abs, math.floor, math.min, math.max, math.sqrt, math.pow, string.rep, string.sub
+
+-- Libraries
+local csgo_weapons = require "gamesense/csgo_weapons"
+local ffi = require "ffi"
+local vector = require "vector"
+
+-- Game definitions
+local hitbox_e =
+{
 	head = 0,
-	right_forearm = 18,
-	right_upper_arm = 17,
-	left_forearm = 16,
-	left_upper_arm = 15,
+	pelvis = 2,
+	body = 3,
+	thorax = 4,
+	chest = 5,
+	left_thigh = 7,
+	right_thigh = 8,
+	left_foot = 11,
+	right_foot = 12,
+	left_hand = 13,
 	right_hand = 14,
-	left_hand = 13
+	left_upper_arm = 15,
+	left_forearm = 16,
+	right_upper_arm = 17,
+	right_forearm = 18
 }
-local var_0_39 = {
+
+local flags_e =
+{
 	onground = bit.lshift(1, 0),
 	fakeclient = bit.lshift(1, 9)
 }
-local var_0_40 = {
+
+local weapon_e =
+{
 	awp = 9,
 	r8_revolver = 64
 }
-local var_0_41 = {
-	f3 = 114,
-	xbutton2 = 6
+
+-- Other definitions
+local virtual_key_e =
+{
+	xbutton2 = 6,
+	f3 = 114
 }
-local var_0_42 = 15
-local var_0_43 = var_0_36.cast(var_0_36.typeof("bool(__cdecl*)(float flFromX, float flFromY, float flFromZ, float flToX, float flToY, float flToZ)"), client.find_signature("client.dll", "U\x8B\xEC\x83\xEC\b\x8B\x15\xCC\xCC\xCC\xCC\x0F") or error("client.dll!::LineGoesThroughSmoke could not be found. Signature is outdated."))
-local var_0_44 = "nyaahook!"
-local var_0_45 = 32
-local var_0_46 = 3.3
-local var_0_47 = 0.03
-local var_0_48 = 4000
-local var_0_49 = 4
-local var_0_50 = 1500
-local var_0_51 = 100
-local var_0_52 = {
-	var_0_38.head,
-	var_0_38.left_foot,
-	var_0_38.right_foot,
-	var_0_38.left_hand,
-	var_0_38.right_hand
+
+local MAX_CLAN_TAG_LENGTH = 15 -- 15 + null terminator
+
+-- https://i.imgur.com/iewrwSh.png
+local g_pfnLineGoesThroughSmoke = ffi.cast(ffi.typeof("bool(__cdecl*)(float flFromX, float flFromY, float flFromZ, float flToX, float flToY, float flToZ)"),
+	client.find_signature("client.dll", "\x55\x8B\xEC\x83\xEC\x08\x8B\x15\xCC\xCC\xCC\xCC\x0F") or error("client.dll!::LineGoesThroughSmoke could not be found. Signature is outdated."))
+
+-- Constants
+local CLANTAG_TEXT = "nyaahook!"
+local CLANTAG_LOOP_SIZE = 32
+local CLANTAG_UPDATE_SPEED = 3.3
+local CLANTAG_UPDATE_INTERVAL = 0.03
+
+local DYNAMIC_FOV_DISTANCE_SCALE = 4000.0
+local DYNAMIC_FOV_UPDATE_INTERVAL = 4 -- Tick interval per dynamic fov updates
+local DYNAMIC_FOV_MIN_DISTANCE = 1500.0
+local DYNAMIC_FOV_MAX_DISTANCE = 100.0
+
+local SMOKE_HITBOXES = { hitbox_e.head, hitbox_e.left_foot, hitbox_e.right_foot, hitbox_e.left_hand, hitbox_e.right_hand }
+local SMOKE_PERSISTANCE_TIMER = 17.0 -- Beyond this point, enemies inside the smoke will fade out of it
+
+local VISIBILE_PENETRATION_HITBOXES = { hitbox_e.left_hand, hitbox_e.right_hand, hitbox_e.left_foot, hitbox_e.right_foot, hitbox_e.head, hitbox_e.left_thigh, hitbox_e.right_thigh,
+	hitbox_e.left_upper_arm, hitbox_e.right_upper_arm, hitbox_e.left_forearm, hitbox_e.right_forearm, hitbox_e.pelvis, hitbox_e.body, hitbox_e.chest, hitbox_e.thorax }
+local VISIBILITY_SCALE = 30.0 -- Add N units to each horizontal direction of a hitbox
+
+-- ugly.... center, north, east, south, west
+local VISIBILITY_DIRECTIONS =
+{
+	{ 0.0, 0.0 },
+	{ VISIBILITY_SCALE, 0.0 },
+	{ -VISIBILITY_SCALE, 0.0 },
+	{ 0.0, VISIBILITY_SCALE },
+	{ 0.0, -VISIBILITY_SCALE }
 }
-local var_0_53 = 17
-local var_0_54 = {
-	var_0_38.left_hand,
-	var_0_38.right_hand,
-	var_0_38.left_foot,
-	var_0_38.right_foot,
-	var_0_38.head,
-	var_0_38.left_thigh,
-	var_0_38.right_thigh,
-	var_0_38.left_upper_arm,
-	var_0_38.right_upper_arm,
-	var_0_38.left_forearm,
-	var_0_38.right_forearm,
-	var_0_38.pelvis,
-	var_0_38.body,
-	var_0_38.chest,
-	var_0_38.thorax
-}
-local var_0_55 = 30
-local var_0_56 = {
-	{
-		0,
-		0
-	},
-	{
-		var_0_55,
-		0
-	},
-	{
-		-var_0_55,
-		0
-	},
-	{
-		0,
-		var_0_55
-	},
-	{
-		0,
-		-var_0_55
-	}
-}
-local var_0_57 = 75
-local var_0_58 = {
-	smg = "Submachine Gun",
-	machinegun = "Machine gun",
+
+local EYE_ANGLES_PITCH_ANTIAIM = 75.0 -- If your pitch is above that, you're *probably* not using legit anti-aim
+
+local WEAPON_GROUPS =
+{
 	pistol = "Pistol",
-	sniperrifle = "Sniper rifle",
+	smg = "Submachine Gun",
+	rifle = "Rifle",
 	shotgun = "Shotgun",
-	rifle = "Rifle"
+	machinegun = "Machine gun",
+	sniperrifle = "Sniper rifle"
 }
-local var_0_59, var_0_60 = ui.reference("RAGE", "Aimbot", "Enabled")
-local var_0_61 = ui.reference("RAGE", "Aimbot", "Avoid unsafe hitboxes")
-local var_0_62 = ui.reference("RAGE", "Other", "Automatic fire")
-local var_0_63 = ui.reference("RAGE", "Other", "Automatic penetration")
-local var_0_64 = ui.reference("RAGE", "Other", "Maximum FOV")
-local var_0_65 = ui.reference("MISC", "Miscellaneous", "Clan tag spammer")
-local var_0_66 = ui.new_checkbox("LUA", "A", "nyaahook!")
-local var_0_67 = ui.new_checkbox("LUA", "A", "Dynamic FOV")
-local var_0_68 = ui.new_color_picker("LUA", "A", "Dynamic FOV", 255, 255, 255, 0)
-local var_0_69 = ui.new_slider("LUA", "A", "Minimum FOV", 1, 35, 3, true, "°", 1)
-local var_0_70 = ui.new_slider("LUA", "A", "Maximum FOV", 1, 35, 15, true, "°", 1)
-local var_0_71 = ui.new_checkbox("LUA", "A", "Automatic fire")
-local var_0_72 = ui.new_hotkey("LUA", "A", "Automatic fire", true, var_0_41.xbutton2)
-local var_0_73 = ui.new_checkbox("LUA", "A", "Automatic penetration")
-local var_0_74 = ui.new_hotkey("LUA", "A", "Automatic penetration", true, var_0_41.f3)
-local var_0_75 = ui.new_color_picker("LUA", "A", "Automatic penetration", 255, 255, 255, 0)
-local var_0_76 = ui.new_slider("LUA", "A", "Minimum visible hitboxes", 0, 4, 0, true, "", 1, {
-	[0] = "Disabled",
-	"1+/hotkey",
-	"2+/hotkey",
-	"3+/hotkey",
-	"4+/hotkey"
-})
-local var_0_77 = ui.new_checkbox("LUA", "A", "Automatic penetration overrides visibility")
-local var_0_78 = ui.new_checkbox("LUA", "A", "Prioritize AWP users")
-local var_0_79 = ui.new_checkbox("LUA", "A", "Rage aimbot delay")
-local var_0_80 = ui.new_slider("LUA", "A", "Rage aimbot reaction time", 1, 200, 125, true, "ms")
-local var_0_81 = ui.new_checkbox("LUA", "A", "Ignore airborne enemies")
-local var_0_82 = ui.new_slider("LUA", "A", "Post-jump reaction time", 0, 1000, 500, true, "ms", 1, {
-	[0] = "∞",
-	[1000] = "1s"
-})
-local var_0_83 = ui.new_checkbox("LUA", "A", "Ignore enemies behind smokes")
-local var_0_84 = ui.new_checkbox("LUA", "A", "Do not fire while blind")
-local var_0_85 = ui.new_slider("LUA", "A", "Blindness duration threshold", 1, 100, 44, true, "s", 0.05, {
-	[100] = "∞"
-})
-local var_0_86 = ui.new_checkbox("LUA", "A", "Force head safety on legit anti-aim users")
-local var_0_87 = ui.new_checkbox("LUA", "A", "Extra rage aimbot hotkeys")
-local var_0_88 = ui.new_multiselect("LUA", "A", "Hotkey ignored weapon groups", {
-	"Pistol",
-	"Submachine Gun",
-	"Rifle",
-	"Shotgun",
-	"Machine gun",
-	"Sniper rifle"
-})
-local var_0_89 = ui.new_slider("LUA", "A", "Rage aimbot hotkey count", 1, 5, 2, true)
-local var_0_90 = {}
 
-for iter_0_0 = 1, 5 do
-	var_0_90[iter_0_0] = ui.new_hotkey("LUA", "A", var_0_24("Rage aimbot hotkey #%d", iter_0_0), false)
+-- Menu references
+local g_pAimbotEnabled, g_pAimbotHotkey = ui.reference("RAGE", "Aimbot", "Enabled")
+local g_pAimbotAvoidUnsafeHitboxes = ui.reference("RAGE", "Aimbot", "Avoid unsafe hitboxes")
+local g_pAimbotAutomaticFire = ui.reference("RAGE", "Other", "Automatic fire")
+local g_pAimbotAutomaticPenetration = ui.reference("RAGE", "Other", "Automatic penetration")
+local g_pAimbotFieldOfView = ui.reference("RAGE", "Other", "Maximum FOV")
+local g_pDefaultClantagSpammer = ui.reference("MISC", "Miscellaneous", "Clan tag spammer")
+--local g_pMaxUserCMDProcessTicks = ui.reference("MISC", "Settings", "sv_maxusrcmdprocessticks")
+
+-- Menu items
+local g_pMasterSwitch = ui.new_checkbox("LUA", "A", "nyaahook!")
+local g_pDynamicFOV = ui.new_checkbox("LUA", "A", "Dynamic FOV")
+local g_pFOVIndicator = ui.new_color_picker("LUA", "A", "Dynamic FOV", 255, 255, 255, 0) -- increase alpha to enable
+local g_pMinimumFOV = ui.new_slider("LUA", "A", "Minimum FOV", 1, 35, 3, true, "°", 1)
+local g_pMaximumFOV = ui.new_slider("LUA", "A", "Maximum FOV", 1, 35, 15, true, "°", 1)
+local g_pAutomaticFireEnabled = ui.new_checkbox("LUA", "A", "Automatic fire") -- When enabled, automatic fire will be enabled/disabled according to the hotkey's state
+local g_pAutomaticFireHotkey = ui.new_hotkey("LUA", "A", "Automatic fire", true, virtual_key_e.xbutton2)
+local g_pAutomaticPenetrationEnabled = ui.new_checkbox("LUA", "A", "Automatic penetration") -- When enabled, automatic penetration will be enabled/disabled according to the hotkey's state.. or the extended "on visible hotkeys"
+local g_pAutomaticPenetrationHotkey = ui.new_hotkey("LUA", "A", "Automatic penetration", true, virtual_key_e.f3)
+local g_pAutomaticPenetrationHotkeyIndicator = ui.new_color_picker("LUA", "A", "Automatic penetration", 255, 255, 255, 0) -- increase alpha to enable
+local g_pAutomaticPenetrationHitboxCount = ui.new_slider("LUA", "A", "Minimum visible hitboxes", 0, 4, 0, true, "", 1, { [ 0 ] = "Disabled", [ 1 ] = "1+/hotkey", [ 2 ] = "2+/hotkey", [ 3 ] = "3+/hotkey", [ 4 ] = "4+/hotkey" }) -- hardcoded text because suffix is limited to 2 characters
+local g_pAutomaticPenetrationOverridesVisibility = ui.new_checkbox("LUA", "A", "Automatic penetration overrides visibility")
+local g_pPrioritizeAWPUsers = ui.new_checkbox("LUA", "A", "Prioritize AWP users") -- Sets high priotity on player list for AWP users
+local g_pRageAimbotDelay = ui.new_checkbox("LUA", "A", "Rage aimbot delay")
+local g_pRageAimbotReactionTime = ui.new_slider("LUA", "A", "Rage aimbot reaction time", 1, 200, 125, true, "ms")
+local g_pIgnoreAirborneUsers = ui.new_checkbox("LUA", "A", "Ignore airborne enemies")
+local g_pPostJumpReactionTime = ui.new_slider("LUA", "A", "Post-jump reaction time", 0, 1000, 500, true, "ms", 1, { [ 0 ] = "∞", [ 1000 ] = "1s" }) -- stop ignoring users if they triggered player_jump over X ms ago. 0ms = ignore all airborne targets
+local g_pIgnoreBehindSmoke = ui.new_checkbox("LUA", "A", "Ignore enemies behind smokes")
+local g_pHonorFlashbangs = ui.new_checkbox("LUA", "A", "Do not fire while blind")
+local g_pBlindnessThreshold = ui.new_slider("LUA", "A", "Blindness duration threshold", 1.0, 100.0, 44.0, true, "s", 0.05, { [ 100.0 ] = "∞" }) -- 2.2 prevents killfeed showing the flashed icon
+local g_pForceHeadSafety = ui.new_checkbox("LUA", "A", "Force head safety on legit anti-aim users")
+local g_pExtraRageAimbotHotkeys = ui.new_checkbox("LUA", "A", "Extra rage aimbot hotkeys")
+local g_pRageAimbotIgnoredWeapons = ui.new_multiselect("LUA", "A", "Hotkey ignored weapon groups", { "Pistol", "Submachine Gun", "Rifle", "Shotgun", "Machine gun", "Sniper rifle" })
+local g_pRageAimbotHotkeyCount = ui.new_slider("LUA", "A", "Rage aimbot hotkey count", 1, 5, 2, true)
+local g_pRageAimbotHotkeys = {}
+
+for i = 1, 5 do
+	g_pRageAimbotHotkeys[i] = ui.new_hotkey("LUA", "A", string_format("Rage aimbot hotkey #%d", i), false)
 end
 
-local var_0_91 = ui.new_checkbox("LUA", "A", "Clan tag spammer")
-local var_0_92
-local var_0_93 = 0
-local var_0_94 = 0
-local var_0_95 = {}
-local var_0_96 = {}
-local var_0_97 = {}
-local var_0_98 = {}
-local var_0_99 = {}
-local var_0_100
-local var_0_101
-local var_0_102 = false
-local var_0_103 = 0
-local var_0_104
-local var_0_105 = false
+local g_pCustomClantagSpammer = ui.new_checkbox("LUA", "A", "Clan tag spammer")
 
-local function var_0_106()
-	return var_0_13() ~= nil
+-- Cache
+local g_bMaster = nil
+local g_flFlashDurationCache = 0.0
+local g_flLastFlashUpdate = 0.0
+local g_aflLastSimulationTime = {}
+local g_aflLastJump = {}
+local g_aflFirstVisible = {}
+local g_anUserWhitelisted = {}
+local g_abLegitAntiaiming = {}
+local g_nBestTarget = nil
+local g_nLastTargetTick = nil
+local g_bDisplayEntireTag = false
+local g_flLastClanTagUpdate = 0.0
+local g_sClantag = nil
+local g_bForceTag = false
+
+-- Are we loaded in a map?
+local function is_in_game()
+	return globals_mapname() ~= nil
 end
 
-local function var_0_107(arg_2_0)
-	local var_2_0 = var_0_2(arg_2_0)
+-- Returns item definition index for the weapon used by `ent`, or nil if none
+local function get_weapon_definition_index(ent)
+	local nWeapon = entity_get_player_weapon(ent)
 
-	if var_2_0 ~= nil then
-		return var_0_5(var_2_0, "m_iItemDefinitionIndex")
+	if nWeapon ~= nil then
+		return entity_get_prop(nWeapon, "m_iItemDefinitionIndex")
 	end
 
 	return nil
 end
 
-local function var_0_108(arg_3_0, arg_3_1, arg_3_2)
-	if arg_3_2 >= var_0_50 then
-		return arg_3_0
-	elseif arg_3_2 <= var_0_51 then
-		return arg_3_1
+local function distance_to_dynamic_fov(min, max, dist)
+	if dist >= DYNAMIC_FOV_MIN_DISTANCE then
+		return min
+	elseif dist <= DYNAMIC_FOV_MAX_DISTANCE then
+		return max
 	end
-
-	return var_0_29(arg_3_1, var_0_30(arg_3_0, var_0_48 / arg_3_2))
+	
+	return math_min(max, math_max(min, DYNAMIC_FOV_DISTANCE_SCALE / dist))
 end
 
-local function var_0_109(arg_4_0)
-	local var_4_0 = var_0_3(true)
+-- Iterates over all valid targets
+local function iter_enemies(lambda)
+	local anEnemies = entity_get_players(true)
 
-	for iter_4_0 = 1, #var_4_0 do
-		arg_4_0(var_4_0[iter_4_0])
+	for i = 1, #anEnemies do
+		lambda(anEnemies[i])
 	end
 end
 
-local function var_0_110(arg_5_0)
-	return arg_5_0 ~= nil and not var_0_8(arg_5_0) and var_0_7(arg_5_0)
+local function is_valid_target(ent)
+	return ent ~= nil and not entity_is_dormant(ent) and entity_is_alive(ent)
 end
 
-local function var_0_111()
-	local var_6_0 = var_0_4()
-	local var_6_1 = var_0_37(var_0_20())
-	local var_6_2 = var_0_48
+local function get_closest_enemy_distance()
+	local nLocalPlayer = entity_get_local_player()
+	local flaLocalHead = vector(client_eye_position())
+	local flMinimumDistance = DYNAMIC_FOV_DISTANCE_SCALE
 
-	var_0_109(function(arg_7_0)
-		local var_7_0 = var_0_37(var_0_6(arg_7_0, var_0_38.head))
-		local var_7_1 = var_6_1:dist(var_7_0)
-
-		if var_7_1 < var_6_2 then
-			var_6_2 = var_7_1
+	iter_enemies(function(target)
+		local flaEnemyHead = vector(entity_hitbox_position(target, hitbox_e.head))
+		local flDistance = flaLocalHead:dist(flaEnemyHead)
+		
+		if flDistance < flMinimumDistance then
+			flMinimumDistance = flDistance
 		end
 	end)
-
-	return var_6_2
+	
+	return flMinimumDistance
 end
 
-local function var_0_112(arg_8_0, arg_8_1)
-	for iter_8_0 = 1, #arg_8_0 do
-		if arg_8_0[iter_8_0] == arg_8_1 then
+local function is_in_table(tbl, val)
+	for i = 1, #tbl do
+		if tbl[i] == val then
 			return true
 		end
 	end
@@ -265,644 +220,597 @@ local function var_0_112(arg_8_0, arg_8_1)
 	return false
 end
 
-local function var_0_113()
-	return var_0_0(var_0_59) and var_0_0(var_0_60)
+local function is_rage_aimbot_running()
+	return ui_get(g_pAimbotEnabled) and ui_get(g_pAimbotHotkey)
 end
 
-local function var_0_114()
-	return var_0_0(var_0_74) and var_0_0(var_0_77)
+local function is_overriding_visibility()
+	return ui_get(g_pAutomaticPenetrationHotkey) and ui_get(g_pAutomaticPenetrationOverridesVisibility)
 end
 
-local function var_0_115()
-	local var_11_0, var_11_1 = var_0_19()
+local function get_screen_center()
+	local width, height = client_screen_size()
 
-	return {
-		var_11_0 / 2,
-		var_11_1 / 2
-	}
+	return { width / 2, height / 2 }
 end
 
-local function var_0_116(arg_12_0, arg_12_1)
-	return var_0_31(var_0_32(arg_12_0[1] - arg_12_1[1], 2) + var_0_32(arg_12_0[2] - arg_12_1[2], 2))
+local function get_distance_2d(pos1, pos2)
+	return math_sqrt(math_pow((pos1[1] - pos2[1]), 2) + math_pow((pos1[2] - pos2[2]), 2))
 end
 
-local function var_0_117()
-	local var_13_0 = var_0_115()
-	local var_13_1
-	local var_13_2 = 8192
+-- HACK: I can only call renderer.world_to_screen from the "paint" callback. Therefore, we call this once per tick in "paint" and cache the value globally.
+local function get_closest_target_crosshair()
+	local anCenter = get_screen_center()
+	local nTarget = nil
+	local flClosest = 8192.0
 
-	var_0_109(function(arg_14_0)
-		local var_14_0, var_14_1, var_14_2 = var_0_6(arg_14_0, var_0_38.head)
-		local var_14_3, var_14_4 = var_0_22(var_14_0, var_14_1, var_14_2)
+	iter_enemies(function(target)
+		local flX, flY, flZ = entity_hitbox_position(target, hitbox_e.head)
+		local nX, nY = renderer_world_to_screen(flX, flY, flZ)
 
-		if var_14_3 == nil then
+		-- Not on screen..
+		if nX == nil then
 			return
 		end
 
-		local var_14_5 = var_0_116(var_13_0, {
-			var_14_3,
-			var_14_4
-		})
+		local flDistance = get_distance_2d(anCenter, { nX, nY })
 
-		if var_14_5 < var_13_2 then
-			var_13_2 = var_14_5
-			var_13_1 = arg_14_0
+		if flDistance < flClosest then
+			flClosest = flDistance
+			nTarget = target
 		end
 	end)
 
-	return var_13_1
+	return nTarget
 end
 
-local function var_0_118(arg_15_0)
-	if arg_15_0 >= #var_0_44 then
-		arg_15_0 = var_0_45 - arg_15_0
+local function get_clantag(index)
+	if index >= #CLANTAG_TEXT then
+		index = CLANTAG_LOOP_SIZE - index
 	end
 
-	return var_0_34(var_0_44, 1, arg_15_0)
+	return string_sub(CLANTAG_TEXT, 1, index)
 end
 
-local function var_0_119(arg_16_0)
-	local var_16_0 = var_0_118(arg_16_0)
+local function get_padded_clantag(index)
+	local sClanTag = get_clantag(index)
 
-	return var_16_0 .. var_0_33(" ", var_0_42 - #var_16_0)
+	return sClanTag .. string_rep(' ', MAX_CLAN_TAG_LENGTH - #sClanTag)
 end
 
-local function var_0_120()
-	return var_0_10() + var_0_17()
+local function get_compensated_curtime()
+	return globals_curtime() + client_latency()
 end
 
-local function var_0_121()
-	local var_18_0 = #var_0_44
+local function get_synced_clantag()
+	local nIndex = #CLANTAG_TEXT
 
-	if not var_0_102 then
-		var_18_0 = var_0_28(var_0_120() * var_0_46) % var_0_45
+	if not g_bDisplayEntireTag then
+		nIndex = math_floor(get_compensated_curtime() * CLANTAG_UPDATE_SPEED) % CLANTAG_LOOP_SIZE
 	end
-
-	return var_0_119(var_18_0)
+	
+	return get_padded_clantag(nIndex)
 end
 
-local function var_0_122()
-	var_0_93 = 0
-	var_0_94 = 0
-	var_0_99 = {}
-	var_0_100 = nil
-	var_0_95 = {}
-	var_0_96 = {}
-	var_0_97 = {}
-	var_0_103 = 0
-	var_0_102 = false
+local function reset_globals()
+	g_flFlashDurationCache = 0.0
+	g_flLastFlashUpdate = 0.0
+	g_abLegitAntiaiming = {}
+	g_nBestTarget = nil
+	g_aflLastSimulationTime = {}
+	g_aflLastJump = {}
+	g_aflFirstVisible = {}
+	g_flLastClanTagUpdate = 0.0
+	g_bDisplayEntireTag = false
 end
 
-local function var_0_123()
-	if not var_0_113() and var_0_11() % var_0_49 ~= 0 then
+local function update_dynamic_fov()
+	if not is_rage_aimbot_running() and globals_tickcount() % DYNAMIC_FOV_UPDATE_INTERVAL ~= 0 then
 		return
 	end
 
-	local var_20_0 = var_0_0(var_0_69)
-	local var_20_1 = var_0_0(var_0_70)
-	local var_20_2 = var_20_0
+	local nMinimumFOV = ui_get(g_pMinimumFOV)
+	local nMaximumFOV = ui_get(g_pMaximumFOV)
+	local nDesiredFOV = nMinimumFOV
 
-	if var_20_0 ~= var_20_1 then
-		var_20_2 = var_0_108(var_20_0, var_20_1, var_0_111())
+	-- Don't run distance checks if minimum is maximum. Spare CPU cycles ma'am?
+	if nMinimumFOV ~= nMaximumFOV then
+		nDesiredFOV = distance_to_dynamic_fov(nMinimumFOV, nMaximumFOV, get_closest_enemy_distance())
 	end
 
-	var_0_1(var_0_64, var_20_2)
+	ui_set(g_pAimbotFieldOfView, nDesiredFOV)
 end
 
-local function var_0_124()
-	var_0_1(var_0_62, var_0_0(var_0_72))
+local function update_automatic_fire()
+	ui_set(g_pAimbotAutomaticFire, ui_get(g_pAutomaticFireHotkey))
 end
 
-local function var_0_125()
-	local var_22_0 = var_0_0(var_0_73)
-	local var_22_1 = var_0_0(var_0_79)
+local function update_visibility()
+	-- Only run these precious hitbox visibility checks if we have either automatic penetration on N hitboxes enabled, or rage aimbot delay configured.
+	local bAutomaticPenetrationEnabled = ui_get(g_pAutomaticPenetrationEnabled)
+	local bRageAimbotDelay = ui_get(g_pRageAimbotDelay)
 
-	if not var_22_0 and not var_22_1 then
+	if not bAutomaticPenetrationEnabled and not bRageAimbotDelay then
 		return
 	end
 
-	local var_22_2 = var_0_10()
-	local var_22_3 = var_0_0(var_0_74)
+	local flCurtime = globals_curtime()
+	local bPenetrate = ui_get(g_pAutomaticPenetrationHotkey)
+	
+	if is_valid_target(g_nBestTarget) then
+		local nAutomaticPenetrationHitboxCount = ui_get(g_pAutomaticPenetrationHitboxCount)
+		local nLocalPlayer = entity_get_local_player()
+		local flLocalX, flLocalY, flLocalZ = client_eye_position()
+		local nHitboxesVisible = 0
 
-	if var_0_110(var_0_100) then
-		local var_22_4 = var_0_0(var_0_76)
-		local var_22_5 = var_0_4()
-		local var_22_6, var_22_7, var_22_8 = var_0_20()
-		local var_22_9 = 0
+		for i = 1, #VISIBILE_PENETRATION_HITBOXES do
+			local flEnemyX, flEnemyY, flEnemyZ = entity_hitbox_position(g_nBestTarget, VISIBILE_PENETRATION_HITBOXES[i])
 
-		for iter_22_0 = 1, #var_0_54 do
-			local var_22_10, var_22_11, var_22_12 = var_0_6(var_0_100, var_0_54[iter_22_0])
-
-			if var_22_10 == nil then
+			-- Why can't we see their hitboxes? Just for safety. This was reported as a bug. If we can't get their hitbox position for one hitbox, we won't for the rest either.
+			if flEnemyX == nil then
 				break
 			end
 
-			local var_22_13, var_22_14 = var_0_16(var_22_5, var_22_6, var_22_7, var_22_8, var_22_10, var_22_11, var_22_12)
+			local flFraction, nEntity = client_trace_line(nLocalPlayer, flLocalX, flLocalY, flLocalZ, flEnemyX, flEnemyY, flEnemyZ)
 
-			if var_22_14 == var_0_100 then
-				var_22_9 = var_22_9 + 1
+			if nEntity == g_nBestTarget then
+				nHitboxesVisible = nHitboxesVisible + 1
 
-				if var_0_97[var_0_100] == nil then
-					var_0_97[var_0_100] = var_22_2
+				if g_aflFirstVisible[g_nBestTarget] == nil then
+					g_aflFirstVisible[g_nBestTarget] = flCurtime
 				end
 
-				if not var_22_0 then
+				-- We only have rage aimbot delay enabled but not automatic penetration on N hitboxes. We can safely break out of the loop now that at we have data for the user.
+				if not bAutomaticPenetrationEnabled then
 					break
 				end
 			end
 
-			if not var_22_3 and var_22_4 > 0 and var_22_4 <= var_22_9 then
-				var_22_3 = true
+			if not bPenetrate and nAutomaticPenetrationHitboxCount > 0 and nHitboxesVisible >= nAutomaticPenetrationHitboxCount then
+				bPenetrate = true
 
 				break
 			end
 		end
 
-		local var_22_15 = var_0_0(var_0_80) / 1000
+		local flReactionTime = ui_get(g_pRageAimbotReactionTime) / 1000.0
 
-		if var_0_97[var_0_100] ~= nil then
-			if var_22_9 == 0 then
-				var_0_97[var_0_100] = nil
-			elseif not var_0_114() and var_22_1 and var_22_2 < var_0_97[var_0_100] + var_22_15 then
-				var_0_98[var_0_100] = true
+		if g_aflFirstVisible[g_nBestTarget] ~= nil then
+			-- No visible hitboxes for the target. Remove their logged data.
+			if nHitboxesVisible == 0 then
+				g_aflFirstVisible[g_nBestTarget] = nil
+			-- 1 hitbox or more is visible. Enable whitelist for the user if we see them soon enough.
+			elseif not is_overriding_visibility() and bRageAimbotDelay and flCurtime < g_aflFirstVisible[g_nBestTarget] + flReactionTime then
+				g_anUserWhitelisted[g_nBestTarget] = true
 			end
 		end
 	end
 
-	if var_22_0 then
-		var_0_1(var_0_63, var_22_3)
+	if bAutomaticPenetrationEnabled then
+		ui_set(g_pAimbotAutomaticPenetration, bPenetrate)
 	end
 end
 
-local function var_0_126()
-	local var_23_0 = false
-	local var_23_1 = var_0_4()
-	local var_23_2 = var_0_107(var_23_1)
+local function update_extra_rage_aimbot_hotkeys()
+	local bHeldDown = false
+	local nLocalPlayer = entity_get_local_player()
+	local nWeapon = get_weapon_definition_index(nLocalPlayer)
 
-	if not var_0_112(var_0_0(var_0_88), var_0_58[var_0_35[var_23_2].type]) then
-		local var_23_3 = var_0_0(var_0_89)
+	-- Ignore rage aimbot for the specified weapon types.
+	if not is_in_table(ui_get(g_pRageAimbotIgnoredWeapons), WEAPON_GROUPS[csgo_weapons[nWeapon].type]) then
+		local nRageAimbotHotkeyCount = ui_get(g_pRageAimbotHotkeyCount)
 
-		for iter_23_0 = 1, var_23_3 do
-			if var_0_0(var_0_90[iter_23_0]) then
-				var_23_0 = true
+		for i = 1, nRageAimbotHotkeyCount do
+			if ui_get(g_pRageAimbotHotkeys[i]) then
+				bHeldDown = true
 
 				break
 			end
 		end
 	end
 
-	var_0_1(var_0_60, var_23_0 and "Always on" or "On hotkey")
+	ui_set(g_pAimbotHotkey, bHeldDown and "Always on" or "On hotkey")
 end
 
-local function var_0_127()
-	var_0_109(function(arg_25_0)
-		var_0_15(arg_25_0, "High priority", var_0_107(arg_25_0) == var_0_40.awp)
+local function update_prioritize_awp_users()
+	iter_enemies(function(target)
+		plist_set(target, "High priority", get_weapon_definition_index(target) == weapon_e.awp)
 	end)
 end
 
-local function var_0_128()
-	if var_0_114() then
+local function update_ignore_behind_smokes()
+	-- Do not check for smokes when automatic penetration is enabled while we are overriding visibility checks.
+	if is_overriding_visibility() then
 		return
 	end
 
-	local var_26_0 = false
-	local var_26_1 = var_0_21("CSmokeGrenadeProjectile")
-	local var_26_2 = var_0_11()
-	local var_26_3 = var_0_12()
+	-- Optimization: Check for smoke grenades. If there's none, do not whitelist any enemy and skip all checks.
+	local bSmokeExists = false
+	local anSmokeGrenadeProjectiles = entity_get_all("CSmokeGrenadeProjectile")
+	local nTickCount = globals_tickcount()
+	local flTickInterval = globals_tickinterval()
 
-	for iter_26_0 = 1, #var_26_1 do
-		if var_0_5(var_26_1[iter_26_0], "m_bDidSmokeEffect") == 1 and var_26_2 < var_0_5(var_26_1[iter_26_0], "m_nSmokeEffectTickBegin") + var_0_53 / var_26_3 then
-			var_26_0 = true
+	for i = 1, #anSmokeGrenadeProjectiles do
+		if entity_get_prop(anSmokeGrenadeProjectiles[i], "m_bDidSmokeEffect") == 1 and nTickCount < entity_get_prop(anSmokeGrenadeProjectiles[i], "m_nSmokeEffectTickBegin") + SMOKE_PERSISTANCE_TIMER / flTickInterval then
+			bSmokeExists = true
 		end
 	end
 
-	if not var_26_0 then
+	if not bSmokeExists then
 		return
 	end
 
-	local var_26_4, var_26_5, var_26_6 = var_0_20()
+	local flLocalX, flLocalY, flLocalZ = client_eye_position()
 
-	var_0_109(function(arg_27_0)
-		if var_0_98[arg_27_0] then
+	iter_enemies(function(target)
+		-- Don't run the code on anyone if enemy is already whitelisted..
+		if g_anUserWhitelisted[target] then
 			return
 		end
 
-		local var_27_0 = true
+		local bWhitelist = true
 
-		for iter_27_0 = 1, #var_0_52 do
-			if not var_27_0 then
+		for i = 1, #SMOKE_HITBOXES do
+			-- If we already know that the target is visible, there is no reason to run more checks. Break out of the loop, and move on to the next target
+			if not bWhitelist then
 				break
 			end
 
-			local var_27_1 = var_0_37(var_0_6(arg_27_0, var_0_52[iter_27_0]))
+			-- "multipoints" XD. It works though! :)
+			local flaEnemyHitbox = vector(entity_hitbox_position(target, SMOKE_HITBOXES[i]))
 
-			for iter_27_1 = 1, #var_0_56 do
-				if not var_0_43(var_26_4, var_26_5, var_26_6, var_27_1.x + var_0_56[iter_27_1][1], var_27_1.y + var_0_56[iter_27_1][2], var_27_1.z) then
-					var_27_0 = false
-
+			for j = 1, #VISIBILITY_DIRECTIONS do
+				if not g_pfnLineGoesThroughSmoke(flLocalX, flLocalY, flLocalZ, flaEnemyHitbox.x + VISIBILITY_DIRECTIONS[j][1], flaEnemyHitbox.y + VISIBILITY_DIRECTIONS[j][2], flaEnemyHitbox.z) then
+					bWhitelist = false
+	
 					break
 				end
 			end
 		end
 
-		if var_27_0 then
-			var_0_98[arg_27_0] = true
+		if bWhitelist then
+			g_anUserWhitelisted[target] = true
 		end
 	end)
 end
 
-local function var_0_129()
-	local var_28_0 = var_0_0(var_0_82) / 1000
-	local var_28_1 = var_0_10()
+local function update_ignore_airborne_users()
+	local flReactionTime = ui_get(g_pPostJumpReactionTime) / 1000.0
+	local flCurtime = globals_curtime()
 
-	var_0_109(function(arg_29_0)
-		if var_0_96[arg_29_0] == nil then
+	iter_enemies(function(target)
+		-- No data logged.. stop.
+		if g_aflLastJump[target] == nil then
 			return
 		end
 
-		if var_0_26(var_0_5(arg_29_0, "m_fFlags"), var_0_39.onground) > 0 then
+		-- Ignore players on ground.
+		if bit_band(entity_get_prop(target, "m_fFlags"), flags_e.onground) > 0 then
 			return
 		end
 
-		if var_28_0 == 0 or var_28_1 < var_0_96[arg_29_0] + var_28_0 then
-			var_0_98[arg_29_0] = true
+		-- 0.0 is ∞ - just ignore them as long as they're airborne.
+		if flReactionTime == 0.0 or flCurtime < g_aflLastJump[target] + flReactionTime then
+			g_anUserWhitelisted[target] = true
 		end
 	end)
 end
 
-local function var_0_130()
-	if not var_0_113() or var_0_114() then
+local function update_honor_flashbangs()
+	-- Do not check for smokes when automatic penetration is enabled while we are overriding visibility checks.
+	if not is_rage_aimbot_running() or is_overriding_visibility() then
 		return
 	end
 
-	local var_30_0 = var_0_4()
-	local var_30_1 = var_0_107(var_30_0)
-	local var_30_2 = var_0_34(var_0_35[var_30_1].type, 1, 1)
-
-	if var_30_2 ~= "p" and var_30_2 ~= "s" and var_30_2 ~= "r" and var_30_2 ~= "m" then
+	local nLocalPlayer = entity_get_local_player()
+	local nWeapon = get_weapon_definition_index(nLocalPlayer)
+	local cPrefix = string_sub(csgo_weapons[nWeapon].type, 1, 1)
+	
+	if cPrefix ~= 'p' and -- pistol
+		cPrefix ~= 's' and -- smg, shotgun, sniperrifle
+		cPrefix ~= 'r' and -- rifle
+		cPrefix ~= 'm' then -- machinegun
 		return
 	end
 
-	local var_30_3 = var_0_5(var_30_0, "m_flFlashDuration")
-	local var_30_4 = var_0_0(var_0_85) * 0.05
-	local var_30_5 = var_0_10()
+	local flFlashDuration = entity_get_prop(nLocalPlayer, "m_flFlashDuration")
+	local flBlindnessThreshold = ui_get(g_pBlindnessThreshold) * 0.05 -- Scale with the menu item's 0.05s scaling
+	local flCurtime = globals_curtime()
 
-	if var_30_3 > 0 then
-		if var_0_93 == 0 then
-			var_0_94 = var_30_5
+	if flFlashDuration > 0.0 then
+		if g_flFlashDurationCache == 0.0 then
+			g_flLastFlashUpdate = flCurtime
 		end
 
-		if var_30_5 - var_0_94 < var_30_3 - var_30_4 then
-			var_0_109(function(arg_31_0)
-				var_0_98[arg_31_0] = true
+		if flCurtime - g_flLastFlashUpdate < flFlashDuration - flBlindnessThreshold then
+			iter_enemies(function(target)
+				g_anUserWhitelisted[target] = true
 			end)
 		end
 	end
 
-	var_0_93 = var_30_3
+	g_flFlashDurationCache = flFlashDuration
 end
 
-local function var_0_131()
-	local var_32_0 = var_0_12()
-	local var_32_1 = 16
+local function update_force_head_safety()
+	local flTickInterval = globals_tickinterval()
+	--local nMaxUserCMDProcessTicks = ui_get(g_pMaxUserCMDProcessTicks)
+	local nMaxUserCMDProcessTicks = 16
 
-	var_0_109(function(arg_33_0)
-		if var_0_26(var_0_5(arg_33_0, "m_fFlags"), var_0_39.fakeclient) > 0 then
+	iter_enemies(function(target)
+		-- Filter bots. Not relevant for matchmaking because there's no bots anymore, but in case anyone uses this in unofficial servers
+		if bit_band(entity_get_prop(target, "m_fFlags"), flags_e.fakeclient) > 0 then
 			return
 		end
 
-		local var_33_0 = var_0_5(arg_33_0, "m_flSimulationTime")
-		local var_33_1 = var_0_5(arg_33_0, "m_angEyeAngles[0]")
-		local var_33_2
-		local var_33_3
+		-- "Correction active" seems to be inaccurate sometimes, and the cheat won't turn it off after it gets turned on. A user must be choking at least every other tick to maintain desync anyway.
+		-- Checking for less than `sv_maxusrcmdprocessticks` also ensures dormancy is respected. Not 100% accurate because the UI slider for it remains 16 on Valve servers regardless.
+		local flSimulationTime = entity_get_prop(target, "m_flSimulationTime")
+		
+		-- And.. we obviously have to check their pitch to know if they're using legit antiaim or not.
+		local flPitch = entity_get_prop(target, "m_angEyeAngles[0]")
+		
+		-- goto shenanigans.. we can't goto a scope without them being defined
+		local nTicksSinceSimulation
+		local flaVelocity
 
-		if var_0_95[arg_33_0] == nil or not var_0_14(arg_33_0, "Correction active") then
-			-- block empty
-		elseif var_0_37(var_0_5(arg_33_0, "m_vecVelocity")):length2d() < 0.01 then
-			-- block empty
-		else
-			local var_33_4 = (var_33_0 - var_0_95[arg_33_0]) / var_32_0
-
-			if var_33_4 <= 1 or var_33_4 > var_32_1 then
-				-- block empty
-			elseif var_0_27(var_33_1) <= var_0_57 then
-				var_0_99[arg_33_0] = true
-			end
+		if g_aflLastSimulationTime[target] == nil or not plist_get(target, "Correction active") then
+			goto continue
 		end
 
-		var_0_95[arg_33_0] = var_33_0
+		-- To maintain desync and trigger ANIMATION_LAYER_MOVEMENT_MOVE, you must have any horizontal movement. Source: (from old fake angles era, but the animation code should be identical nowadays)
+		-- https://github.com/perilouswithadollarsign/cstrike15_src/blob/master/game/shared/cstrike15/csgo_playeranimstate.cpp#L2285-L2290
+		-- https://github.com/perilouswithadollarsign/cstrike15_src/blob/master/game/shared/cstrike15/csgo_playeranimstate.cpp#L2411
+		flaVelocity = vector(entity_get_prop(target, "m_vecVelocity"))
+
+		if flaVelocity:length2d() < 0.01 then
+			goto continue
+		end
+
+		nTicksSinceSimulation = (flSimulationTime - g_aflLastSimulationTime[target]) / flTickInterval
+
+		if nTicksSinceSimulation <= 1 or nTicksSinceSimulation > nMaxUserCMDProcessTicks then
+			goto continue
+		end
+
+		if math_abs(flPitch) <= EYE_ANGLES_PITCH_ANTIAIM then
+			g_abLegitAntiaiming[target] = true
+			-- I keep iterating to not lose track of the enemies' simulation times
+		end
+		
+		::continue::
+		g_aflLastSimulationTime[target] = flSimulationTime
 	end)
 
-	local var_32_2 = var_0_0(var_0_61)
+	local asAvoidHitboxes = ui_get(g_pAimbotAvoidUnsafeHitboxes)
 
-	if var_0_99[var_0_100] then
-		if var_32_2[1] ~= "Head" then
-			var_32_2[#var_32_2 + 1] = "Head"
+	if g_abLegitAntiaiming[g_nBestTarget] then
+		if asAvoidHitboxes[1] ~= "Head" then
+			asAvoidHitboxes[#asAvoidHitboxes + 1] = "Head"
 		end
-	elseif var_32_2[1] == "Head" then
-		var_32_2[1] = ""
+	elseif asAvoidHitboxes[1] == "Head" then
+		asAvoidHitboxes[1] = "" -- Setting this to nil instead seems to throw errors at times, so I'd rather avoid it.
 	end
 
-	var_0_1(var_0_61, var_32_2)
+	ui_set(g_pAimbotAvoidUnsafeHitboxes, asAvoidHitboxes)
 end
 
-local function var_0_132()
-	var_0_109(function(arg_35_0)
-		var_0_15(arg_35_0, "Add to whitelist", var_0_98[arg_35_0])
+local function update_whitelist()
+	iter_enemies(function(target)
+		plist_set(target, "Add to whitelist", g_anUserWhitelisted[target])
 	end)
 
-	var_0_98 = {}
+	g_anUserWhitelisted = {}
 end
 
-local function var_0_133()
-	local var_36_0 = var_0_120()
-
-	if not var_0_105 and (var_36_0 - var_0_103 < var_0_47 or var_0_9() > 0) then
+local function update_custom_clan_tag_spammer()
+	local flCurtime = get_compensated_curtime()
+	
+	if not g_bForceTag and (flCurtime - g_flLastClanTagUpdate < CLANTAG_UPDATE_INTERVAL or globals_chokedcommands() > 0) then
 		return
 	end
 
-	local var_36_1 = var_0_121()
-
-	if var_36_1 ~= var_0_104 or var_0_105 then
-		var_0_18(var_36_1)
-
-		var_0_104 = var_36_1
-		var_0_105 = false
+	local sClantag = get_synced_clantag()
+	
+	if sClantag ~= g_sClantag or g_bForceTag then
+		client_set_clan_tag(sClantag)
+		g_sClantag = sClantag
+		g_bForceTag = false
 	end
-
-	var_0_103 = var_36_0
+	
+	g_flLastClanTagUpdate = flCurtime
 end
 
-local function var_0_134()
-	if var_0_0(var_0_91) then
-		var_0_133()
+local function on_net_update_end()
+	if ui_get(g_pCustomClantagSpammer) then
+		update_custom_clan_tag_spammer()
 	end
 end
 
-local function var_0_135()
-	local var_38_0 = {
-		{
-			var_0_67,
-			var_0_123
-		},
-		{
-			var_0_71,
-			var_0_124
-		},
-		{
-			var_0_87,
-			var_0_126
-		},
-		{
-			var_0_78,
-			var_0_127
-		},
-		{
-			var_0_81,
-			var_0_129
-		},
-		{
-			var_0_84,
-			var_0_130
-		},
-		{
-			var_0_83,
-			var_0_128
-		},
-		{
-			var_0_86,
-			var_0_131
-		}
+local function on_run_command()
+	local apUpdates =
+	{
+		{ g_pDynamicFOV, update_dynamic_fov },
+		{ g_pAutomaticFireEnabled, update_automatic_fire },
+		{ g_pExtraRageAimbotHotkeys, update_extra_rage_aimbot_hotkeys },
+		{ g_pPrioritizeAWPUsers, update_prioritize_awp_users },
+		{ g_pIgnoreAirborneUsers, update_ignore_airborne_users },
+		{ g_pHonorFlashbangs, update_honor_flashbangs },
+		{ g_pIgnoreBehindSmoke, update_ignore_behind_smokes },
+		{ g_pForceHeadSafety, update_force_head_safety }
 	}
 
-	for iter_38_0 = 1, #var_38_0 do
-		if var_0_0(var_38_0[iter_38_0][1]) then
-			var_38_0[iter_38_0][2]()
+	for i = 1, #apUpdates do
+		if ui_get(apUpdates[i][1]) then
+			apUpdates[i][2]()
 		end
 	end
 
-	var_0_125()
-	var_0_132()
+	update_visibility()
+	update_whitelist()
 end
 
-local function var_0_136()
-	local var_39_0, var_39_1, var_39_2, var_39_3 = var_0_0(var_0_68)
+local function update_fov_indicator()
+	local nRed, nGreen, nBlue, nAlpha = ui_get(g_pFOVIndicator)
 
-	if var_39_3 > 0 then
-		var_0_23(var_39_0, var_39_1, var_39_2, var_39_3, var_0_24("FOV: %d°", var_0_0(var_0_64)))
+	if nAlpha > 0 then
+		renderer_indicator(nRed, nGreen, nBlue, nAlpha, string_format("FOV: %d°", ui_get(g_pAimbotFieldOfView)))
 	end
 end
 
-local function var_0_137()
-	if not var_0_0(var_0_74) then
+local function update_automatic_penetration_indicator()
+	if not ui_get(g_pAutomaticPenetrationHotkey) then
 		return
 	end
 
-	local var_40_0, var_40_1, var_40_2, var_40_3 = var_0_0(var_0_75)
+	local nRed, nGreen, nBlue, nAlpha = ui_get(g_pAutomaticPenetrationHotkeyIndicator)
 
-	if var_40_3 > 0 then
-		var_0_23(var_40_0, var_40_1, var_40_2, var_40_3, "AWALL")
+	if nAlpha > 0 then
+		renderer_indicator(nRed, nGreen, nBlue, nAlpha, "AWALL")
 	end
 end
 
-local function var_0_138()
-	if not var_0_7(var_0_4()) then
+local function on_paint()
+	if not entity_is_alive(entity_get_local_player()) then
 		return
 	end
 
-	local var_41_0 = {
-		{
-			var_0_67,
-			var_0_136
-		},
-		{
-			var_0_73,
-			var_0_137
-		}
+	local apUpdates =
+	{
+		{ g_pDynamicFOV, update_fov_indicator },
+		{ g_pAutomaticPenetrationEnabled, update_automatic_penetration_indicator }
 	}
 
-	for iter_41_0 = 1, #var_41_0 do
-		if var_0_0(var_41_0[iter_41_0][1]) then
-			var_41_0[iter_41_0][2]()
+	for i = 1, #apUpdates do
+		if ui_get(apUpdates[i][1]) then
+			apUpdates[i][2]()
 		end
 	end
 
-	local var_41_1 = var_0_11()
+	local nTickCount = globals_tickcount()
 
-	if var_41_1 ~= var_0_101 then
-		var_0_100 = var_0_117()
-		var_0_101 = var_41_1
+	if nTickCount ~= g_nLastTargetTick then
+		g_nBestTarget = get_closest_target_crosshair()
+		g_nLastTargetTick = nTickCount
 	end
 end
 
-local function var_0_139(arg_42_0)
-	if client.userid_to_entindex(arg_42_0.userid) == var_0_4() then
-		var_0_122()
+local function on_player_spawn(e)
+	if client.userid_to_entindex(e.userid) == entity_get_local_player() then
+		reset_globals()
 	end
 end
 
-local function var_0_140(arg_43_0)
-	local var_43_0 = client.userid_to_entindex(arg_43_0.userid)
-
-	var_0_96[var_43_0] = var_0_10()
+local function on_player_jump(e)
+	local nEntity = client.userid_to_entindex(e.userid)
+	g_aflLastJump[nEntity] = globals_curtime()
 end
 
-local function var_0_141()
-	var_0_122()
+local function on_round_start()
+	reset_globals()
 end
 
-local function var_0_142()
-	var_0_102 = true
+local function on_game_period()
+	g_bDisplayEntireTag = true
 end
 
-local function var_0_143(arg_46_0, arg_46_1)
-	for iter_46_0 = 1, #arg_46_0 do
-		ui.set_callback(arg_46_0[iter_46_0], arg_46_1)
+local function add_menu_callbacks(list, func)
+	-- First, add the callbacks
+	for i = 1, #list do
+		ui.set_callback(list[i], func)
 	end
 
-	for iter_46_1 = 1, #arg_46_0 do
-		arg_46_1(arg_46_0[iter_46_1])
-	end
-end
-
-local function var_0_144(arg_47_0, arg_47_1)
-	for iter_47_0 = 1, #arg_47_0 do
-		ui.set_visible(arg_47_0[iter_47_0], arg_47_1)
+	-- Then execute them!
+	for i = 1, #list do
+		func(list[i])
 	end
 end
 
-local function var_0_145(arg_48_0)
-	local var_48_0 = arg_48_0 and client.set_event_callback or client.unset_event_callback
-
-	var_48_0("net_update_end", var_0_134)
-	var_48_0("run_command", var_0_135)
-	var_48_0("paint", var_0_138)
-	var_48_0("player_spawn", var_0_139)
-	var_48_0("player_jump", var_0_140)
-	var_48_0("round_start", var_0_141)
-	var_48_0("cs_win_panel_match", var_0_142)
-	var_48_0("cs_win_panel_round", var_0_142)
-	var_48_0("cs_pre_restart", var_0_142)
-end
-
-local function var_0_146()
-	local var_49_0 = var_0_0(var_0_66)
-
-	var_0_144({
-		var_0_67,
-		var_0_71,
-		var_0_72,
-		var_0_73,
-		var_0_74,
-		var_0_77,
-		var_0_76,
-		var_0_78,
-		var_0_79,
-		var_0_81,
-		var_0_83,
-		var_0_84,
-		var_0_86,
-		var_0_87,
-		var_0_88,
-		var_0_89,
-		var_0_91
-	}, var_49_0)
-
-	local var_49_1 = var_0_0(var_0_67)
-
-	var_0_144({
-		var_0_68,
-		var_0_69,
-		var_0_70
-	}, var_49_0 and var_49_1)
-
-	local var_49_2 = var_0_0(var_0_73)
-
-	var_0_144({
-		var_0_77,
-		var_0_76,
-		var_0_75
-	}, var_49_0 and var_49_2)
-
-	local var_49_3 = var_0_0(var_0_79)
-
-	var_0_144({
-		var_0_80
-	}, var_49_0 and var_49_3)
-
-	local var_49_4 = var_0_0(var_0_81)
-
-	var_0_144({
-		var_0_82
-	}, var_49_0 and var_49_4)
-
-	local var_49_5 = var_0_0(var_0_84)
-
-	var_0_144({
-		var_0_85
-	}, var_49_0 and var_49_5)
-
-	local var_49_6 = var_0_0(var_0_87)
-
-	var_0_144({
-		var_0_89,
-		var_0_88
-	}, var_49_0 and var_49_6)
-
-	local var_49_7 = var_0_0(var_0_89)
-
-	for iter_49_0 = 1, #var_0_90 do
-		var_0_144({
-			var_0_90[iter_49_0]
-		}, var_49_0 and var_49_6 and iter_49_0 <= var_49_7)
-	end
-
-	if var_49_0 ~= var_0_92 then
-		var_0_145(var_49_0)
-	end
-
-	var_0_92 = var_49_0
-end
-
-local function var_0_147(arg_50_0)
-	local var_50_0 = var_0_0(arg_50_0)
-
-	if arg_50_0 == var_0_69 and var_50_0 > var_0_0(var_0_70) then
-		var_0_1(var_0_70, var_50_0)
-	elseif arg_50_0 == var_0_70 and var_50_0 < var_0_0(var_0_69) then
-		var_0_1(var_0_69, var_50_0)
+local function set_visible_on_condition(list, condition)
+	for i = 1, #list do
+		ui.set_visible(list[i], condition)
 	end
 end
 
-local function var_0_148(arg_51_0)
-	if arg_51_0 == var_0_65 and var_0_0(arg_51_0) then
-		var_0_1(var_0_91, false)
-	elseif arg_51_0 == var_0_91 then
-		if var_0_0(arg_51_0) then
-			var_0_1(var_0_65, false)
+local function set_hooks(enable)
+	local pfnFunc = enable and client.set_event_callback or client.unset_event_callback
+
+	-- gamesense events
+	pfnFunc("net_update_end", on_net_update_end)
+	pfnFunc("run_command", on_run_command)
+	pfnFunc("paint", on_paint)
+
+	-- Game events
+	pfnFunc("player_spawn", on_player_spawn)
+	pfnFunc("player_jump", on_player_jump)
+	pfnFunc("round_start", on_round_start)
+	pfnFunc("cs_win_panel_match", on_game_period)
+	pfnFunc("cs_win_panel_round", on_game_period)
+	pfnFunc("cs_pre_restart", on_game_period)
+end
+
+local function on_ui_callback()
+	local bMaster = ui_get(g_pMasterSwitch)
+	set_visible_on_condition({ g_pDynamicFOV, g_pAutomaticFireEnabled, g_pAutomaticFireHotkey, g_pAutomaticPenetrationEnabled, g_pAutomaticPenetrationHotkey, g_pAutomaticPenetrationOverridesVisibility, g_pAutomaticPenetrationHitboxCount,
+		g_pPrioritizeAWPUsers, g_pRageAimbotDelay, g_pIgnoreAirborneUsers, g_pIgnoreBehindSmoke, g_pHonorFlashbangs, g_pForceHeadSafety, g_pExtraRageAimbotHotkeys, g_pRageAimbotIgnoredWeapons, g_pRageAimbotHotkeyCount, g_pCustomClantagSpammer }, bMaster)
+
+	local bDynamicFOV = ui_get(g_pDynamicFOV)
+	set_visible_on_condition({ g_pFOVIndicator, g_pMinimumFOV, g_pMaximumFOV }, bMaster and bDynamicFOV)
+
+	local bAutomaticPenetration = ui_get(g_pAutomaticPenetrationEnabled)
+	set_visible_on_condition({ g_pAutomaticPenetrationOverridesVisibility, g_pAutomaticPenetrationHitboxCount, g_pAutomaticPenetrationHotkeyIndicator }, bMaster and bAutomaticPenetration)
+
+	local bRageAimbotDelay = ui_get(g_pRageAimbotDelay)
+	set_visible_on_condition({ g_pRageAimbotReactionTime }, bMaster and bRageAimbotDelay)
+
+	local bIgnoreAirborneUsers = ui_get(g_pIgnoreAirborneUsers)
+	set_visible_on_condition({ g_pPostJumpReactionTime }, bMaster and bIgnoreAirborneUsers)
+
+	local bHonorFlashbangs = ui_get(g_pHonorFlashbangs)
+	set_visible_on_condition({ g_pBlindnessThreshold }, bMaster and bHonorFlashbangs)
+
+	local bExtraRageAimbotHotkeys = ui_get(g_pExtraRageAimbotHotkeys)
+	set_visible_on_condition({ g_pRageAimbotHotkeyCount, g_pRageAimbotIgnoredWeapons }, bMaster and bExtraRageAimbotHotkeys)
+
+	local nRageAimbotHotkeyCount = ui_get(g_pRageAimbotHotkeyCount)
+
+	for i = 1, #g_pRageAimbotHotkeys do
+		set_visible_on_condition({ g_pRageAimbotHotkeys[i] }, bMaster and bExtraRageAimbotHotkeys and nRageAimbotHotkeyCount >= i)
+	end
+
+	if bMaster ~= g_bMaster then
+		set_hooks(bMaster)
+	end
+
+	g_bMaster = bMaster
+end
+
+-- When minimum goes over maximum, this will update maximum as well
+local function on_fov_changed(ref)
+	local nValue = ui_get(ref)
+
+	if ref == g_pMinimumFOV and ui_get(g_pMaximumFOV) < nValue then
+		ui_set(g_pMaximumFOV, nValue)
+	elseif ref == g_pMaximumFOV and ui_get(g_pMinimumFOV) > nValue then
+		ui_set(g_pMinimumFOV, nValue)
+	end
+end
+
+local function on_clan_tag_spammer(ref)
+	if ref == g_pDefaultClantagSpammer and ui_get(ref) then
+		ui_set(g_pCustomClantagSpammer, false)
+	elseif ref == g_pCustomClantagSpammer then
+		if ui_get(ref) then
+			ui_set(g_pDefaultClantagSpammer, false)
 		else
-			client.delay_call(var_0_12(), function()
+			-- Restore original clan tag from Counter-Strike: Global Offensive configuration after disabling our custom clan tag. I believe the cheat should be doing this for the defauit gamesense clan tag as well, but that's out of nyaahook!'s scope.
+			client.delay_call(globals_tickinterval(), function()
 				cvar.cl_clanid:invoke_callback()
 			end)
 		end
 	end
 end
 
-var_0_143({
-	var_0_66,
-	var_0_67,
-	var_0_73,
-	var_0_79,
-	var_0_81,
-	var_0_84,
-	var_0_87,
-	var_0_89
-}, var_0_146)
-var_0_143({
-	var_0_69,
-	var_0_70
-}, var_0_147)
-var_0_143({
-	var_0_65,
-	var_0_91
-}, var_0_148)
+add_menu_callbacks({ g_pMasterSwitch, g_pDynamicFOV, g_pAutomaticPenetrationEnabled, g_pRageAimbotDelay, g_pIgnoreAirborneUsers, g_pHonorFlashbangs, g_pExtraRageAimbotHotkeys, g_pRageAimbotHotkeyCount }, on_ui_callback)
+add_menu_callbacks({ g_pMinimumFOV, g_pMaximumFOV }, on_fov_changed)
+add_menu_callbacks({ g_pDefaultClantagSpammer, g_pCustomClantagSpammer }, on_clan_tag_spammer)
