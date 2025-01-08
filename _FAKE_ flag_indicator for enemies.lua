@@ -1,9 +1,7 @@
-﻿local var_0_0 = client.register_esp_flag
-local var_0_1 = entity.is_enemy
-local var_0_2 = plist.get
+local client_register_esp_flag, entity_is_enemy, plist_get = client.register_esp_flag, entity.is_enemy, plist.get
 
-var_0_0("FAKE", 255, 255, 255, function(arg_1_0)
-	if var_0_1(arg_1_0) then
-		return var_0_2(arg_1_0, "Correction active")
+client_register_esp_flag("FAKE", 255, 255, 255, function(c)
+	if entity_is_enemy(c) then
+		return plist_get(c, "Correction active")
 	end
 end)
