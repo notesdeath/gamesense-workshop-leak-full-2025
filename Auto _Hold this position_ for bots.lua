@@ -1,24 +1,24 @@
-﻿local var_0_0 = require("bit").band
-local var_0_1 = entity.get_prop
-local var_0_2 = entity.get_players
-local var_0_3 = entity.is_enemy
-local var_0_4 = client.exec
+local bit_band = require("bit").band
+local entity_get_prop = entity.get_prop
+local entity_get_players = entity.get_players
+local entity_is_enemy = entity.is_enemy
+local client_exec = client.exec
 
-local function var_0_5(arg_1_0)
-	local var_1_0 = var_0_2()
+local function hold_bots()
+	local players = entity_get_players()
 
-	if var_1_0 == nil then
+	if players == nil then
 		return
 	end
 
-	for iter_1_0 = 1, #var_1_0 do
-		local var_1_1 = var_1_0[iter_1_0]
+	for i = 1, #players do
+		local player = players[i]
 
-		if not var_0_3(var_1_1) then
-			local var_1_2 = var_0_1(var_1_1, "m_fFlags")
+		if not entity_is_enemy(player) then
+			local is_bot = entity_get_prop(player, "m_fFlags")
 
-			if var_1_2 and var_0_0(var_1_2, 512) == 512 then
-				var_0_4("holdpos")
+			if is_bot and bit_band(is_bot, 512) == 512 then
+				client_exec("holdpos")
 
 				return
 			end
@@ -26,4 +26,4 @@ local function var_0_5(arg_1_0)
 	end
 end
 
-client.set_event_callback("round_freeze_end", var_0_5)
+client.set_event_callback("round_freeze_end", hold_bots)
