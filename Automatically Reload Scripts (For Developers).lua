@@ -1,69 +1,64 @@
-﻿local var_0_0 = vtable_bind("engine.dll", "VEngineClient014", 196, "bool(__thiscall*)(void*)")
-local var_0_1 = {}
-local var_0_2 = {}
+-- Bind to a method in the game's engine
+local engine_bind = vtable_bind("engine.dll", "VEngineClient014", 196, "bool(__thiscall*)(void*)")
+local old_checksums = {}
+local new_checksums = {}
 
-local function var_0_3(arg_1_0, arg_1_1)
-	arg_1_1 = arg_1_1 or var_0_2
+-- Calculate the checksum of a string using CRC32
+function calculate_checksum(value, crc_table)
+    local checksum, slot3, slot4 = nil
 
-	local var_1_0
-	local var_1_1
-	local var_1_2
+    if not (crc_table or old_checksums)[1] then
+        for i = 1, 256 do
+            checksum = i - 1
 
-	if not arg_1_1[1] then
-		for iter_1_0 = 1, 256 do
-			local var_1_3 = iter_1_0 - 1
+            for j = 1, 8 do
+                checksum = bit.bxor(bit.rshift(checksum, 1), bit.band(3988292384.0, -bit.band(checksum, 1)))
+            end
 
-			for iter_1_1 = 1, 8 do
-				local var_1_4 = -bit.band(var_1_3, 1)
+            crc_table[i] = checksum
+        end
+    end
 
-				var_1_3 = bit.bxor(bit.rshift(var_1_3, 1), bit.band(3988292384, var_1_4))
-			end
+    checksum = 4294967295.0
 
-			arg_1_1[iter_1_0] = var_1_3
-		end
-	end
+    for i = 1, #value do
+        checksum = bit.bxor(bit.rshift(checksum, 8), crc_table[bit.band(bit.bxor(checksum, string.byte(value, i)), 255) + 1])
+    end
 
-	local var_1_5 = 4294967295
-
-	for iter_1_2 = 1, #arg_1_0 do
-		local var_1_6 = string.byte(arg_1_0, iter_1_2)
-
-		var_1_5 = bit.bxor(bit.rshift(var_1_5, 8), arg_1_1[bit.band(bit.bxor(var_1_5, var_1_6), 255) + 1])
-	end
-
-	return bit.band(bit.bnot(var_1_5), 4294967295)
+    return bit.band(bit.bnot(checksum), 4294967295.0)
 end
 
-local function var_0_4()
-	for iter_2_0, iter_2_1 in pairs(package.loaded) do
-		local var_2_0 = readfile(iter_2_0 .. ".lua")
+-- Check if any Lua files have been modified
+function check_lua_file_changes()
+    for file_name, file in pairs(package.loaded) do
+        -- Check both root and lua/ directory
+        for _, path in pairs({"", "lua/"}) do
+            if readfile(path .. file_name .. ".lua") then
+                if old_checksums[file_name] then
+                    if old_checksums[file_name] ~= calculate_checksum(file) then
+                        print(string.format("%s was changed, reloading active scripts!", file_name))
+                        client.reload_active_scripts()
 
-		if var_2_0 then
-			local var_2_1 = var_0_3(var_2_0)
-
-			if var_0_1[iter_2_0] then
-				if var_0_1[iter_2_0] ~= var_2_1 then
-					print(string.format("%s was changed, reloading active scripts!", iter_2_0))
-					client.reload_active_scripts()
-
-					return
-				end
-			else
-				var_0_1[iter_2_0] = var_2_1
-			end
-		end
-	end
+                        return
+                    end
+                else
+                    old_checksums[file_name] = calculate_checksum(file)
+                end
+            end
+        end
+    end
 end
 
-local var_0_5 = false
+local game_is_running = false
 
-client.set_event_callback("paint_ui", function()
-	local var_3_0 = var_0_0()
+-- Set the callback to check if the game is running and if any Lua files have been modified
+client.set_event_callback("paint_ui", function ()
+    local is_game_running = engine_bind()
 
-	if var_0_5 == false and var_3_0 then
-		var_0_4()
-		client.delay_call(0.5, var_0_4)
-	end
+    if game_is_running == false and is_game_running then
+        check_lua_file_changes()
+        client.delay_call(0.5, check_lua_file_changes)
+    end
 
-	var_0_5 = var_3_0
+    game_is_running = is_game_running
 end)
