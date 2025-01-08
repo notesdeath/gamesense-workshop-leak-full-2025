@@ -1,185 +1,226 @@
-﻿local var_0_0 = require("gamesense/steamworks")
-local var_0_1 = require("ffi")
-local var_0_2 = var_0_0.ISteamUserStats
-local var_0_3 = var_0_0.EResult
-local var_0_4 = panorama.loadstring("\treturn [(timestamp) => {\n\t\tvar date = new Date(timestamp * 1000);\n\t\treturn `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`\n\t}]\n")()[0]
-local var_0_5 = {}
-local var_0_6 = var_0_2.GetNumAchievements()
+local steamworks = require "gamesense/steamworks"
+local ffi = require "ffi"
 
-for iter_0_0 = 0, var_0_6 - 1 do
-	local var_0_7 = var_0_2.GetAchievementName(iter_0_0)
+--
+-- grab the interfaces and enums we want to use from the steamworks lib. this is not required, just cleans up the code a bit
+--
 
-	table.insert(var_0_5, {
-		id = var_0_7,
-		name = var_0_2.GetAchievementDisplayAttribute(var_0_7, "name"),
-		desc = var_0_2.GetAchievementDisplayAttribute(var_0_7, "desc"),
-		hidden = var_0_2.GetAchievementDisplayAttribute(var_0_7, "hidden")
+local ISteamUserStats = steamworks.ISteamUserStats
+local EResult = steamworks.EResult
+
+--
+-- use panorama js to format the unix timestamps
+--
+
+local format_unix_timestamp = panorama.loadstring([[
+	return [(timestamp) => {
+		var date = new Date(timestamp * 1000);
+		return `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`
+	}]
+]])()[0]
+
+--
+-- collect all achievements
+--
+
+local all_achievements = {}
+
+local count = ISteamUserStats.GetNumAchievements()
+for i=0, count-1 do
+	local name = ISteamUserStats.GetAchievementName(i)
+	table.insert(all_achievements, {
+		id = name,
+		name = ISteamUserStats.GetAchievementDisplayAttribute(name, "name"),
+		desc = ISteamUserStats.GetAchievementDisplayAttribute(name, "desc"),
+		hidden = ISteamUserStats.GetAchievementDisplayAttribute(name, "hidden")
 	})
 end
 
-local var_0_8
+-- our func to update the ui, defined below
+local update_ui
 
-local function var_0_9()
-	for iter_1_0, iter_1_1 in ipairs(var_0_5) do
-		local var_1_0, var_1_1, var_1_2 = var_0_2.GetAchievementAndUnlockTime(iter_1_1.id)
+-- called when we want to update the unlock data from steam, so on load and on UserStatsReceived_t / UserStatsStored_t events
+local function update()
+	for i, achievement in ipairs(all_achievements) do
+		local success, achieved, unlock_time = ISteamUserStats.GetAchievementAndUnlockTime(achievement.id)
 
-		if var_1_0 then
-			iter_1_1.achieved = var_1_1
-			iter_1_1.unlock_time = var_1_2
-			iter_1_1.unlock_time_formatted = var_0_4(var_1_2)
+		if success then
+			achievement.achieved = achieved
+			achievement.unlock_time = unlock_time
+			achievement.unlock_time_formatted = format_unix_timestamp(unlock_time)
 		end
 	end
 
-	var_0_8()
+	update_ui()
 end
 
-var_0_0.set_callback("UserStatsReceived_t", var_0_9)
-var_0_0.set_callback("UserStatsStored_t", var_0_9)
+--
+-- set steam callbacks: https://partner.steamgames.com/doc/api/ISteamUserStats#UserStatsReceived_t
+--
 
-local var_0_10 = {}
+steamworks.set_callback("UserStatsReceived_t", update)
+steamworks.set_callback("UserStatsStored_t", update)
 
-for iter_0_1, iter_0_2 in ipairs(var_0_5) do
-	var_0_10[iter_0_1] = iter_0_2.name
+--
+-- ui stuff
+--
+
+local achievement_list = {}
+for i, achievement in ipairs(all_achievements) do
+	achievement_list[i] = achievement.name
 end
 
-local var_0_11 = ui.new_checkbox("LUA", "B", "Steam Achievement Manager")
-local var_0_12 = ui.new_listbox("LUA", "B", "Achievements", var_0_10)
-local var_0_13 = ui.new_label("LUA", "B", "No description")
-local var_0_14 = ui.new_label("LUA", "B", "No global unlock percentage")
-local var_0_15 = ui.new_checkbox("LUA", "B", "Achievement unlocked")
-local var_0_16 = ui.new_label("LUA", "B", "Unlocked at")
+local enabled_reference = ui.new_checkbox("LUA", "B", "Steam Achievement Manager")
+local achievement_reference = ui.new_listbox("LUA", "B", "Achievements", achievement_list)
+local desc_reference = ui.new_label("LUA", "B", "No description")
+local global_unlock_reference = ui.new_label("LUA", "B", "No global unlock percentage")
+local unlocked_reference = ui.new_checkbox("LUA", "B", "Achievement unlocked")
+local unlocked_at_reference = ui.new_label("LUA", "B", "Unlocked at")
 
-ui.set_callback(var_0_11, function()
-	var_0_8()
+ui.set_callback(enabled_reference, function()
+	update_ui()
 
-	if ui.get(var_0_11) then
-		var_0_9()
-		var_0_2.RequestGlobalAchievementPercentages(function(arg_3_0)
-			if arg_3_0.m_eResult == var_0_3.OK then
-				local var_3_0 = {}
-				local var_3_1 = 0
+	if ui.get(enabled_reference) then
+		-- grab data from steam on enable
+		update()
 
-				for iter_3_0, iter_3_1 in ipairs(var_0_5) do
-					var_3_0[iter_3_1.id] = iter_3_1
-					var_3_1 = math.max(var_3_1, iter_3_1.id:len() + 1)
+		-- get global achievement stats (unlocked by x%)
+		ISteamUserStats.RequestGlobalAchievementPercentages(function(res)
+			-- this function is executed when the RequestGlobalAchievementPercentages completes. first check if it was successful
+			if res.m_eResult == EResult.OK then
+				local achievements_by_id, longest_id = {}, 0
+
+				-- allocate a buffer long enough to hold the longest achievement id (+1 for the null byte at the end)
+				-- also create a table mapping achievement id to the achievement
+				for i, achievement in ipairs(all_achievements) do
+					achievements_by_id[achievement.id] = achievement
+					longest_id = math.max(longest_id, achievement.id:len()+1)
 				end
 
-				local var_3_2 = var_0_1.new("char[?]", var_3_1)
-				local var_3_3, var_3_4, var_3_5 = var_0_2.GetMostAchievedAchievementInfo(var_3_2, var_3_1)
+				-- create our id buffer
+				local id_buf = ffi.new("char[?]", longest_id)
 
-				while var_3_3 ~= -1 do
-					local var_3_6 = var_0_1.string(var_3_2)
+				-- get first global unlock percentage achievement from steam. this func also returns the next id (for use with GetNextMostAchievedAchievementInfo)
+				-- it also returns global unlock percentage and if we unlocked it (which we ignore)
+				local i, percent, achieved = ISteamUserStats.GetMostAchievedAchievementInfo(id_buf, longest_id)
 
-					if var_3_0[var_3_6] ~= nil then
-						var_3_0[var_3_6].global_percent = var_3_4
+				while i ~= -1 do
+					-- read ID buffer into a lua string
+					local id = ffi.string(id_buf)
+
+					-- update achievement
+					if achievements_by_id[id] ~= nil then
+						achievements_by_id[id].global_percent = percent
 					end
 
-					var_0_1.fill(var_3_2, var_3_1)
+					-- clear our id buffer (fill with 0)
+					ffi.fill(id_buf, longest_id)
 
-					local var_3_7
-
-					var_3_3, var_3_4, var_3_7 = var_0_2.GetNextMostAchievedAchievementInfo(var_3_3, var_3_2, var_3_1)
+					-- grab next id and global % from steam
+					i, percent, achieved = ISteamUserStats.GetNextMostAchievedAchievementInfo(i, id_buf, longest_id)
 				end
 
-				var_0_8()
+				update_ui()
 			end
 		end)
 	end
 end)
 
-local var_0_17 = false
-
-ui.set_callback(var_0_15, function()
-	if var_0_17 or not ui.get(var_0_11) then
+local in_update = false
+ui.set_callback(unlocked_reference, function()
+	if in_update or not ui.get(enabled_reference) then
 		return
 	end
 
-	local var_4_0 = (ui.get(var_0_12) or 0) + 1
-	local var_4_1 = var_0_5[var_4_0]
+	local i = (ui.get(achievement_reference) or 0) + 1
+	local achievement = all_achievements[i]
 
-	if var_4_1 ~= nil then
-		local var_4_2 = ui.get(var_0_15)
+	if achievement ~= nil then
+		local unlock = ui.get(unlocked_reference)
 
-		if var_4_2 then
-			var_0_2.SetAchievement(var_4_1.id)
+		-- either unlock or lock the achievement
+		if unlock then
+			ISteamUserStats.SetAchievement(achievement.id)
 		else
-			var_0_2.ClearAchievement(var_4_1.id)
+			ISteamUserStats.ClearAchievement(achievement.id)
 		end
 
-		var_0_2.StoreStats()
+		-- send stats to steam (and show unlock notification)
+		ISteamUserStats.StoreStats()
 
-		var_0_17 = true
-
-		ui.set(var_0_15, not var_4_2)
-
-		var_0_17 = false
+		-- reset and wait for update by UserStatsReceived_t / UserStatsStored_t
+		in_update = true
+		ui.set(unlocked_reference, not unlock)
+		in_update = false
 	end
 end)
 
-local var_0_18 = ui.new_button("LUA", "B", "Unlock all", function()
-	for iter_5_0, iter_5_1 in ipairs(var_0_5) do
-		if not iter_5_1.achieved then
-			var_0_2.SetAchievement(iter_5_1.id)
+local unlock_all_reference = ui.new_button("LUA", "B", "Unlock all", function()
+	for i, achievement in ipairs(all_achievements) do
+		if not achievement.achieved then
+			ISteamUserStats.SetAchievement(achievement.id)
 		end
 	end
 
-	var_0_2.StoreStats()
+	ISteamUserStats.StoreStats()
 end)
-local var_0_19 = ui.new_button("LUA", "B", "Lock all", function()
-	for iter_6_0, iter_6_1 in ipairs(var_0_5) do
-		if iter_6_1.achieved then
-			var_0_2.ClearAchievement(iter_6_1.id)
+
+local lock_all_reference = ui.new_button("LUA", "B", "Lock all", function()
+	for i, achievement in ipairs(all_achievements) do
+		if achievement.achieved then
+			ISteamUserStats.ClearAchievement(achievement.id)
 		end
 	end
 
-	var_0_2.StoreStats()
+	ISteamUserStats.StoreStats()
 end)
 
-function var_0_8()
-	var_0_17 = true
+function update_ui()
+	in_update = true
 
-	local var_7_0 = ui.get(var_0_11)
+	local enabled = ui.get(enabled_reference)
 
-	if var_7_0 then
-		ui.set_visible(var_0_12, true)
-		ui.set_visible(var_0_13, true)
-		ui.set_visible(var_0_15, true)
-		ui.set_visible(var_0_18, true)
-		ui.set_visible(var_0_19, true)
+	if enabled then
+		ui.set_visible(achievement_reference, true)
+		ui.set_visible(desc_reference, true)
+		ui.set_visible(unlocked_reference, true)
+		ui.set_visible(unlock_all_reference, true)
+		ui.set_visible(lock_all_reference, true)
 
-		local var_7_1 = (ui.get(var_0_12) or 0) + 1
-		local var_7_2 = var_0_5[var_7_1]
+		local i = (ui.get(achievement_reference) or 0) + 1
+		local achievement = all_achievements[i]
 
-		if var_7_2 ~= nil then
-			ui.set(var_0_15, var_7_2.achieved == true)
-			ui.set(var_0_13, var_7_2.desc)
-			ui.set_visible(var_0_14, var_7_2.global_percent ~= nil)
+		if achievement ~= nil then
+			ui.set(unlocked_reference, achievement.achieved == true)
+			ui.set(desc_reference, achievement.desc)
 
-			if var_7_2.global_percent ~= nil then
-				ui.set(var_0_14, string.format("Unlocked by %.1f%% of players", var_7_2.global_percent))
+			ui.set_visible(global_unlock_reference, achievement.global_percent ~= nil)
+			if achievement.global_percent ~= nil then
+				ui.set(global_unlock_reference, string.format("Unlocked by %.1f%% of players", achievement.global_percent))
 			end
 
-			ui.set_visible(var_0_16, var_7_2.achieved and var_7_2.unlock_time_formatted ~= nil)
-
-			if var_7_2.achieved and var_7_2.unlock_time_formatted ~= nil then
-				ui.set(var_0_16, "Unlocked at " .. var_7_2.unlock_time_formatted)
+			ui.set_visible(unlocked_at_reference, achievement.achieved and achievement.unlock_time_formatted ~= nil)
+			if achievement.achieved and achievement.unlock_time_formatted ~= nil then
+				ui.set(unlocked_at_reference, "Unlocked at " .. achievement.unlock_time_formatted)
 			end
 		else
-			ui.set_visible(var_0_14, false)
-			ui.set_visible(var_0_16, false)
+			ui.set_visible(global_unlock_reference, false)
+			ui.set_visible(unlocked_at_reference, false)
 		end
 	else
-		ui.set_visible(var_0_12, var_7_0)
-		ui.set_visible(var_0_13, var_7_0)
-		ui.set_visible(var_0_14, var_7_0)
-		ui.set_visible(var_0_15, var_7_0)
-		ui.set_visible(var_0_16, var_7_0)
-		ui.set_visible(var_0_18, var_7_0)
-		ui.set_visible(var_0_19, var_7_0)
+		ui.set_visible(achievement_reference, enabled)
+		ui.set_visible(desc_reference, enabled)
+		ui.set_visible(global_unlock_reference, enabled)
+		ui.set_visible(unlocked_reference, enabled)
+		ui.set_visible(unlocked_at_reference, enabled)
+
+		ui.set_visible(unlock_all_reference, enabled)
+		ui.set_visible(lock_all_reference, enabled)
 	end
 
-	var_0_17 = false
+	in_update = false
 end
+ui.set_callback(achievement_reference, update_ui)
 
-ui.set_callback(var_0_12, var_0_8)
-var_0_8()
+-- update ui on load
+update_ui()
