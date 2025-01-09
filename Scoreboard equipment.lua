@@ -1,31 +1,46 @@
-﻿local var_0_0 = require("gamesense/csgo_weapons")
-local var_0_1 = require("table.clear")
-local var_0_2 = setmetatable({}, {
-	__index = function(arg_1_0, arg_1_1)
-		arg_1_0[arg_1_1] = var_0_0[tonumber(arg_1_1)] or false
+--
+-- dependencies
+--
 
-		return arg_1_0[arg_1_1]
+local csgo_weapons = require "gamesense/csgo_weapons"
+local table_clear = require "table.clear"
+
+--
+-- constants
+--
+
+local EVENT_IDX_TO_WEAPON = setmetatable({}, {
+	__index = function(tbl, idx)
+		tbl[idx] = csgo_weapons[tonumber(idx)] or false
+		return tbl[idx]
 	end
 })
-local var_0_3 = var_0_0.item_kevlar
-local var_0_4 = var_0_0.item_assaultsuit
-local var_0_5 = var_0_0.item_heavyassaultsuit
-local var_0_6 = var_0_0.item_cutters
-local var_0_7 = var_0_0.item_defuser
-local var_0_8 = var_0_0.weapon_taser
-local var_0_9 = var_0_0.weapon_c4
-local var_0_10 = 2
-local var_0_11 = 3
 
-local function var_0_12(arg_2_0, arg_2_1)
-	for iter_2_0, iter_2_1 in pairs(arg_2_0) do
-		local var_2_0 = arg_2_1[iter_2_0]
+local ITEM_KEVLAR = csgo_weapons["item_kevlar"]
+local ITEM_ASSAULTSUIT = csgo_weapons["item_assaultsuit"]
+local ITEM_HEAVYASSAULTSUIT = csgo_weapons["item_heavyassaultsuit"]
+local ITEM_CUTTERS = csgo_weapons["item_cutters"]
+local ITEM_DEFUSER = csgo_weapons["item_defuser"]
+local WEAPON_TASER = csgo_weapons["weapon_taser"]
+local WEAPON_C4 = csgo_weapons["weapon_c4"]
 
-		if var_2_0 == nil then
+local TEAM_T = 2
+local TEAM_CT = 3
+
+--
+-- utility functions
+--
+
+local function deep_compare(tbl1, tbl2)
+	for key1, value1 in pairs(tbl1) do
+		local value2 = tbl2[key1]
+
+		if value2 == nil then
+			-- avoid the type call for missing keys in tbl2 by directly comparing with nil
 			return false
-		elseif iter_2_1 ~= var_2_0 then
-			if type(iter_2_1) == "table" and type(var_2_0) == "table" then
-				if not var_0_12(iter_2_1, var_2_0) then
+		elseif value1 ~= value2 then
+			if type(value1) == "table" and type(value2) == "table" then
+				if not deep_compare(value1, value2) then
 					return false
 				end
 			else
@@ -34,8 +49,9 @@ local function var_0_12(arg_2_0, arg_2_1)
 		end
 	end
 
-	for iter_2_2, iter_2_3 in pairs(arg_2_1) do
-		if arg_2_0[iter_2_2] == nil then
+	-- check for missing keys in tbl1
+	for key2, _ in pairs(tbl2) do
+		if tbl1[key2] == nil then
 			return false
 		end
 	end
@@ -43,525 +59,970 @@ local function var_0_12(arg_2_0, arg_2_1)
 	return true
 end
 
-local function var_0_13(arg_3_0, arg_3_1)
-	local var_3_0 = {}
-	local var_3_1 = 1
+local function table_map_filter(tbl, callback)
+	local new, j = {}, 1
 
-	for iter_3_0 = 1, #arg_3_0 do
-		local var_3_2 = arg_3_1(arg_3_0[iter_3_0])
-
-		if var_3_2 ~= nil then
-			var_3_0[var_3_1] = var_3_2
-			var_3_1 = var_3_1 + 1
+	for i=1, #tbl do
+		local value = callback(tbl[i])
+		if value ~= nil then
+			new[j] = value
+			j = j + 1
 		end
 	end
 
-	return var_3_0
+	return new
 end
 
-local function var_0_14(arg_4_0, arg_4_1)
-	local var_4_0 = {}
-
-	for iter_4_0, iter_4_1 in pairs(arg_4_0) do
-		local var_4_1, var_4_2 = arg_4_1(iter_4_0, iter_4_1)
-
-		var_4_0[var_4_1] = var_4_2
+local function table_map_assoc(tbl, callback)
+	local new = {}
+	for key, value in pairs(tbl) do
+		local new_key, new_value = callback(key, value)
+		new[new_key] = new_value
 	end
-
-	return var_4_0
+	return new
 end
 
-local function var_0_15(arg_5_0, arg_5_1)
-	for iter_5_0 = 1, #arg_5_0 do
-		if arg_5_0[iter_5_0] == arg_5_1 then
+local function table_contains(tbl, val)
+	for i=1,#tbl do
+		if tbl[i] == val then
 			return true
 		end
 	end
-
 	return false
 end
 
-local function var_0_16(arg_6_0, arg_6_1)
-	for iter_6_0 = #arg_6_0, 1, -1 do
-		if arg_6_0[iter_6_0] == arg_6_1 then
-			table.remove(arg_6_0, iter_6_0)
+local function table_remove_item(tbl, item)
+	for i=#tbl, 1, -1 do
+		if tbl[i] == item then
+			table.remove(tbl, i)
 		end
 	end
 end
 
-local var_0_17 = {
+--
+-- since events are unordered, we sort them here
+--
+
+local event_sort_pos = {
 	item_remove = 0,
-	item_equip = 2,
-	item_pickup = 2,
-	player_spawn = 1,
+	player_disconnect = 0,
 	player_death = 0,
-	player_disconnect = 0
+	player_spawn = 1,
+	item_pickup = 2,
+	item_equip = 2,
 }
 
-local function var_0_18(arg_7_0, arg_7_1)
-	return (var_0_17[arg_7_0[1]] or arg_7_0[1]:byte()) < (var_0_17[arg_7_1[1]] or arg_7_1[1]:byte())
+local function sort_events_cb(a, b)
+	local a_i = event_sort_pos[a[1]] or a[1]:byte()
+	local b_i = event_sort_pos[b[1]] or b[1]:byte()
+
+	return a_i < b_i
 end
 
-local var_0_19 = {}
-local var_0_20 = {}
-local var_0_21 = {}
-local var_0_22
+local delayed_events = {}
+local event_callbacks = {}
+local event_callbacks_orig = {}
+local delayed_events_curtime
 
-local function var_0_23()
-	if var_0_22 ~= nil then
-		table.sort(var_0_19, var_0_18)
+local function run_pending_callbacks()
+	if delayed_events_curtime ~= nil then
+		table.sort(delayed_events, sort_events_cb)
 
-		for iter_8_0 = 1, #var_0_19 do
-			local var_8_0, var_8_1, var_8_2 = unpack(var_0_19[iter_8_0])
-			local var_8_3 = var_0_20[var_8_0]
+		for i=1, #delayed_events do
+			local event, e, curtime = unpack(delayed_events[i])
 
-			for iter_8_1 = 1, #var_8_3 do
-				xpcall(var_8_3[iter_8_1], client.error_log, var_8_1)
+			local handlers = event_callbacks[event]
+			for j=1, #handlers do
+				xpcall(handlers[j], client.error_log, e)
 			end
 		end
 
-		var_0_1(var_0_19)
-
-		var_0_22 = nil
+		table_clear(delayed_events)
+		delayed_events_curtime = nil
 	end
 end
 
-local function var_0_24(arg_9_0, arg_9_1)
-	if var_0_20[arg_9_0] == nil then
-		local var_9_0 = {}
+local function add_delayed_callback(event, callback)
+	if event_callbacks[event] == nil then
+		local handlers = {}
 
-		var_0_21[arg_9_0] = function(arg_10_0)
-			local var_10_0 = globals.curtime()
+		event_callbacks_orig[event] = function(e)
+			local curtime = globals.curtime()
 
-			if var_0_22 == nil then
-				var_0_22 = var_10_0
-			elseif var_0_22 ~= var_10_0 then
-				var_0_23()
+			-- if curtime changed dispatch all pending events right now
+			if delayed_events_curtime == nil then
+				delayed_events_curtime = curtime
+			elseif delayed_events_curtime ~= curtime then
+				run_pending_callbacks()
 
-				var_0_22 = var_10_0
+				delayed_events_curtime = curtime
 			end
 
-			table.insert(var_0_19, {
-				arg_9_0,
-				arg_10_0
+			table.insert(delayed_events, {event, e})
+		end
+		client.set_event_callback(event, event_callbacks_orig[event])
+
+		event_callbacks[event] = handlers
+	end
+
+	table.insert(event_callbacks[event], callback)
+end
+
+local function clear_delayed_callbacks()
+	for event, callback_orig in pairs(event_callbacks_orig) do
+		client.unset_event_callback(event, callback_orig)
+	end
+
+	table_clear(event_callbacks_orig)
+	table_clear(event_callbacks)
+	table_clear(delayed_events)
+
+	delayed_events_curtime = nil
+end
+
+--
+-- js context / code block
+--
+
+local jsc = panorama.open("CSGOHud")
+local FriendsListAPI, MyPersonaAPI, GameStateAPI = jsc.FriendsListAPI, jsc.MyPersonaAPI, jsc.GameStateAPI
+
+local js = panorama.loadstring([[
+	let entity_panels = {}
+	let entity_flair_panels = {}
+	let entity_data = {}
+	let event_callbacks = {}
+
+	let unmuted_players = {}
+
+	let TEAM_COLORS = {
+		CT: "#B5D4EE40",
+		TERRORIST: "#EAD18A61"
+	}
+
+	let SHADOW_COLORS = {
+		CT: "#393C40",
+		TERRORIST: "#4C4844"
+	}
+
+	let HIDDEN_IDS = ["id-sb-name__commendations__leader", "id-sb-name__commendations__teacher", "id-sb-name__commendations__friendly", "id-sb-name__musickit"]
+
+	let SLOT_LAYOUT = `
+		<root>
+			<Panel style="min-width: 3px; padding-top: 2px; padding-left: 2px; overflow: noclip;">
+				<Image id="smaller" textureheight="15" style="horizontal-align: center; opacity: 0.01; transition: opacity 0.1s ease-in-out 0.0s, img-shadow 0.12s ease-in-out 0.0s; overflow: noclip; padding: 3px 5px; margin: -3px -5px;"  />
+				<Image id="small" textureheight="17" style="horizontal-align: center; opacity: 0.01; transition: opacity 0.1s ease-in-out 0.0s, img-shadow 0.12s ease-in-out 0.0s; overflow: noclip; padding: 3px 5px; margin: -3px -5px;" />
+				<Image id="medium" textureheight="18" style="horizontal-align: center; opacity: 0.01; transition: opacity 0.1s ease-in-out 0.0s, img-shadow 0.12s ease-in-out 0.0s; overflow: noclip; padding: 3px 5px; margin: -3px -5px; margin-top: -4px;" />
+				<Image id="large" textureheight="21" style="horizontal-align: center; opacity: 0.01; transition: opacity 0.1s ease-in-out 0.0s, img-shadow 0.12s ease-in-out 0.0s; overflow: noclip; padding: 3px 5px; margin: -3px -5px; margin-top: -5px;" />
+			</Panel>
+		</root>
+	`
+
+	let MIN_WIDTHS = {}
+	let MAX_WIDTHS = {}
+	let SLOT_OVERRIDE = {}
+
+	let GameStateAPI_IsLocalPlayerPlayingMatch_prev
+	let FriendsListAPI_IsSelectedPlayerMuted_prev
+	let GameStateAPI_IsSelectedPlayerMuted_prev
+	let my_xuid = MyPersonaAPI.GetXuid()
+
+	let _SetMinMaxWidth = function(weapon, min_width, max_width, slot_override) {
+		if(min_width)
+			MIN_WIDTHS[weapon] = min_width
+
+		if(max_width)
+			MAX_WIDTHS[weapon] = max_width
+
+		if(slot_override)
+			SLOT_OVERRIDE[weapon] = slot_override
+	}
+
+	let _DestroyEntityPanels = function() {
+		for(key in entity_panels){
+			let panel = entity_panels[key]
+
+			if(panel != null && panel.IsValid()) {
+				var parent = panel.GetParent()
+
+				HIDDEN_IDS.forEach(id => {
+					let panel = parent.FindChildTraverse(id)
+
+					if(panel != null) {
+						panel.style.maxWidth = "28px"
+						panel.style.margin = "0px 5px 0px 5px"
+					}
+				})
+
+				if(parent.FindChildTraverse("id-sb-skillgroup-image") != null) {
+					parent.FindChildTraverse("id-sb-skillgroup-image").style.margin = "0px 0px 0px 0px"
+				}
+
+				panel.DeleteAsync(0.0)
+			}
+
+			delete entity_panels[key]
+		}
+	}
+
+	let _GetOrCreateCustomPanel = function(xuid) {
+		if(entity_panels[xuid] == null || !entity_panels[xuid].IsValid()){
+			entity_panels[xuid] = null
+
+			// $.Msg("creating panel for ", xuid)
+			let scoreboard_context_panel = $.GetContextPanel().FindChildTraverse("ScoreboardContainer").FindChildTraverse("Scoreboard") || $.GetContextPanel().FindChildTraverse("id-eom-scoreboard-container").FindChildTraverse("Scoreboard")
+
+			if(scoreboard_context_panel == null){
+				// usually happens if end of match scoreboard is open. clean up everything?
+
+				_Clear()
+				_DestroyEntityPanels()
+
+				return
+			}
+
+			scoreboard_context_panel.FindChildrenWithClassTraverse("sb-row").forEach(function(el){
+				let scoreboard_el
+
+				if(el.m_xuid == xuid) {
+					el.Children().forEach(function(child_frame){
+						let stat = child_frame.GetAttributeString("data-stat", "")
+						if(stat == "name") {
+							scoreboard_el = child_frame.GetChild(0)
+						} else if(stat == "flair") {
+							entity_flair_panels[xuid] = child_frame.GetChild(0)
+						}
+					})
+
+					if(scoreboard_el) {
+						let scoreboard_el_parent = scoreboard_el.GetParent()
+
+						// fix some style. this is not restored
+						// scoreboard_el_parent.style.overflow = "clip clip;"
+
+						// create panel
+						let custom_weapons = $.CreatePanel("Panel", scoreboard_el_parent, "custom-weapons", {
+							style: "overflow: noclip; width: fit-children; margin: 0px 0px 0px 0px; padding: 1px 0px 0px 0px; height: 100%; flow-children: left; min-width: 30px;"
+						})
+
+						HIDDEN_IDS.forEach(id => {
+							let panel = scoreboard_el_parent.FindChildTraverse(id)
+
+							if(panel != null) {
+								panel.style.maxWidth = "0px"
+								panel.style.margin = "0px"
+							}
+						})
+
+						if(scoreboard_el_parent.FindChildTraverse("id-sb-skillgroup-image") != null) {
+							scoreboard_el_parent.FindChildTraverse("id-sb-skillgroup-image").style.margin = "0px 0px 0px 5px"
+						}
+
+						scoreboard_el_parent.MoveChildBefore(custom_weapons, scoreboard_el_parent.GetChild(1))
+
+						// create child panels
+						let panel_armor = $.CreatePanel("Image", custom_weapons, "armor", {
+							textureheight: "17",
+							style: "padding-left: 2px; padding-top: 3px; opacity: 0.2; padding-left: 5px;"
+						})
+						panel_armor.visible = false
+
+						let panel_helmet = $.CreatePanel("Image", custom_weapons, "helmet", {
+							textureheight: "22",
+							style: "padding-left: 2px; padding-top: 0px; opacity: 0.2; padding-left: 0px; margin-left: 3px; margin-right: -3px;"
+						})
+						panel_helmet.visible = false
+						panel_helmet.SetImage("file://{images}/icons/equipment/helmet.svg")
+
+						for(i=24; i >= 0; i--) {
+							let panel_slot_parent = $.CreatePanel("Panel", custom_weapons, `weapon-${i}`)
+
+							panel_slot_parent.visible = false
+							panel_slot_parent.BLoadLayoutFromString(SLOT_LAYOUT, false, false)
+						}
+
+						// custom_weapons.style.border = "1px solid red;"
+						entity_panels[xuid] = custom_weapons
+
+						return custom_weapons
+					}
+				}
 			})
-		end
+		}
 
-		client.set_event_callback(arg_9_0, var_0_21[arg_9_0])
+		return entity_panels[xuid]
+	}
 
-		var_0_20[arg_9_0] = var_9_0
-	end
+	let _UpdatePlayer = function(entindex, weapons, selected_weapon, armor) {
+		if(entindex == null || entindex == 0)
+			return
 
-	table.insert(var_0_20[arg_9_0], arg_9_1)
-end
+		entity_data[entindex] = arguments
+	}
 
-local function var_0_25()
-	for iter_11_0, iter_11_1 in pairs(var_0_21) do
-		client.unset_event_callback(iter_11_0, iter_11_1)
-	end
+	let _ApplyPlayer = function(entindex, weapons, selected_weapon, armor) {
+		let xuid = GameStateAPI.GetPlayerXuidStringFromEntIndex(entindex)
 
-	var_0_1(var_0_21)
-	var_0_1(var_0_20)
-	var_0_1(var_0_19)
+		// $.Msg("applying for ", entindex, ": ", weapons)
+		let panel = _GetOrCreateCustomPanel(xuid)
 
-	var_0_22 = nil
-end
+		if(panel == null)
+			return
 
-local var_0_26 = panorama.open("CSGOHud")
-local var_0_27 = var_0_26.FriendsListAPI
-local var_0_28 = var_0_26.MyPersonaAPI
-local var_0_29 = var_0_26.GameStateAPI
-local var_0_30 = panorama.loadstring("\tlet entity_panels = {}\n\tlet entity_flair_panels = {}\n\tlet entity_data = {}\n\tlet event_callbacks = {}\n\n\tlet unmuted_players = {}\n\n\tlet TEAM_COLORS = {\n\t\tCT: \"#B5D4EE40\",\n\t\tTERRORIST: \"#EAD18A61\"\n\t}\n\n\tlet SHADOW_COLORS = {\n\t\tCT: \"#393C40\",\n\t\tTERRORIST: \"#4C4844\"\n\t}\n\n\tlet HIDDEN_IDS = [\"id-sb-name__commendations__leader\", \"id-sb-name__commendations__teacher\", \"id-sb-name__commendations__friendly\", \"id-sb-name__musickit\"]\n\n\tlet SLOT_LAYOUT = `\n\t\t<root>\n\t\t\t<Panel style=\"min-width: 3px; padding-top: 2px; padding-left: 2px; overflow: noclip;\">\n\t\t\t\t<Image id=\"smaller\" textureheight=\"15\" style=\"horizontal-align: center; opacity: 0.01; transition: opacity 0.1s ease-in-out 0.0s, img-shadow 0.12s ease-in-out 0.0s; overflow: noclip; padding: 3px 5px; margin: -3px -5px;\"  />\n\t\t\t\t<Image id=\"small\" textureheight=\"17\" style=\"horizontal-align: center; opacity: 0.01; transition: opacity 0.1s ease-in-out 0.0s, img-shadow 0.12s ease-in-out 0.0s; overflow: noclip; padding: 3px 5px; margin: -3px -5px;\" />\n\t\t\t\t<Image id=\"medium\" textureheight=\"18\" style=\"horizontal-align: center; opacity: 0.01; transition: opacity 0.1s ease-in-out 0.0s, img-shadow 0.12s ease-in-out 0.0s; overflow: noclip; padding: 3px 5px; margin: -3px -5px; margin-top: -4px;\" />\n\t\t\t\t<Image id=\"large\" textureheight=\"21\" style=\"horizontal-align: center; opacity: 0.01; transition: opacity 0.1s ease-in-out 0.0s, img-shadow 0.12s ease-in-out 0.0s; overflow: noclip; padding: 3px 5px; margin: -3px -5px; margin-top: -5px;\" />\n\t\t\t</Panel>\n\t\t</root>\n\t`\n\n\tlet MIN_WIDTHS = {}\n\tlet MAX_WIDTHS = {}\n\tlet SLOT_OVERRIDE = {}\n\n\tlet GameStateAPI_IsLocalPlayerPlayingMatch_prev\n\tlet FriendsListAPI_IsSelectedPlayerMuted_prev\n\tlet GameStateAPI_IsSelectedPlayerMuted_prev\n\tlet my_xuid = MyPersonaAPI.GetXuid()\n\n\tlet _SetMinMaxWidth = function(weapon, min_width, max_width, slot_override) {\n\t\tif(min_width)\n\t\t\tMIN_WIDTHS[weapon] = min_width\n\n\t\tif(max_width)\n\t\t\tMAX_WIDTHS[weapon] = max_width\n\n\t\tif(slot_override)\n\t\t\tSLOT_OVERRIDE[weapon] = slot_override\n\t}\n\n\tlet _DestroyEntityPanels = function() {\n\t\tfor(key in entity_panels){\n\t\t\tlet panel = entity_panels[key]\n\n\t\t\tif(panel != null && panel.IsValid()) {\n\t\t\t\tvar parent = panel.GetParent()\n\n\t\t\t\tHIDDEN_IDS.forEach(id => {\n\t\t\t\t\tlet panel = parent.FindChildTraverse(id)\n\n\t\t\t\t\tif(panel != null) {\n\t\t\t\t\t\tpanel.style.maxWidth = \"28px\"\n\t\t\t\t\t\tpanel.style.margin = \"0px 5px 0px 5px\"\n\t\t\t\t\t}\n\t\t\t\t})\n\n\t\t\t\tif(parent.FindChildTraverse(\"id-sb-skillgroup-image\") != null) {\n\t\t\t\t\tparent.FindChildTraverse(\"id-sb-skillgroup-image\").style.margin = \"0px 0px 0px 0px\"\n\t\t\t\t}\n\n\t\t\t\tpanel.DeleteAsync(0.0)\n\t\t\t}\n\n\t\t\tdelete entity_panels[key]\n\t\t}\n\t}\n\n\tlet _GetOrCreateCustomPanel = function(xuid) {\n\t\tif(entity_panels[xuid] == null || !entity_panels[xuid].IsValid()){\n\t\t\tentity_panels[xuid] = null\n\n\t\t\t// $.Msg(\"creating panel for \", xuid)\n\t\t\tlet scoreboard_context_panel = $.GetContextPanel().FindChildTraverse(\"ScoreboardContainer\").FindChildTraverse(\"Scoreboard\") || $.GetContextPanel().FindChildTraverse(\"id-eom-scoreboard-container\").FindChildTraverse(\"Scoreboard\")\n\n\t\t\tif(scoreboard_context_panel == null){\n\t\t\t\t// usually happens if end of match scoreboard is open. clean up everything?\n\n\t\t\t\t_Clear()\n\t\t\t\t_DestroyEntityPanels()\n\n\t\t\t\treturn\n\t\t\t}\n\n\t\t\tscoreboard_context_panel.FindChildrenWithClassTraverse(\"sb-row\").forEach(function(el){\n\t\t\t\tlet scoreboard_el\n\n\t\t\t\tif(el.m_xuid == xuid) {\n\t\t\t\t\tel.Children().forEach(function(child_frame){\n\t\t\t\t\t\tlet stat = child_frame.GetAttributeString(\"data-stat\", \"\")\n\t\t\t\t\t\tif(stat == \"name\") {\n\t\t\t\t\t\t\tscoreboard_el = child_frame.GetChild(0)\n\t\t\t\t\t\t} else if(stat == \"flair\") {\n\t\t\t\t\t\t\tentity_flair_panels[xuid] = child_frame.GetChild(0)\n\t\t\t\t\t\t}\n\t\t\t\t\t})\n\n\t\t\t\t\tif(scoreboard_el) {\n\t\t\t\t\t\tlet scoreboard_el_parent = scoreboard_el.GetParent()\n\n\t\t\t\t\t\t// fix some style. this is not restored\n\t\t\t\t\t\t// scoreboard_el_parent.style.overflow = \"clip clip;\"\n\n\t\t\t\t\t\t// create panel\n\t\t\t\t\t\tlet custom_weapons = $.CreatePanel(\"Panel\", scoreboard_el_parent, \"custom-weapons\", {\n\t\t\t\t\t\t\tstyle: \"overflow: noclip; width: fit-children; margin: 0px 0px 0px 0px; padding: 1px 0px 0px 0px; height: 100%; flow-children: left; min-width: 30px;\"\n\t\t\t\t\t\t})\n\n\t\t\t\t\t\tHIDDEN_IDS.forEach(id => {\n\t\t\t\t\t\t\tlet panel = scoreboard_el_parent.FindChildTraverse(id)\n\n\t\t\t\t\t\t\tif(panel != null) {\n\t\t\t\t\t\t\t\tpanel.style.maxWidth = \"0px\"\n\t\t\t\t\t\t\t\tpanel.style.margin = \"0px\"\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t})\n\n\t\t\t\t\t\tif(scoreboard_el_parent.FindChildTraverse(\"id-sb-skillgroup-image\") != null) {\n\t\t\t\t\t\t\tscoreboard_el_parent.FindChildTraverse(\"id-sb-skillgroup-image\").style.margin = \"0px 0px 0px 5px\"\n\t\t\t\t\t\t}\n\n\t\t\t\t\t\tscoreboard_el_parent.MoveChildBefore(custom_weapons, scoreboard_el_parent.GetChild(1))\n\n\t\t\t\t\t\t// create child panels\n\t\t\t\t\t\tlet panel_armor = $.CreatePanel(\"Image\", custom_weapons, \"armor\", {\n\t\t\t\t\t\t\ttextureheight: \"17\",\n\t\t\t\t\t\t\tstyle: \"padding-left: 2px; padding-top: 3px; opacity: 0.2; padding-left: 5px;\"\n\t\t\t\t\t\t})\n\t\t\t\t\t\tpanel_armor.visible = false\n\n\t\t\t\t\t\tlet panel_helmet = $.CreatePanel(\"Image\", custom_weapons, \"helmet\", {\n\t\t\t\t\t\t\ttextureheight: \"22\",\n\t\t\t\t\t\t\tstyle: \"padding-left: 2px; padding-top: 0px; opacity: 0.2; padding-left: 0px; margin-left: 3px; margin-right: -3px;\"\n\t\t\t\t\t\t})\n\t\t\t\t\t\tpanel_helmet.visible = false\n\t\t\t\t\t\tpanel_helmet.SetImage(\"file://{images}/icons/equipment/helmet.svg\")\n\n\t\t\t\t\t\tfor(i=24; i >= 0; i--) {\n\t\t\t\t\t\t\tlet panel_slot_parent = $.CreatePanel(\"Panel\", custom_weapons, `weapon-${i}`)\n\n\t\t\t\t\t\t\tpanel_slot_parent.visible = false\n\t\t\t\t\t\t\tpanel_slot_parent.BLoadLayoutFromString(SLOT_LAYOUT, false, false)\n\t\t\t\t\t\t}\n\n\t\t\t\t\t\t// custom_weapons.style.border = \"1px solid red;\"\n\t\t\t\t\t\tentity_panels[xuid] = custom_weapons\n\n\t\t\t\t\t\treturn custom_weapons\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t})\n\t\t}\n\n\t\treturn entity_panels[xuid]\n\t}\n\n\tlet _UpdatePlayer = function(entindex, weapons, selected_weapon, armor) {\n\t\tif(entindex == null || entindex == 0)\n\t\t\treturn\n\n\t\tentity_data[entindex] = arguments\n\t}\n\n\tlet _ApplyPlayer = function(entindex, weapons, selected_weapon, armor) {\n\t\tlet xuid = GameStateAPI.GetPlayerXuidStringFromEntIndex(entindex)\n\n\t\t// $.Msg(\"applying for \", entindex, \": \", weapons)\n\t\tlet panel = _GetOrCreateCustomPanel(xuid)\n\n\t\tif(panel == null)\n\t\t\treturn\n\n\t\tlet team = GameStateAPI.GetPlayerTeamName(xuid)\n\t\tlet wash_color = TEAM_COLORS[team] || \"#ffffffff\"\n\n\t\t// panel.style.marginRight = entity_flair_panels[entindex].actuallayoutwidth < 4 ? \"-25px\" : \"0px\"\n\n\t\tfor(i=0; i < 24; i++) {\n\t\t\tlet panel_slot_parent = panel.FindChild(`weapon-${i}`)\n\n\t\t\tif(weapons && weapons[i]) {\n\t\t\t\tlet weapon = weapons[i]\n\t\t\t\tlet selected = weapon == selected_weapon\n\t\t\t\tpanel_slot_parent.visible = true\n\n\t\t\t\tlet slot_override = SLOT_OVERRIDE[weapon] || \"small\"\n\n\t\t\t\tlet panel_slot\n\t\t\t\tpanel_slot_parent.Children().forEach(function(el){\n\t\t\t\t\tif(el.id == slot_override){\n\t\t\t\t\t\tel.visible = true\n\t\t\t\t\t\tpanel_slot = el\n\t\t\t\t\t} else {\n\t\t\t\t\t\tel.visible = false\n\t\t\t\t\t}\n\t\t\t\t})\n\n\t\t\t\tpanel_slot.style.opacity = selected ? \"0.85\" : \"0.35\"\n\n\t\t\t\tlet shadow_color = SHADOW_COLORS[team] || \"#58534D\"\n\t\t\t\t// shadow_color = \"rgba(64, 64, 64, 0.1)\"\n\t\t\t\tpanel_slot.style.imgShadow = selected ? (shadow_color + \" 0px 0px 3px 3.75\") : \"none\"\n\n\t\t\t\tpanel_slot.style.washColorFast = wash_color\n\t\t\t\tpanel_slot.SetImage(\"file://{images}/icons/equipment/\" + weapon + \".svg\")\n\t\t\t\t// panel_slot.style.border = \"1px solid red;\"\n\n\t\t\t\tpanel_slot.style.marginLeft = \"-5px\"\n\t\t\t\tpanel_slot.style.marginRight = \"-5px\"\n\n\t\t\t\tif(weapon == \"knife_ursus\") {\n\t\t\t\t\tpanel_slot.style.marginLeft = \"-2px\"\n\t\t\t\t} else if(weapon == \"knife_widowmaker\") {\n\t\t\t\t\tpanel_slot.style.marginLeft = \"-3px\"\n\t\t\t\t} else if(weapon == \"hkp2000\") {\n\t\t\t\t\tpanel_slot.style.marginRight = \"-4px\"\n\t\t\t\t} else if(weapon == \"incgrenade\") {\n\t\t\t\t\tpanel_slot.style.marginLeft = \"-6px\"\n\t\t\t\t} else if(weapon == \"flashbang\") {\n\t\t\t\t\tpanel_slot.style.marginLeft = \"-5px\"\n\t\t\t\t}\n\n\t\t\t\tpanel_slot_parent.style.minWidth = MIN_WIDTHS[weapon] || \"0px\"\n\t\t\t\tpanel_slot_parent.style.maxWidth = MAX_WIDTHS[weapon] || \"1000px\"\n\t\t\t} else if(panel_slot_parent.visible) {\n\t\t\t\t// $.Msg(\"removed!\")\n\t\t\t\tpanel_slot_parent.visible = false\n\t\t\t\tlet panel_slot = panel_slot_parent.GetChild(0)\n\t\t\t\tpanel_slot.style.opacity = \"0.01\"\n\t\t\t}\n\t\t}\n\n\t\tlet panel_armor = panel.FindChild(\"armor\")\n\t\tlet panel_helmet = panel.FindChild(\"helmet\")\n\n\t\tif(armor != null){\n\t\t\tpanel_armor.visible = true\n\t\t\tpanel_armor.style.washColorFast = wash_color\n\n\t\t\tif(armor == \"helmet\") {\n\t\t\t\tpanel_armor.SetImage(\"file://{images}/icons/equipment/kevlar.svg\")\n\n\t\t\t\tpanel_helmet.visible = true\n\t\t\t\tpanel_helmet.style.washColorFast = wash_color\n\t\t\t} else {\n\t\t\t\tpanel_armor.SetImage(\"file://{images}/icons/equipment/\" + armor + \".svg\")\n\t\t\t}\n\t\t} else {\n\t\t\tpanel_armor.visible = false\n\t\t\tpanel_helmet.visible = false\n\t\t}\n\n\t\treturn true\n\t}\n\n\tlet _ApplyData = function() {\n\t\tfor(entindex in entity_data) {\n\t\t\tentindex = parseInt(entindex)\n\t\t\tlet xuid = GameStateAPI.GetPlayerXuidStringFromEntIndex(entindex)\n\n\t\t\tif(!entity_data[entindex].applied || entity_panels[xuid] == null || !entity_panels[xuid].IsValid()) {\n\t\t\t\tif(_ApplyPlayer.apply(null, entity_data[entindex])) {\n\t\t\t\t\t// $.Msg(\"successfully appied for \", entindex)\n\t\t\t\t\tentity_data[entindex].applied = true\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n\n\tlet _EnablePlayingMatchHook = function() {\n\t\tif(GameStateAPI_IsLocalPlayerPlayingMatch_prev == null) {\n\t\t\tGameStateAPI_IsLocalPlayerPlayingMatch_prev = GameStateAPI.IsLocalPlayerPlayingMatch\n\n\t\t\tGameStateAPI.IsLocalPlayerPlayingMatch = function() {\n\t\t\t\tif(GameStateAPI.IsDemoOrHltv()) {\n\t\t\t\t\treturn true\n\t\t\t\t}\n\n\t\t\t\treturn GameStateAPI_IsLocalPlayerPlayingMatch_prev.call(GameStateAPI)\n\t\t\t}\n\t\t}\n\t}\n\n\tlet _DisablePlayingMatchHook = function() {\n\t\tif(GameStateAPI_IsLocalPlayerPlayingMatch_prev != null) {\n\t\t\tGameStateAPI.IsLocalPlayerPlayingMatch = GameStateAPI_IsLocalPlayerPlayingMatch_prev\n\t\t\tGameStateAPI_IsLocalPlayerPlayingMatch_prev = null\n\t\t}\n\t}\n\n\tlet _EnableSelectedPlayerMutedHook = function() {\n\t\tif(FriendsListAPI_IsSelectedPlayerMuted_prev == null) {\n\t\t\tFriendsListAPI_IsSelectedPlayerMuted_prev = FriendsListAPI.IsSelectedPlayerMuted\n\n\t\t\tFriendsListAPI.IsSelectedPlayerMuted = function(xuid) {\n\t\t\t\tif(xuid == my_xuid) {\n\t\t\t\t\treturn false\n\t\t\t\t}\n\n\t\t\t\treturn FriendsListAPI_IsSelectedPlayerMuted_prev.call(FriendsListAPI, xuid)\n\t\t\t}\n\t\t}\n\n\t\tif(GameStateAPI_IsSelectedPlayerMuted_prev == null) {\n\t\t\tGameStateAPI_IsSelectedPlayerMuted_prev = GameStateAPI.IsSelectedPlayerMuted\n\n\t\t\tGameStateAPI.IsSelectedPlayerMuted = function(xuid) {\n\t\t\t\tif(xuid == my_xuid) {\n\t\t\t\t\treturn false\n\t\t\t\t}\n\n\t\t\t\treturn GameStateAPI_IsSelectedPlayerMuted_prev.call(GameStateAPI, xuid)\n\t\t\t}\n\t\t}\n\t}\n\n\tlet _DisableSelectedPlayerMutedHook = function() {\n\t\tif(FriendsListAPI_IsSelectedPlayerMuted_prev != null) {\n\t\t\tFriendsListAPI.IsSelectedPlayerMuted = FriendsListAPI_IsSelectedPlayerMuted_prev\n\t\t\tFriendsListAPI_IsSelectedPlayerMuted_prev = null\n\t\t}\n\n\t\tif(GameStateAPI_IsSelectedPlayerMuted_prev != null) {\n\t\t\tGameStateAPI.IsSelectedPlayerMuted = GameStateAPI_IsSelectedPlayerMuted_prev\n\t\t\tGameStateAPI_IsSelectedPlayerMuted_prev = null\n\t\t}\n\t}\n\n\tlet _UnmutePlayer = function(xuid) {\n\t\tif(GameStateAPI.IsSelectedPlayerMuted(xuid)) {\n\t\t\tGameStateAPI.ToggleMute(xuid)\n\t\t\tunmuted_players[xuid] = true\n\n\t\t\treturn true\n\t\t}\n\n\t\treturn false\n\t}\n\n\tlet _RestoreUnmutedPlayers = function(xuid) {\n\t\tfor(xuid in unmuted_players) {\n\t\t\tif(!GameStateAPI.IsSelectedPlayerMuted(xuid) && GameStateAPI.IsPlayerConnected(xuid)) {\n\t\t\t\tGameStateAPI.ToggleMute(xuid)\n\t\t\t}\n\t\t}\n\t\tunmuted_players = {}\n\t}\n\n\tlet _GetAllPlayers = function() {\n\t\tlet result = []\n\n\t\tfor(entindex=1; entindex <= 64; entindex++) {\n\t\t\tlet xuid = GameStateAPI.GetPlayerXuidStringFromEntIndex(entindex)\n\n\t\t\tif(xuid && xuid != \"0\") {\n\t\t\t\tresult.push(xuid)\n\t\t\t}\n\t\t}\n\n\t\treturn result\n\t}\n\n\tlet _Create = function() {\n\t\tevent_callbacks[\"OnOpenScoreboard\"] = $.RegisterForUnhandledEvent(\"OnOpenScoreboard\", _ApplyData)\n\t\tevent_callbacks[\"Scoreboard_UpdateEverything\"] = $.RegisterForUnhandledEvent(\"Scoreboard_UpdateEverything\", function(){\n\t\t\t// $.Msg(\"cleared applied data\")\n\t\t\tfor(entindex in entity_data) {\n\t\t\t\t// entity_data[entindex].applied = false\n\t\t\t}\n\t\t\t_ApplyData()\n\t\t})\n\t\tevent_callbacks[\"Scoreboard_UpdateJob\"] = $.RegisterForUnhandledEvent(\"Scoreboard_UpdateJob\", _ApplyData)\n\t}\n\n\tlet _Clear = function() {\n\t\tentity_data = {}\n\t}\n\n\tlet _Destroy = function() {\n\t\t// clear entity data\n\t\t_Clear()\n\t\t_DestroyEntityPanels()\n\n\t\tfor(event in event_callbacks){\n\t\t\t$.UnregisterForUnhandledEvent(event, event_callbacks[event])\n\n\t\t\tdelete event_callbacks[event]\n\t\t}\n\n\t\t// $.GetContextPanel().FindChildTraverse(\"TeamSmallContainerCT\").style.width = \"400px\"\n\t\t// $.GetContextPanel().FindChildTraverse(\"TeamSmallContainerT\").style.width = \"400px\"\n\t}\n\n\treturn {\n\t\tcreate: _Create,\n\t\tset_min_max_width: _SetMinMaxWidth,\n\t\tdestroy: _Destroy,\n\t\tclear: _Clear,\n\t\tupdate_player: _UpdatePlayer,\n\t\tenable_playing_match_hook: _EnablePlayingMatchHook,\n\t\tdisable_playing_match_hook: _DisablePlayingMatchHook,\n\t\tenable_selected_player_muted_hook: _EnableSelectedPlayerMutedHook,\n\t\tdisable_selected_player_muted_hook: _DisableSelectedPlayerMutedHook,\n\t\tunmute_player: _UnmutePlayer,\n\t\trestore_unmuted_players: _RestoreUnmutedPlayers,\n\t\tget_all_players: _GetAllPlayers\n\t}\n", "CSGOHud")()
-local var_0_31 = {
-	[var_0_0.weapon_hegrenade] = 10,
-	[var_0_0.weapon_decoy] = var_0_0.weapon_molotov.idx - 1,
-	[var_0_0.weapon_smokegrenade] = var_0_0.weapon_smokegrenade.idx - 1,
-	[var_0_0.weapon_taser] = 3
+		let team = GameStateAPI.GetPlayerTeamName(xuid)
+		let wash_color = TEAM_COLORS[team] || "#ffffffff"
+
+		// panel.style.marginRight = entity_flair_panels[entindex].actuallayoutwidth < 4 ? "-25px" : "0px"
+
+		for(i=0; i < 24; i++) {
+			let panel_slot_parent = panel.FindChild(`weapon-${i}`)
+
+			if(weapons && weapons[i]) {
+				let weapon = weapons[i]
+				let selected = weapon == selected_weapon
+				panel_slot_parent.visible = true
+
+				let slot_override = SLOT_OVERRIDE[weapon] || "small"
+
+				let panel_slot
+				panel_slot_parent.Children().forEach(function(el){
+					if(el.id == slot_override){
+						el.visible = true
+						panel_slot = el
+					} else {
+						el.visible = false
+					}
+				})
+
+				panel_slot.style.opacity = selected ? "0.85" : "0.35"
+
+				let shadow_color = SHADOW_COLORS[team] || "#58534D"
+				// shadow_color = "rgba(64, 64, 64, 0.1)"
+				panel_slot.style.imgShadow = selected ? (shadow_color + " 0px 0px 3px 3.75") : "none"
+
+				panel_slot.style.washColorFast = wash_color
+				panel_slot.SetImage("file://{images}/icons/equipment/" + weapon + ".svg")
+				// panel_slot.style.border = "1px solid red;"
+
+				panel_slot.style.marginLeft = "-5px"
+				panel_slot.style.marginRight = "-5px"
+
+				if(weapon == "knife_ursus") {
+					panel_slot.style.marginLeft = "-2px"
+				} else if(weapon == "knife_widowmaker") {
+					panel_slot.style.marginLeft = "-3px"
+				} else if(weapon == "hkp2000") {
+					panel_slot.style.marginRight = "-4px"
+				} else if(weapon == "incgrenade") {
+					panel_slot.style.marginLeft = "-6px"
+				} else if(weapon == "flashbang") {
+					panel_slot.style.marginLeft = "-5px"
+				}
+
+				panel_slot_parent.style.minWidth = MIN_WIDTHS[weapon] || "0px"
+				panel_slot_parent.style.maxWidth = MAX_WIDTHS[weapon] || "1000px"
+			} else if(panel_slot_parent.visible) {
+				// $.Msg("removed!")
+				panel_slot_parent.visible = false
+				let panel_slot = panel_slot_parent.GetChild(0)
+				panel_slot.style.opacity = "0.01"
+			}
+		}
+
+		let panel_armor = panel.FindChild("armor")
+		let panel_helmet = panel.FindChild("helmet")
+
+		if(armor != null){
+			panel_armor.visible = true
+			panel_armor.style.washColorFast = wash_color
+
+			if(armor == "helmet") {
+				panel_armor.SetImage("file://{images}/icons/equipment/kevlar.svg")
+
+				panel_helmet.visible = true
+				panel_helmet.style.washColorFast = wash_color
+			} else {
+				panel_armor.SetImage("file://{images}/icons/equipment/" + armor + ".svg")
+			}
+		} else {
+			panel_armor.visible = false
+			panel_helmet.visible = false
+		}
+
+		return true
+	}
+
+	let _ApplyData = function() {
+		for(entindex in entity_data) {
+			entindex = parseInt(entindex)
+			let xuid = GameStateAPI.GetPlayerXuidStringFromEntIndex(entindex)
+
+			if(!entity_data[entindex].applied || entity_panels[xuid] == null || !entity_panels[xuid].IsValid()) {
+				if(_ApplyPlayer.apply(null, entity_data[entindex])) {
+					// $.Msg("successfully appied for ", entindex)
+					entity_data[entindex].applied = true
+				}
+			}
+		}
+	}
+
+	let _EnablePlayingMatchHook = function() {
+		if(GameStateAPI_IsLocalPlayerPlayingMatch_prev == null) {
+			GameStateAPI_IsLocalPlayerPlayingMatch_prev = GameStateAPI.IsLocalPlayerPlayingMatch
+
+			GameStateAPI.IsLocalPlayerPlayingMatch = function() {
+				if(GameStateAPI.IsDemoOrHltv()) {
+					return true
+				}
+
+				return GameStateAPI_IsLocalPlayerPlayingMatch_prev.call(GameStateAPI)
+			}
+		}
+	}
+
+	let _DisablePlayingMatchHook = function() {
+		if(GameStateAPI_IsLocalPlayerPlayingMatch_prev != null) {
+			GameStateAPI.IsLocalPlayerPlayingMatch = GameStateAPI_IsLocalPlayerPlayingMatch_prev
+			GameStateAPI_IsLocalPlayerPlayingMatch_prev = null
+		}
+	}
+
+	let _EnableSelectedPlayerMutedHook = function() {
+		if(FriendsListAPI_IsSelectedPlayerMuted_prev == null) {
+			FriendsListAPI_IsSelectedPlayerMuted_prev = FriendsListAPI.IsSelectedPlayerMuted
+
+			FriendsListAPI.IsSelectedPlayerMuted = function(xuid) {
+				if(xuid == my_xuid) {
+					return false
+				}
+
+				return FriendsListAPI_IsSelectedPlayerMuted_prev.call(FriendsListAPI, xuid)
+			}
+		}
+
+		if(GameStateAPI_IsSelectedPlayerMuted_prev == null) {
+			GameStateAPI_IsSelectedPlayerMuted_prev = GameStateAPI.IsSelectedPlayerMuted
+
+			GameStateAPI.IsSelectedPlayerMuted = function(xuid) {
+				if(xuid == my_xuid) {
+					return false
+				}
+
+				return GameStateAPI_IsSelectedPlayerMuted_prev.call(GameStateAPI, xuid)
+			}
+		}
+	}
+
+	let _DisableSelectedPlayerMutedHook = function() {
+		if(FriendsListAPI_IsSelectedPlayerMuted_prev != null) {
+			FriendsListAPI.IsSelectedPlayerMuted = FriendsListAPI_IsSelectedPlayerMuted_prev
+			FriendsListAPI_IsSelectedPlayerMuted_prev = null
+		}
+
+		if(GameStateAPI_IsSelectedPlayerMuted_prev != null) {
+			GameStateAPI.IsSelectedPlayerMuted = GameStateAPI_IsSelectedPlayerMuted_prev
+			GameStateAPI_IsSelectedPlayerMuted_prev = null
+		}
+	}
+
+	let _UnmutePlayer = function(xuid) {
+		if(GameStateAPI.IsSelectedPlayerMuted(xuid)) {
+			GameStateAPI.ToggleMute(xuid)
+			unmuted_players[xuid] = true
+
+			return true
+		}
+
+		return false
+	}
+
+	let _RestoreUnmutedPlayers = function(xuid) {
+		for(xuid in unmuted_players) {
+			if(!GameStateAPI.IsSelectedPlayerMuted(xuid) && GameStateAPI.IsPlayerConnected(xuid)) {
+				GameStateAPI.ToggleMute(xuid)
+			}
+		}
+		unmuted_players = {}
+	}
+
+	let _GetAllPlayers = function() {
+		let result = []
+
+		for(entindex=1; entindex <= 64; entindex++) {
+			let xuid = GameStateAPI.GetPlayerXuidStringFromEntIndex(entindex)
+
+			if(xuid && xuid != "0") {
+				result.push(xuid)
+			}
+		}
+
+		return result
+	}
+
+	let _Create = function() {
+		event_callbacks["OnOpenScoreboard"] = $.RegisterForUnhandledEvent("OnOpenScoreboard", _ApplyData)
+		event_callbacks["Scoreboard_UpdateEverything"] = $.RegisterForUnhandledEvent("Scoreboard_UpdateEverything", function(){
+			// $.Msg("cleared applied data")
+			for(entindex in entity_data) {
+				// entity_data[entindex].applied = false
+			}
+			_ApplyData()
+		})
+		event_callbacks["Scoreboard_UpdateJob"] = $.RegisterForUnhandledEvent("Scoreboard_UpdateJob", _ApplyData)
+	}
+
+	let _Clear = function() {
+		entity_data = {}
+	}
+
+	let _Destroy = function() {
+		// clear entity data
+		_Clear()
+		_DestroyEntityPanels()
+
+		for(event in event_callbacks){
+			$.UnregisterForUnhandledEvent(event, event_callbacks[event])
+
+			delete event_callbacks[event]
+		}
+
+		// $.GetContextPanel().FindChildTraverse("TeamSmallContainerCT").style.width = "400px"
+		// $.GetContextPanel().FindChildTraverse("TeamSmallContainerT").style.width = "400px"
+	}
+
+	return {
+		create: _Create,
+		set_min_max_width: _SetMinMaxWidth,
+		destroy: _Destroy,
+		clear: _Clear,
+		update_player: _UpdatePlayer,
+		enable_playing_match_hook: _EnablePlayingMatchHook,
+		disable_playing_match_hook: _DisablePlayingMatchHook,
+		enable_selected_player_muted_hook: _EnableSelectedPlayerMutedHook,
+		disable_selected_player_muted_hook: _DisableSelectedPlayerMutedHook,
+		unmute_player: _UnmutePlayer,
+		restore_unmuted_players: _RestoreUnmutedPlayers,
+		get_all_players: _GetAllPlayers
+	}
+]], "CSGOHud")()
+
+--
+-- logic for sorting weapons
+--
+
+local sort_pos = {
+	[csgo_weapons["weapon_hegrenade"]] = 10,
+	[csgo_weapons["weapon_decoy"]] = csgo_weapons["weapon_molotov"].idx-1,
+	[csgo_weapons["weapon_smokegrenade"]] = csgo_weapons["weapon_smokegrenade"].idx-1,
+	[csgo_weapons["weapon_taser"]] = 3,
 }
-local var_0_32 = {}
-local var_0_33 = 0
 
-for iter_0_0, iter_0_1 in pairs(var_0_0) do
-	local var_0_34 = string.byte(iter_0_1.name)
+local name_add_weapon, name_add_max = {}, 0
+for idx, weapon in pairs(csgo_weapons) do
+	local name_add = string.byte(weapon.name)
 
-	var_0_32[iter_0_1] = var_0_34
-	var_0_33 = math.max(var_0_34, var_0_33)
+	name_add_weapon[weapon] = name_add
 
-	local var_0_35 = iter_0_1.console_name:gsub("^item_", ""):gsub("^weapon_", "")
+	name_add_max = math.max(name_add, name_add_max)
 
-	if iter_0_1.type == "pistol" then
-		var_0_30.set_min_max_width(var_0_35, "31px")
-	elseif iter_0_1.type == "knife" and iter_0_1 ~= var_0_8 then
-		var_0_30.set_min_max_width(var_0_35, "45px", "45px", "smaller")
+	local name_panorama = weapon.console_name:gsub("^item_", ""):gsub("^weapon_", "")
+
+	-- align pistols
+	if weapon.type == "pistol" then
+		js.set_min_max_width(name_panorama, "31px") -- 29px
+	elseif weapon.type == "knife" and weapon ~= WEAPON_TASER then
+		js.set_min_max_width(name_panorama, "45px", "45px",  "smaller")
 	end
 end
 
-var_0_30.set_min_max_width("knife", nil, nil, "small")
-var_0_30.set_min_max_width("knife_t", nil, nil, "small")
-var_0_30.set_min_max_width("knife_widowmaker", nil, nil, "small")
-var_0_30.set_min_max_width("knife_butterfly", nil, nil, "small")
-var_0_30.set_min_max_width("knife_survival_bowie", nil, nil, "large")
-var_0_30.set_min_max_width("knife_gut", nil, nil, "medium")
-var_0_30.set_min_max_width("knife_karambit", nil, nil, "medium")
-var_0_30.set_min_max_width("knife_ursus", nil, nil, "small")
-var_0_30.set_min_max_width("hkp2000", nil, nil, "medium")
-var_0_30.set_min_max_width("incgrenade", "12px")
-var_0_30.set_min_max_width("smokegrenade", "9px")
-var_0_30.set_min_max_width("flashbang", "9px", "12px")
+-- fix knife icons
+js.set_min_max_width("knife", nil, nil, "small")
+js.set_min_max_width("knife_t", nil, nil, "small")
+js.set_min_max_width("knife_widowmaker", nil, nil, "small")
+js.set_min_max_width("knife_butterfly", nil, nil, "small")
+js.set_min_max_width("knife_survival_bowie", nil, nil, "large")
+js.set_min_max_width("knife_gut", nil, nil, "medium")
+js.set_min_max_width("knife_karambit", nil, nil, "medium")
+js.set_min_max_width("knife_ursus", nil, nil, "small")
 
-for iter_0_2, iter_0_3 in pairs(var_0_0) do
-	if var_0_31[iter_0_3] == nil then
-		local var_0_36 = var_0_32[iter_0_3] / var_0_33
+js.set_min_max_width("hkp2000", nil, nil, "medium")
 
-		if iter_0_3.type == "rifle" or iter_0_3.type == "machinegun" or iter_0_3.type == "sniperrifle" or iter_0_3.type == "smg" or iter_0_3.type == "shotgun" then
-			var_0_31[iter_0_3] = 0 + var_0_36
-		elseif iter_0_3.type == "pistol" then
-			var_0_31[iter_0_3] = 1 + var_0_36
-		elseif iter_0_3.type == "knife" or iter_0_3.type == "fists" or iter_0_3.type == "melee" then
-			var_0_31[iter_0_3] = 2 + var_0_36
+-- grenades
+js.set_min_max_width("incgrenade", "12px")
+js.set_min_max_width("smokegrenade", "9px")
+js.set_min_max_width("flashbang", "9px", "12px")
+
+for idx, weapon in pairs(csgo_weapons) do
+	if sort_pos[weapon] == nil then
+		local name_add = name_add_weapon[weapon] / name_add_max
+
+		if weapon.type == "rifle" or weapon.type == "machinegun" or weapon.type == "sniperrifle" or weapon.type == "smg" or weapon.type == "shotgun" then
+			sort_pos[weapon] = 0+name_add
+		elseif weapon.type == "pistol" then
+			sort_pos[weapon] = 1+name_add
+		elseif weapon.type == "knife" or weapon.type == "fists" or weapon.type == "melee" then
+			sort_pos[weapon] = 2+name_add
 		else
-			var_0_31[iter_0_3] = iter_0_3.idx
+			-- print(weapon.console_name, " ", weapon.type)
+			sort_pos[weapon] = weapon.idx
 		end
 	end
 end
 
-local function var_0_37(arg_12_0, arg_12_1)
-	return (var_0_31[arg_12_0] or arg_12_0.idx) < (var_0_31[arg_12_1] or arg_12_1.idx)
+local function sort_weapons_cb(a, b)
+	local a_i = sort_pos[a] or a.idx
+	local b_i = sort_pos[b] or b.idx
+
+	return a_i < b_i
 end
 
-local var_0_38 = ui.new_checkbox("VISUALS", "Other ESP", "Display equipment on scoreboard")
-local var_0_39 = ui.new_multiselect("VISUALS", "Other ESP", "\nScoreboard equipment filter", {
-	"Primary",
-	"Secondary",
-	"Knife",
-	"Taser",
-	"Grenades",
-	"Bomb",
-	"Defuse Kit",
-	"Armor",
-	"Other"
-})
-local var_0_40 = ui.new_checkbox("VISUALS", "Other ESP", "Enemies only")
-local var_0_41 = ui.new_multiselect("VISUALS", "Other ESP", "Auto unmute players", {
-	"Self",
-	"Friends",
-	"All players"
-})
+--
+-- actual script logic
+--
 
-ui.set(var_0_39, {
-	"Primary",
-	"Secondary",
-	"Grenades",
-	"Bomb"
-})
+local enabled_reference = ui.new_checkbox("VISUALS", "Other ESP", "Display equipment on scoreboard")
+local filter_reference = ui.new_multiselect("VISUALS", "Other ESP", "\nScoreboard equipment filter", {"Primary", "Secondary", "Knife", "Taser", "Grenades", "Bomb", "Defuse Kit", "Armor", "Other"})
+local enemy_only_reference = ui.new_checkbox("VISUALS", "Other ESP", "Enemies only")
+local auto_unmute_reference = ui.new_multiselect("VISUALS", "Other ESP", "Auto unmute players", {"Self", "Friends", "All players"})
 
-local var_0_42 = {}
-local var_0_43 = {}
-local var_0_44 = false
-local var_0_45 = false
+ui.set(filter_reference, {"Primary", "Secondary", "Grenades", "Bomb"})
 
-local function var_0_46(arg_13_0)
-	return var_0_43[arg_13_0]
+local player_data = {}
+local filter_weapon_name = {}
+local filter_armor_enabled = false
+local enabled_prev = false
+
+local function filter_cb(weapon)
+	return filter_weapon_name[weapon]
 end
 
-local function var_0_47(arg_14_0)
-	local var_14_0 = var_0_42[arg_14_0]
-	local var_14_1 = ui.get(var_0_40) and not entity.is_dormant(arg_14_0) and not entity.is_enemy(arg_14_0)
-	local var_14_2 = arg_14_0
-	local var_14_3 = entity.get_player_resource()
+local function update_player_data(player)
+	-- print("update_player_data(", player, ")")
 
-	if entity.get_prop(var_14_3, "m_bControllingBot", arg_14_0) == 1 then
-		var_14_2 = entity.get_prop(var_14_3, "m_iControlledPlayer", arg_14_0)
+	local current_player_data = player_data[player]
 
-		var_0_30.update_player(arg_14_0, nil, nil, nil)
+	local ignore_teammate = ui.get(enemy_only_reference) and not entity.is_dormant(player) and not entity.is_enemy(player)
+
+	local player_scoreboard = player
+	local player_resource = entity.get_player_resource()
+	if entity.get_prop(player_resource, "m_bControllingBot", player) == 1 then
+		player_scoreboard = entity.get_prop(player_resource, "m_iControlledPlayer", player)
+		js.update_player(player, nil, nil, nil)
+
+		-- print(player, " is controlling ", player_scoreboard)
 	end
 
-	if var_14_0 == nil or var_14_1 then
-		var_0_30.update_player(var_14_2, nil, nil, nil)
+	if current_player_data == nil or ignore_teammate then
+		js.update_player(player_scoreboard, nil, nil, nil)
 	else
-		var_0_30.update_player(var_14_2, var_14_0.weapons and var_0_13(var_14_0.weapons, var_0_46) or nil, var_14_0.active_weapon and var_0_43[var_14_0.active_weapon] or nil, var_0_44 and var_14_0.armor or nil)
+		js.update_player(
+			player_scoreboard,
+			current_player_data.weapons and table_map_filter(current_player_data.weapons, filter_cb) or nil,
+			current_player_data.active_weapon and filter_weapon_name[current_player_data.active_weapon] or nil,
+			filter_armor_enabled and current_player_data.armor or nil
+		)
 	end
 end
 
-local function var_0_48()
-	var_0_1(var_0_43)
+local function update_filters()
+	table_clear(filter_weapon_name)
 
-	if ui.get(var_0_38) then
-		local var_15_0 = var_0_14(ui.get(var_0_39), function(arg_16_0, arg_16_1)
-			return arg_16_1, true
-		end)
+	if ui.get(enabled_reference) then
+		local filters_enabled = table_map_assoc(ui.get(filter_reference), function(i, typ) return typ, true end)
 
-		var_0_44 = var_15_0.Armor
+		filter_armor_enabled = filters_enabled["Armor"]
 
-		local var_15_1
-		local var_15_2 = entity.get_local_player()
-
-		if var_15_2 ~= nil then
-			var_15_1 = entity.get_prop(var_15_2, "m_iTeamNum")
+		local team
+		local local_player = entity.get_local_player()
+		if local_player ~= nil then
+			team = entity.get_prop(local_player, "m_iTeamNum")
 		end
 
-		for iter_15_0, iter_15_1 in pairs(var_0_0) do
-			local var_15_3 = false
+		for idx, weapon in pairs(csgo_weapons) do
+			local include = false
 
-			if iter_15_1.type == "rifle" or iter_15_1.type == "machinegun" or iter_15_1.type == "sniperrifle" or iter_15_1.type == "smg" or iter_15_1.type == "shotgun" then
-				var_15_3 = var_15_0.Primary
-			elseif iter_15_1.type == "pistol" then
-				var_15_3 = var_15_0.Secondary
-			elseif iter_15_1 == var_0_8 then
-				var_15_3 = var_15_0.Taser
-			elseif iter_15_1.type == "c4" then
-				var_15_3 = var_15_1 ~= var_0_10 and var_15_0.Bomb
-			elseif iter_15_1 == var_0_6 or iter_15_1 == var_0_7 then
-				var_15_3 = var_15_1 ~= var_0_11 and var_15_0["Defuse Kit"]
-			elseif iter_15_1.type == "knife" or iter_15_1.type == "fists" or iter_15_1.type == "melee" then
-				var_15_3 = var_15_0.Knife
-			elseif iter_15_1.type == "grenade" or iter_15_1.type == "breachcharge" then
-				var_15_3 = var_15_0.Grenades
-			elseif iter_15_1 ~= var_0_4 and iter_15_1 ~= var_0_3 and iter_15_1 ~= var_0_5 then
-				var_15_3 = var_15_0.Other
+			-- print(weapon.console_name, ": ", weapon.type)
+
+			if weapon.type == "rifle" or weapon.type == "machinegun" or weapon.type == "sniperrifle" or weapon.type == "smg" or weapon.type == "shotgun" then
+				include = filters_enabled["Primary"]
+			elseif weapon.type == "pistol" then
+				include = filters_enabled["Secondary"]
+			elseif weapon == WEAPON_TASER then
+				include = filters_enabled["Taser"]
+			elseif weapon.type == "c4" then
+				include = team ~= TEAM_T and filters_enabled["Bomb"]
+			elseif weapon == ITEM_CUTTERS or weapon == ITEM_DEFUSER then
+				include = team ~= TEAM_CT and filters_enabled["Defuse Kit"]
+			elseif weapon.type == "knife" or weapon.type == "fists" or weapon.type == "melee" then
+				include = filters_enabled["Knife"]
+			elseif weapon.type == "grenade" or weapon.type == "breachcharge" then
+				include = filters_enabled["Grenades"]
+			elseif weapon ~= ITEM_ASSAULTSUIT and weapon ~= ITEM_KEVLAR and weapon ~= ITEM_HEAVYASSAULTSUIT then
+				include = filters_enabled["Other"]
 			end
 
-			if var_15_3 then
-				var_0_43[iter_15_1] = iter_15_1.console_name:gsub("^item_", ""):gsub("^weapon_", "")
+			if include then
+				filter_weapon_name[weapon] = weapon.console_name:gsub("^item_", ""):gsub("^weapon_", "")
 			end
 		end
 
-		for iter_15_2, iter_15_3 in pairs(var_0_42) do
-			var_0_47(iter_15_2)
+		for player, data in pairs(player_data) do
+			update_player_data(player)
 		end
 	end
 end
 
-local function var_0_49()
-	var_0_23()
+--
+-- event callbacks
+--
 
-	local var_17_0 = entity.get_player_resource()
-	local var_17_1 = cvar.mp_free_armor:get_int() > 0
-	local var_17_2 = cvar.mp_free_armor:get_int() > 1
-	local var_17_3 = cvar.mp_defuser_allocation:get_int() >= 2
+local function on_paint()
+	run_pending_callbacks()
 
-	for iter_17_0 = 1, 64 do
-		if entity.get_classname(iter_17_0) == "CCSPlayer" then
-			local var_17_4
+	local player_resource = entity.get_player_resource()
+	local free_kevlar = cvar.mp_free_armor:get_int() > 0
+	local free_helmet = cvar.mp_free_armor:get_int() > 1
+	local free_defuser = cvar.mp_defuser_allocation:get_int() >= 2
 
-			if not entity.is_dormant(iter_17_0) then
-				if entity.is_alive(iter_17_0) then
-					var_17_4 = {
+	for player=1, 64 do
+		if entity.get_classname(player) == "CCSPlayer" then
+			local current_player_data
+			if not entity.is_dormant(player) then
+				if entity.is_alive(player) then
+					current_player_data = {
 						weapons = {}
 					}
 
-					local var_17_5 = entity.get_player_weapon(iter_17_0)
-
-					if var_17_5 ~= nil then
-						if not var_17_3 and entity.get_prop(iter_17_0, "m_bHasDefuser") == 1 then
-							table.insert(var_17_4.weapons, var_0_7)
+					local active_weapon = entity.get_player_weapon(player)
+					if active_weapon ~= nil then
+						if not free_defuser and entity.get_prop(player, "m_bHasDefuser") == 1 then
+							table.insert(current_player_data.weapons, ITEM_DEFUSER)
 						end
 
-						for iter_17_1 = 0, 63 do
-							local var_17_6 = entity.get_prop(iter_17_0, "m_hMyWeapons", iter_17_1)
+						for slot=0, 63 do
+							local weapon_ent = entity.get_prop(player, "m_hMyWeapons", slot)
 
-							if var_17_6 ~= nil then
-								local var_17_7 = var_0_0[entity.get_prop(var_17_6, "m_iItemDefinitionIndex")]
+							if weapon_ent ~= nil then
+								local weapon = csgo_weapons[entity.get_prop(weapon_ent, "m_iItemDefinitionIndex")]
 
-								table.insert(var_17_4.weapons, var_17_7)
+								table.insert(current_player_data.weapons, weapon)
 
-								if var_17_6 == var_17_5 then
-									var_17_4.active_weapon = var_17_7
+								if weapon_ent == active_weapon then
+									current_player_data.active_weapon = weapon
 								end
 							end
 						end
-
-						table.sort(var_17_4.weapons, var_0_37)
+						table.sort(current_player_data.weapons, sort_weapons_cb)
 					end
 				else
-					var_17_4 = nil
+					current_player_data = nil
 				end
 			else
-				var_17_4 = var_0_42[iter_17_0]
+				current_player_data = player_data[player]
 			end
 
-			if var_17_4 ~= nil then
-				if entity.get_prop(var_17_0, "m_iArmor", iter_17_0) > 0 then
-					if entity.get_prop(var_17_0, "m_bHasHelmet", iter_17_0) == 1 then
-						if not var_17_2 then
-							var_17_4.armor = "helmet"
+			if current_player_data ~= nil then
+				if entity.get_prop(player_resource, "m_iArmor", player) > 0 then
+					if entity.get_prop(player_resource, "m_bHasHelmet", player) == 1 then
+						if not free_helmet then
+							current_player_data.armor = "helmet"
 						end
-					elseif not var_17_1 then
-						var_17_4.armor = "kevlar"
+					elseif not free_kevlar then
+						current_player_data.armor = "kevlar"
 					end
 				else
-					var_17_4.armor = nil
+					current_player_data.armor = nil
 				end
 			end
 
-			if var_0_42[iter_17_0] == nil and var_17_4 ~= nil or var_17_4 == nil and var_0_42[iter_17_0] ~= nil or var_17_4 ~= nil and var_0_42[iter_17_0] ~= nil and not var_0_12(var_17_4, var_0_42[iter_17_0]) then
-				var_0_42[iter_17_0] = var_17_4
+			if (player_data[player] == nil and current_player_data ~= nil) or (current_player_data == nil and player_data[player] ~= nil) or (current_player_data ~= nil and player_data[player] ~= nil and not deep_compare(current_player_data, player_data[player])) then
+				player_data[player] = current_player_data
 
-				var_0_47(iter_17_0)
+				update_player_data(player)
 			end
 		end
 	end
 end
 
-local function var_0_50()
-	if var_0_45 then
-		var_0_30.destroy()
+local function on_shutdown()
+	if enabled_prev then
+		js.destroy()
 	end
 end
 
-local function var_0_51()
-	var_0_1(var_0_42)
-	var_0_30.clear()
+local function on_level_init()
+	table_clear(player_data)
+	js.clear()
 end
 
-local function var_0_52(arg_20_0)
-	local var_20_0 = client.userid_to_entindex(arg_20_0.userid)
+local function on_player_team(e)
+	local player = client.userid_to_entindex(e.userid)
 
-	if var_20_0 == entity.get_local_player() then
-		client.delay_call(0.1, var_0_48)
-	elseif var_20_0 > 0 then
-		var_0_47(var_20_0)
+	if player == entity.get_local_player() then
+		client.delay_call(0.1, update_filters)
+	elseif player > 0 then
+		-- update_filters will already call update_player_data for everyone
+		update_player_data(player)
 	end
 end
 
-local function var_0_53(arg_21_0)
-	local var_21_0 = client.userid_to_entindex(arg_21_0.userid)
+--
+-- game event callbacks for dormant data
+--
 
-	var_0_42[var_21_0] = nil
+local function on_player_disconnect(e)
+	local player = client.userid_to_entindex(e.userid)
 
-	var_0_47(var_21_0)
+	player_data[player] = nil
+
+	update_player_data(player)
 end
 
-local function var_0_54(arg_22_0)
-	local var_22_0 = client.userid_to_entindex(arg_22_0.userid)
+local function on_player_death(e)
+	local player = client.userid_to_entindex(e.userid)
 
-	if var_0_42[var_22_0] ~= nil and entity.is_dormant(var_22_0) then
-		var_0_42[var_22_0] = nil
+	if player_data[player] ~= nil and entity.is_dormant(player) then
+		player_data[player] = nil
 
-		var_0_47(var_22_0)
+		update_player_data(player)
 	end
 end
 
-local function var_0_55(arg_23_0)
-	local var_23_0 = client.userid_to_entindex(arg_23_0.userid)
+local function on_player_spawn(e)
+	local player = client.userid_to_entindex(e.userid)
 
-	if var_0_42[var_23_0] == nil then
-		var_0_42[var_23_0] = {
+	if player_data[player] == nil then
+		player_data[player] = {
 			weapons = {}
 		}
-	elseif var_0_42[var_23_0].weapons ~= nil then
-		var_0_16(var_0_42[var_23_0].weapons, var_0_9)
+	elseif player_data[player].weapons ~= nil then
+		table_remove_item(player_data[player].weapons, WEAPON_C4)
 	end
 
-	var_0_47(var_23_0)
+	update_player_data(player)
 end
 
-local function var_0_56(arg_24_0)
-	local var_24_0 = client.userid_to_entindex(arg_24_0.userid)
-	local var_24_1 = var_0_2[arg_24_0.defindex]
+local function on_item_remove(e)
+	local player = client.userid_to_entindex(e.userid)
+	local weapon = EVENT_IDX_TO_WEAPON[e.defindex]
 
-	if var_0_42[var_24_0] ~= nil and entity.is_dormant(var_24_0) and var_24_1 and var_24_1 ~= var_0_3 and var_24_1 ~= var_0_4 then
-		var_0_16(var_0_42[var_24_0].weapons, var_24_1)
-		var_0_47(var_24_0)
-	end
-end
+	if player_data[player] ~= nil and entity.is_dormant(player) and weapon then
+		if weapon ~= ITEM_KEVLAR and weapon ~= ITEM_ASSAULTSUIT then
+			table_remove_item(player_data[player].weapons, weapon)
 
-local function var_0_57(arg_25_0)
-	local var_25_0 = client.userid_to_entindex(arg_25_0.userid)
-	local var_25_1 = var_0_2[arg_25_0.defindex]
-
-	if var_0_42[var_25_0] ~= nil and entity.is_dormant(var_25_0) and var_25_1 then
-		if var_25_1 == var_0_3 or var_25_1 == var_0_4 then
-			local var_25_2 = cvar.mp_free_armor:get_int() > 0
-			local var_25_3 = cvar.mp_free_armor:get_int() > 1
-
-			if var_25_1 == var_0_3 then
-				if not var_25_3 and var_0_42[var_25_0].armor == nil then
-					var_0_42[var_25_0].armor = "kevlar"
-				end
-			elseif not var_25_2 then
-				var_0_42[var_25_0].armor = "helmet"
-			end
-		elseif (var_25_1 == var_0_6 or var_25_1 == var_0_7) and cvar.mp_defuser_allocation:get_int() >= 2 then
-			return
-		elseif not var_0_15(var_0_42[var_25_0].weapons, var_25_1) then
-			table.insert(var_0_42[var_25_0].weapons, var_25_1)
-			table.sort(var_0_42[var_25_0].weapons, var_0_37)
-			var_0_47(var_25_0)
+			update_player_data(player)
 		end
 	end
 end
 
-local function var_0_58(arg_26_0)
-	local var_26_0 = client.userid_to_entindex(arg_26_0.userid)
-	local var_26_1 = var_0_2[arg_26_0.defindex]
+local function on_item_pickup(e)
+	local player = client.userid_to_entindex(e.userid)
+	local weapon = EVENT_IDX_TO_WEAPON[e.defindex]
 
-	if var_0_42[var_26_0] ~= nil and entity.is_dormant(var_26_0) and var_26_1 then
-		var_0_42[var_26_0].active_weapon = var_26_1
+	if player_data[player] ~= nil and entity.is_dormant(player) and weapon then
+		if weapon == ITEM_KEVLAR or weapon == ITEM_ASSAULTSUIT then
+			local free_kevlar = cvar.mp_free_armor:get_int() > 0
+			local free_helmet = cvar.mp_free_armor:get_int() > 1
 
-		var_0_47(var_26_0)
+			if weapon == ITEM_KEVLAR then
+				if not free_helmet and player_data[player].armor == nil then
+					player_data[player].armor = "kevlar"
+				end
+			elseif not free_kevlar then
+				player_data[player].armor = "helmet"
+			end
+		elseif (weapon == ITEM_CUTTERS or weapon == ITEM_DEFUSER) and cvar.mp_defuser_allocation:get_int() >= 2 then
+			return
+		elseif not table_contains(player_data[player].weapons, weapon) then
+			table.insert(player_data[player].weapons, weapon)
+			table.sort(player_data[player].weapons, sort_weapons_cb)
+
+			update_player_data(player)
+		end
 	end
 end
 
-local function var_0_59(arg_27_0)
-	local var_27_0 = client.userid_to_entindex(arg_27_0.userid)
-	local var_27_1 = client.userid_to_entindex(arg_27_0.botid)
-	local var_27_2 = entity.get_player_resource()
+local function on_item_equip(e)
+	local player = client.userid_to_entindex(e.userid)
+	local weapon = EVENT_IDX_TO_WEAPON[e.defindex]
 
-	entity.set_prop(var_27_2, "m_bControllingBot", 1, var_27_0)
-	entity.set_prop(var_27_2, "m_iControlledPlayer", var_27_1, var_27_0)
-	var_0_47(var_27_1)
-	var_0_47(var_27_0)
+	if player_data[player] ~= nil and entity.is_dormant(player) and weapon then
+		player_data[player].active_weapon = weapon
+
+		update_player_data(player)
+	end
 end
 
-local function var_0_60()
-	local var_28_0 = ui.get(var_0_38)
+local function on_bot_takeover(e)
+	local player = client.userid_to_entindex(e.userid)
+	local bot = client.userid_to_entindex(e.botid)
 
-	ui.set_visible(var_0_39, var_28_0)
-	ui.set_visible(var_0_40, var_28_0)
+	local player_resource = entity.get_player_resource()
+	entity.set_prop(player_resource, "m_bControllingBot", 1, player)
+	entity.set_prop(player_resource, "m_iControlledPlayer", bot, player)
 
-	if var_28_0 and not var_0_45 then
-		client.set_event_callback("paint", var_0_49)
-		client.set_event_callback("shutdown", var_0_50)
-		client.set_event_callback("level_init", var_0_51)
-		client.set_event_callback("player_team", var_0_52)
-		var_0_24("player_disconnect", var_0_53)
-		var_0_24("player_death", var_0_54)
-		var_0_24("player_spawn", var_0_55)
-		var_0_24("item_remove", var_0_56)
-		var_0_24("item_pickup", var_0_57)
-		var_0_24("item_equip", var_0_58)
-		var_0_24("bot_takeover", var_0_59)
-		var_0_48()
-		var_0_30.create()
-	elseif not var_28_0 and var_0_45 then
-		client.unset_event_callback("paint", var_0_49)
-		client.unset_event_callback("shutdown", var_0_50)
-		client.unset_event_callback("level_init", var_0_51)
-		client.unset_event_callback("player_team", var_0_52)
-		var_0_25()
-		var_0_1(var_0_42)
-		var_0_1(var_0_43)
-		var_0_30.destroy()
-	end
+	-- print("takeover -> update_player_data")
 
-	var_0_45 = var_28_0
+	update_player_data(bot)
+	update_player_data(player)
 end
 
-local function var_0_61(arg_29_0, arg_29_1)
-	if arg_29_1 == nil then
-		arg_29_1 = var_0_14(ui.get(var_0_41), function(arg_30_0, arg_30_1)
-			return arg_30_1, true
-		end)
+local function on_enabled_changed()
+	local enabled = ui.get(enabled_reference)
+
+	ui.set_visible(filter_reference, enabled)
+	ui.set_visible(enemy_only_reference, enabled)
+
+	if enabled and not enabled_prev then
+		client.set_event_callback("paint", on_paint)
+		client.set_event_callback("shutdown", on_shutdown)
+		client.set_event_callback("level_init", on_level_init)
+		client.set_event_callback("player_team", on_player_team)
+
+		add_delayed_callback("player_disconnect", on_player_disconnect)
+		add_delayed_callback("player_death", on_player_death)
+		add_delayed_callback("player_spawn", on_player_spawn)
+		add_delayed_callback("item_remove", on_item_remove)
+		add_delayed_callback("item_pickup", on_item_pickup)
+		add_delayed_callback("item_equip", on_item_equip)
+		add_delayed_callback("bot_takeover", on_bot_takeover)
+
+		update_filters()
+		js.create()
+	elseif not enabled and enabled_prev then
+		client.unset_event_callback("paint", on_paint)
+		client.unset_event_callback("shutdown", on_shutdown)
+		client.unset_event_callback("level_init", on_level_init)
+		client.unset_event_callback("player_team", on_player_team)
+
+		clear_delayed_callbacks()
+		table_clear(player_data)
+		table_clear(filter_weapon_name)
+
+		js.destroy()
 	end
 
-	if type(arg_29_0) == "table" then
-		local var_29_0 = arg_29_0.userid ~= nil and client.userid_to_entindex(arg_29_0.userid)
+	enabled_prev = enabled
+end
 
-		if var_29_0 ~= nil then
-			arg_29_0 = var_0_29.GetPlayerXuidStringFromEntIndex(var_29_0)
+--
+-- auto unmute players stuff
+-- filters: "Self", "Friends", "All players"
+--
 
-			if type(arg_29_0) ~= "string" or arg_29_0 == "0" then
+local function auto_unmute_update_player(xuid, filters)
+	if filters == nil then
+		filters = table_map_assoc(ui.get(auto_unmute_reference), function(i, typ) return typ, true end)
+	end
+
+	-- handle player_connect_full event
+	if type(xuid) == "table" then
+		local entindex = xuid.userid ~= nil and client.userid_to_entindex(xuid.userid)
+		if entindex ~= nil then
+			xuid = GameStateAPI.GetPlayerXuidStringFromEntIndex(entindex)
+
+			-- return if not a valid xuid (bot for example)
+			if type(xuid) ~= "string" or xuid == "0" then
 				return
 			end
 		else
@@ -569,65 +1030,72 @@ local function var_0_61(arg_29_0, arg_29_1)
 		end
 	end
 
-	if (arg_29_1["All players"] or arg_29_1.Self and arg_29_0 == var_0_28.GetXuid() or arg_29_1.Friends and var_0_27.GetFriendRelationship(arg_29_0) == "friend") and var_0_30.unmute_player(arg_29_0) then
-		-- block empty
-	end
-end
-
-local function var_0_62()
-	local var_31_0 = var_0_14(ui.get(var_0_41), function(arg_32_0, arg_32_1)
-		return arg_32_1, true
-	end)
-	local var_31_1 = json.parse(tostring(var_0_30.get_all_players()))
-
-	for iter_31_0 = 1, #var_31_1 do
-		var_0_61(var_31_1[iter_31_0], var_31_0)
-	end
-end
-
-var_0_62()
-
-local function var_0_63()
-	var_0_62()
-	client.delay_call(5, var_0_62)
-end
-
-ui.set_callback(var_0_41, function()
-	local var_34_0 = var_0_14(ui.get(var_0_41), function(arg_35_0, arg_35_1)
-		return arg_35_1, true
-	end)
-
-	var_0_30.restore_unmuted_players()
-
-	if next(var_34_0) then
-		var_0_62()
-		client.set_event_callback("level_init", var_0_63)
-		client.set_event_callback("player_connect_full", var_0_61)
-
-		if var_34_0.Self then
-			-- block empty
+	if (filters["All players"]) or (filters["Self"] and xuid == MyPersonaAPI.GetXuid()) or (filters["Friends"] and FriendsListAPI.GetFriendRelationship(xuid) == "friend") then
+		if js.unmute_player(xuid) then
+			-- print("unmuted ", xuid)
 		else
-			var_0_30.disable_selected_player_muted_hook()
+			-- print(xuid, " isn't muted")
+		end
+	end
+end
+
+local function auto_unmute_update_all()
+	local filters = table_map_assoc(ui.get(auto_unmute_reference), function(i, typ) return typ, true end)
+	local all_players = json.parse(tostring(js.get_all_players()))
+
+	-- print("updating all players")
+
+	for i=1, #all_players do
+		auto_unmute_update_player(all_players[i], filters)
+	end
+end
+auto_unmute_update_all()
+
+local function auto_unmute_level_init()
+	auto_unmute_update_all()
+	client.delay_call(5, auto_unmute_update_all)
+end
+
+ui.set_callback(auto_unmute_reference, function()
+	local unmute_enabled = table_map_assoc(ui.get(auto_unmute_reference), function(i, typ) return typ, true end)
+
+	js.restore_unmuted_players()
+
+	-- one or more filters are enabled
+	if next(unmute_enabled) then
+		auto_unmute_update_all()
+
+		client.set_event_callback("level_init", auto_unmute_level_init)
+		client.set_event_callback("player_connect_full", auto_unmute_update_player)
+
+		if unmute_enabled["Self"] then
+			-- js.enable_selected_player_muted_hook()
+		else
+			js.disable_selected_player_muted_hook()
 		end
 	else
-		client.unset_event_callback("level_init", var_0_63)
-		client.unset_event_callback("player_connect_full", var_0_61)
-		var_0_30.disable_selected_player_muted_hook()
+		client.unset_event_callback("level_init", auto_unmute_level_init)
+		client.unset_event_callback("player_connect_full", auto_unmute_update_player)
+
+		js.disable_selected_player_muted_hook()
 	end
 end)
-var_0_30.enable_playing_match_hook()
+
+js.enable_playing_match_hook()
 client.set_event_callback("shutdown", function()
-	var_0_30.disable_playing_match_hook()
-	var_0_30.disable_selected_player_muted_hook()
-	var_0_30.restore_unmuted_players()
+	js.disable_playing_match_hook()
+	js.disable_selected_player_muted_hook()
+	js.restore_unmuted_players()
 end)
-ui.set_callback(var_0_40, function()
-	for iter_37_0, iter_37_1 in pairs(var_0_42) do
-		if not entity.is_dormant(iter_37_0) and not entity.is_enemy(iter_37_0) then
-			var_0_42[iter_37_0] = nil
+
+ui.set_callback(enemy_only_reference, function()
+	for player, value in pairs(player_data) do
+		if not entity.is_dormant(player) and not entity.is_enemy(player) then
+			player_data[player] = nil
 		end
 	end
 end)
-ui.set_callback(var_0_39, var_0_48)
-ui.set_callback(var_0_38, var_0_60)
-var_0_60()
+
+ui.set_callback(filter_reference, update_filters)
+ui.set_callback(enabled_reference, on_enabled_changed)
+on_enabled_changed()
