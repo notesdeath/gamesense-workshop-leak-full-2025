@@ -1,35 +1,34 @@
-﻿local var_0_0 = require("gamesense/csgo_weapons")
-local var_0_1 = require("table.clear")
-local var_0_2 = ui.get
-local var_0_3 = {}
+-- *Show viewmodel in scope
+local csgo_weapons = require "gamesense/csgo_weapons"
+local table_clear = require "table.clear"
+local ui_get = ui.get
+local dirty_weaponinfo = {}
 
-local function var_0_4()
-	for iter_1_0, iter_1_1 in pairs(var_0_0) do
-		if iter_1_1.raw.hide_view_model_zoomed then
-			table.insert(var_0_3, iter_1_0)
-
-			iter_1_1.raw.hide_view_model_zoomed = false
+local function enable()
+	for idx, weapon in pairs(csgo_weapons) do
+		if weapon.raw.hide_view_model_zoomed then
+			table.insert(dirty_weaponinfo, idx)
+			weapon.raw.hide_view_model_zoomed = false
 		end
 	end
 end
 
-local function var_0_5()
-	for iter_2_0 = 1, #var_0_3 do
-		local var_2_0 = var_0_3[iter_2_0]
-
-		var_0_0[var_2_0].raw.hide_view_model_zoomed = true
+local function disable()
+	for i=1, #dirty_weaponinfo do
+		local idx = dirty_weaponinfo[i]
+		csgo_weapons[idx].raw.hide_view_model_zoomed = true
 	end
-
-	var_0_1(var_0_3)
+	table_clear(dirty_weaponinfo)
 end
 
-local var_0_6 = ui.new_checkbox("VISUALS", "Effects", "Show viewmodel in scope")
+local enabled_reference = ui.new_checkbox("VISUALS", "Effects", "Show viewmodel in scope")
 
-ui.set_callback(var_0_6, function()
-	if var_0_2(var_0_6) then
-		var_0_4()
+ui.set_callback(enabled_reference, function()
+	if ui_get(enabled_reference) then
+		enable()
 	else
-		var_0_5()
+		disable()
 	end
 end)
-client.set_event_callback("shutdown", var_0_5)
+
+client.set_event_callback("shutdown", disable)
